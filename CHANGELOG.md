@@ -7,3 +7,4 @@
 - [2026-03-04T11:30:00] fix: memory overflow in large log replay
 - [2026-03-04T14:00:00] fix: race condition in parallel pipeline stages
 - [2026-03-04T16:30:00] fix: temporal drift in pipeline recovery logic
+- [2026-03-05T09:00:00] feat: add synthetic corruption dataset generator
