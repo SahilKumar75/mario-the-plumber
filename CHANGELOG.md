@@ -13,3 +13,4 @@
 - [2026-03-06T09:00:00] fix: off-by-one in temporal window slicing
 - [2026-03-06T14:00:00] chore: improve benchmark reproducibility seed
 - [2026-03-07T10:00:00] feat: add ELT rollback on schema mismatch
+- [2026-03-09T09:00:00] fix: temporal drift in pipeline recovery logic
