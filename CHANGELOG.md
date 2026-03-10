@@ -17,3 +17,4 @@
 - [2026-03-09T14:00:00] fix: stale checkpoint reference after crash
 - [2026-03-10T09:00:00] refactor: consolidate error classification logic
 - [2026-03-10T12:20:00] feat: support multi-hop repair chains
+- [2026-03-10T15:40:00] fix: stale checkpoint reference after crash
