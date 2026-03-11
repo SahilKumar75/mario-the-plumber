@@ -20,3 +20,4 @@
 - [2026-03-10T15:40:00] fix: stale checkpoint reference after crash
 - [2026-03-11T09:00:00] feat: support multi-hop repair chains
 - [2026-03-11T11:30:00] feat: log recovery attempts to audit trail
+- [2026-03-11T14:00:00] fix: memory overflow in large log replay
