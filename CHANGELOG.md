@@ -25,3 +25,4 @@
 - [2026-03-12T09:00:00] feat: log recovery attempts to audit trail
 - [2026-03-12T11:30:00] chore: improve benchmark reproducibility seed
 - [2026-03-12T14:00:00] fix: race condition in parallel pipeline stages
+- [2026-03-12T16:30:00] fix: off-by-one in temporal window slicing
