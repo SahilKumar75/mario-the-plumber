@@ -26,3 +26,4 @@
 - [2026-03-12T11:30:00] chore: improve benchmark reproducibility seed
 - [2026-03-12T14:00:00] fix: race condition in parallel pipeline stages
 - [2026-03-12T16:30:00] fix: off-by-one in temporal window slicing
+- [2026-03-13T09:00:00] fix: temporal drift in pipeline recovery logic
