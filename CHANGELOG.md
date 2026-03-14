@@ -28,3 +28,4 @@
 - [2026-03-12T16:30:00] fix: off-by-one in temporal window slicing
 - [2026-03-13T09:00:00] fix: temporal drift in pipeline recovery logic
 - [2026-03-13T14:00:00] refactor: decouple repair agent from executor
+- [2026-03-14T10:00:00] fix: memory overflow in large log replay
