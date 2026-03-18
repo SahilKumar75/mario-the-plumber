@@ -32,3 +32,4 @@
 - [2026-03-16T09:00:00] chore: improve benchmark reproducibility seed
 - [2026-03-17T09:00:00] fix: race condition in parallel pipeline stages
 - [2026-03-17T14:00:00] feat: add ELT rollback on schema mismatch
+- [2026-03-18T09:00:00] feat: log recovery attempts to audit trail
