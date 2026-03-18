@@ -34,3 +34,4 @@
 - [2026-03-17T14:00:00] feat: add ELT rollback on schema mismatch
 - [2026-03-18T09:00:00] feat: log recovery attempts to audit trail
 - [2026-03-18T12:20:00] refactor: decouple repair agent from executor
+- [2026-03-18T15:40:00] chore: improve benchmark reproducibility seed
