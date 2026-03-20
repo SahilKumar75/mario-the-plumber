@@ -38,3 +38,4 @@
 - [2026-03-19T09:00:00] chore: update evaluation metrics documentation
 - [2026-03-19T12:20:00] chore: improve benchmark reproducibility seed
 - [2026-03-19T15:40:00] fix: race condition in parallel pipeline stages
+- [2026-03-20T09:00:00] fix: race condition in parallel pipeline stages
