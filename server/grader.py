@@ -112,8 +112,15 @@ def calculation_mismatch_count(
     if "total_price" not in orders_df.columns or "unit_price" not in products_df.columns:
         return 0
 
-    merged = orders_df.merge(
-        products_df[["product_id", "unit_price"]],
+    orders = orders_df.copy()
+    products = products_df.copy()
+    if "product_id" not in orders.columns or "product_id" not in products.columns:
+        return len(orders_df)
+
+    orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
+    products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
+    merged = orders.merge(
+        products[["product_id", "unit_price"]],
         on="product_id",
         how="left",
         suffixes=("", "_product"),

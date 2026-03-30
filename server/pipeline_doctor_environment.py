@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 import json
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -224,11 +225,17 @@ class PipelineDoctorEnvironment(
         elif action.action_id == 12:
             if action.target_column not in self._current_frame().columns:
                 raise ValueError("target_column not found")
+            if (
+                action.new_name != action.target_column
+                and action.new_name in self._current_frame().columns
+            ):
+                raise ValueError("new_name must not duplicate an existing column")
             self._tables[self._state.active_table] = self._current_frame().rename(
                 columns={action.target_column: action.new_name}
             )
         elif action.action_id == 13:
-            if set(action.column_order) != set(self._current_frame().columns):
+            current_columns = list(self._current_frame().columns)
+            if Counter(action.column_order) != Counter(current_columns):
                 raise ValueError("column_order must match current table columns exactly")
             self._tables[self._state.active_table] = self._current_frame()[action.column_order].copy()
         elif action.action_id == 14:
@@ -274,7 +281,10 @@ class PipelineDoctorEnvironment(
     def _drop_outliers(self, column: str | None) -> None:
         if column not in self._current_frame().columns:
             raise ValueError("target_column not found")
-        numeric = pd.to_numeric(self._current_frame()[column], errors="coerce")
+        selected = self._current_frame()[column]
+        if not isinstance(selected, pd.Series):
+            raise ValueError("target_column must resolve to a single column")
+        numeric = pd.to_numeric(selected, errors="coerce")
         std = float(numeric.std(skipna=True))
         if pd.isna(std) or std == 0:
             return
@@ -288,6 +298,10 @@ class PipelineDoctorEnvironment(
             return
         orders = self._tables["orders"].copy()
         products = self._tables["products"][["product_id", "unit_price"]].copy()
+        if "product_id" not in orders.columns or "product_id" not in products.columns:
+            return
+        orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
+        products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
         merged = orders.merge(products, on="product_id", how="left", suffixes=("", "_product"))
         quantity = pd.to_numeric(merged["quantity"], errors="coerce")
         unit_price = pd.to_numeric(merged["unit_price"], errors="coerce")
@@ -344,7 +358,10 @@ class PipelineDoctorEnvironment(
         details: dict[str, int] = {}
         current = self._current_frame()
         for column in current.columns:
-            numeric = pd.to_numeric(current[column], errors="coerce")
+            selected = current[column]
+            if not isinstance(selected, pd.Series):
+                continue
+            numeric = pd.to_numeric(selected, errors="coerce")
             if numeric.isna().all():
                 continue
             std = float(numeric.std(skipna=True))
