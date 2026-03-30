@@ -58,7 +58,7 @@ This file reconciles the earlier design notes with the OpenEnv package that is a
 
 ## Current Scaffold Status
 
-- The workspace now contains a real `pipeline_doctor/` OpenEnv scaffold
+- The repository root now contains the real `PipelineDoctor` OpenEnv scaffold
 - Core files added:
   - `models.py`
   - `client.py`
@@ -72,4 +72,4 @@ This file reconciles the earlier design notes with the OpenEnv package that is a
   - `MODEL_NAME`
   - `HF_TOKEN`
 - A local heuristic fallback still exists so the script can be smoke-tested without secrets
-- The platform validator script is now stored at `pipeline_doctor/scripts/validate-submission.sh`
+- The platform validator script is now stored at `scripts/validate-submission.sh`
