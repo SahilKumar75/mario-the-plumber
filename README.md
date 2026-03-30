@@ -1,6 +1,5 @@
 ---
-title: PipelineDoctor
-emoji: "🩺"
+title: Mario the Plumber
 colorFrom: blue
 colorTo: green
 sdk: docker
@@ -13,13 +12,13 @@ tags:
   - etl
 ---
 
-# PipelineDoctor
+# Mario the Plumber
 
-PipelineDoctor is an OpenEnv environment where an agent acts like an on-call data engineer fixing broken ETL tables. The agent works through a fixed discrete action space, receives quality-signal observations, and is graded against deterministic ground truth.
+Mario the Plumber is an OpenEnv environment where an agent repairs broken ETL tables step by step. The environment uses a fixed discrete action space, quality-signal observations, and deterministic grading against ground truth.
 
 ## What Is Implemented
 
-- `PipelineDoctorAction`, `PipelineDoctorObservation`, and `PipelineDoctorState`
+- typed action, observation, and state models
 - Synthetic generators for all 3 tasks
 - Deterministic graders for single-table and multi-table scoring
 - OpenEnv server environment with `reset`, `step`, and `state`
@@ -34,11 +33,11 @@ PipelineDoctor is an OpenEnv environment where an agent acts like an on-call dat
 
 ## Action Model
 
-```python
-PipelineDoctorAction(
-    action_id=3,
-    target_column="age",
-)
+```json
+{
+  "action_id": 3,
+  "target_column": "age"
+}
 ```
 
 - `action_id` is required and must be `0-15`
@@ -74,13 +73,13 @@ python3 -m server.app
 - uses the OpenAI client for LLM calls
 - reads `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
 - runs all 3 tasks with fixed `seed=42`
-- falls back to a deterministic rule-based action picker only when credentials are missing or the model call fails locally
+- uses deterministic guardrails for obvious repair steps so the baseline stays stable on easy and medium tasks
 
 Example env setup:
 
 ```bash
 export API_BASE_URL="https://router.huggingface.co/v1"
-export MODEL_NAME="openai/gpt-4.1-mini"
+export MODEL_NAME="deepseek-ai/DeepSeek-V3-0324"
 export HF_TOKEN="your-token"
 python3 inference.py
 ```

@@ -9,9 +9,9 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openenv-pipeline_doctor"
+name = "openenv-mario-the-plumber"
 version = "0.1.0"
-description = "OpenEnv environment for diagnosing and fixing broken ETL pipelines"
+description = "OpenEnv environment for repairing broken ETL pipelines"
 requires-python = ">=3.10"
 dependencies = [
     "openenv-core[core]>=0.2.1",
