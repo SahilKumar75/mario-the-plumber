@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -44,6 +45,7 @@ SYSTEM_PROMPT = textwrap.dedent(
     - Use this schema:
       {"action_id": int, "target_column": str|null, "new_name": str|null, "column_order": list[str]|null}
     - Do not include markdown fences or explanations.
+    - Prefer one of the provided candidate next actions when they are available.
     - Common actions:
       3=fill_mean, 4=fill_median, 5=fill_forward, 7=cast_to_int, 8=cast_to_float,
       10=remove_duplicates, 11=drop_outliers, 14=validate_schema, 15=commit_changes.
@@ -120,12 +122,11 @@ def _choose_action(
     observation: PipelineDoctorObservation,
 ) -> PipelineDoctorAction:
     heuristic_action = _heuristic_action(task_id, observation)
-    if task_id in (1, 2):
-        return heuristic_action
+    candidate_actions = _candidate_actions(task_id, observation, heuristic_action)
     if client is None or not MODEL_NAME:
         return heuristic_action
 
-    user_prompt = _build_user_prompt(task_id, step_number, observation)
+    user_prompt = _build_user_prompt(task_id, step_number, observation, candidate_actions)
     try:
         completion = client.chat.completions.create(
             model=MODEL_NAME,
@@ -145,7 +146,14 @@ def _choose_action(
         )
         response_text = completion.choices[0].message.content or ""
         model_action = _parse_action(response_text, task_id, observation)
-        return _stabilize_action(task_id, observation, model_action, heuristic_action)
+        model_action = _normalize_candidate_action(model_action, candidate_actions)
+        return _stabilize_action(
+            task_id,
+            observation,
+            model_action,
+            heuristic_action,
+            candidate_actions,
+        )
     except Exception:
         return heuristic_action
 
@@ -154,7 +162,11 @@ def _build_user_prompt(
     task_id: int,
     step_number: int,
     observation: PipelineDoctorObservation,
+    candidate_actions: list[PipelineDoctorAction],
 ) -> str:
+    candidate_payloads = [
+        action.model_dump(exclude_none=True) for action in candidate_actions
+    ]
     return textwrap.dedent(
         f"""
         Task id: {task_id}
@@ -170,6 +182,7 @@ def _build_user_prompt(
         Recent errors: {json.dumps(observation.recent_errors)}
         Last action result: {observation.action_result or ""}
         Available actions: {observation.available_actions}
+        Candidate next actions: {json.dumps(candidate_payloads, sort_keys=True)}
 
         Return one JSON object only.
         """
@@ -197,17 +210,24 @@ def _stabilize_action(
     observation: PipelineDoctorObservation,
     model_action: PipelineDoctorAction,
     heuristic_action: PipelineDoctorAction,
+    candidate_actions: list[PipelineDoctorAction],
 ) -> PipelineDoctorAction:
-    if heuristic_action.action_id != 14:
+    if not _action_has_required_fields(model_action):
         return heuristic_action
 
-    if not _action_has_required_fields(model_action):
+    if task_id == 3 and heuristic_action.action_id != 14:
         return heuristic_action
 
     if model_action.action_id == 15 and _table_needs_attention(observation):
         return heuristic_action
 
+    if model_action.action_id == 14 and _table_needs_attention(observation):
+        return heuristic_action
+
     if task_id == 3 and model_action.action_id == 15 and observation.stage != "products":
+        return heuristic_action
+
+    if task_id in (1, 2) and not _is_candidate_action(model_action, candidate_actions):
         return heuristic_action
 
     return model_action
@@ -261,6 +281,96 @@ def _heuristic_action(
         return PipelineDoctorAction(action_id=15)
 
     return FALLBACK_ACTION
+
+
+def _candidate_actions(
+    task_id: int,
+    observation: PipelineDoctorObservation,
+    heuristic_action: PipelineDoctorAction,
+) -> list[PipelineDoctorAction]:
+    if task_id == 3:
+        return [heuristic_action]
+
+    error_text = " | ".join(observation.recent_errors).lower()
+    mismatch = _first_schema_mismatch(observation)
+
+    if observation.duplicate_rate > 0:
+        return [PipelineDoctorAction(action_id=10)]
+
+    null_column = _column_from_errors(error_text, "null")
+    if null_column:
+        expected = observation.schema_report.get(null_column, {}).get("expected")
+        if expected == "int64":
+            return [
+                PipelineDoctorAction(action_id=4, target_column=null_column),
+                PipelineDoctorAction(action_id=5, target_column=null_column),
+            ]
+        if expected == "float64":
+            return [
+                PipelineDoctorAction(action_id=3, target_column=null_column),
+                PipelineDoctorAction(action_id=4, target_column=null_column),
+                PipelineDoctorAction(action_id=5, target_column=null_column),
+            ]
+        return [
+            PipelineDoctorAction(action_id=5, target_column=null_column),
+        ]
+
+    if mismatch:
+        column, info = mismatch
+        expected = info.get("expected")
+        if expected == "int64":
+            return [PipelineDoctorAction(action_id=7, target_column=column)]
+        if expected == "float64":
+            return [PipelineDoctorAction(action_id=8, target_column=column)]
+        if expected == "object":
+            return [PipelineDoctorAction(action_id=9, target_column=column)]
+
+    outlier_column = _column_from_errors(error_text, "outlier")
+    if observation.outlier_count > 0 and outlier_column:
+        return [PipelineDoctorAction(action_id=11, target_column=outlier_column)]
+
+    if observation.current_score >= TASK_THRESHOLDS[task_id] and not _table_needs_attention(observation):
+        return [PipelineDoctorAction(action_id=15), PipelineDoctorAction(action_id=14)]
+
+    return [heuristic_action]
+
+
+def _normalize_candidate_action(
+    model_action: PipelineDoctorAction,
+    candidate_actions: list[PipelineDoctorAction],
+) -> PipelineDoctorAction:
+    for candidate in candidate_actions:
+        if candidate.action_id != model_action.action_id:
+            continue
+
+        payload = candidate.model_dump(exclude_none=True)
+        update_needed = False
+
+        if candidate.target_column and not model_action.target_column:
+            payload["target_column"] = candidate.target_column
+            update_needed = True
+        if candidate.new_name and not model_action.new_name:
+            payload["new_name"] = candidate.new_name
+            update_needed = True
+        if candidate.column_order and not model_action.column_order:
+            payload["column_order"] = candidate.column_order
+            update_needed = True
+
+        if update_needed:
+            return PipelineDoctorAction(**payload)
+
+    return model_action
+
+
+def _is_candidate_action(
+    model_action: PipelineDoctorAction,
+    candidate_actions: list[PipelineDoctorAction],
+) -> bool:
+    model_payload = model_action.model_dump(exclude_none=True)
+    return any(
+        candidate.model_dump(exclude_none=True) == model_payload
+        for candidate in candidate_actions
+    )
 
 
 def _task3_heuristic_action(
@@ -387,7 +497,31 @@ def _next_table(current_table: str) -> str | None:
 
 
 def main() -> None:
-    print(json.dumps(run_baseline(seed=42), indent=2))
+    parser = argparse.ArgumentParser(description="Run the Mario the Plumber baseline.")
+    parser.add_argument("--seed", type=int, default=42, help="Seed for one benchmark run.")
+    parser.add_argument(
+        "--seeds",
+        type=int,
+        nargs="+",
+        help="Optional list of seeds to benchmark in sequence.",
+    )
+    args = parser.parse_args()
+
+    if args.seeds:
+        payload = {
+            "status": "benchmark",
+            "runs": [
+                {
+                    "seed": seed,
+                    **run_baseline(seed=seed),
+                }
+                for seed in args.seeds
+            ],
+        }
+    else:
+        payload = run_baseline(seed=args.seed)
+
+    print(json.dumps(payload, indent=2))
 
 
 if __name__ == "__main__":

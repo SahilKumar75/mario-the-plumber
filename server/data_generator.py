@@ -63,10 +63,20 @@ def _generate_task1(rng: np.random.Generator, seed: int | None) -> Scenario:
         }
     )
     broken = ground_truth.copy()
-    broken.loc[[1, 4], "age"] = np.nan
-    broken.loc[[2], "monthly_spend"] = np.nan
-    if rng.random() < 0.2:
-        broken.loc[6, "monthly_spend"] = 999999.0
+    age_null_count = int(rng.integers(1, 3))
+    spend_null_count = 1
+    age_null_rows = rng.choice(len(broken), size=age_null_count, replace=False)
+    spend_candidates = [index for index in range(len(broken)) if index not in age_null_rows]
+    spend_null_rows = rng.choice(
+        spend_candidates,
+        size=min(spend_null_count, len(spend_candidates)),
+        replace=False,
+    )
+    broken.loc[age_null_rows, "age"] = np.nan
+    broken.loc[spend_null_rows, "monthly_spend"] = np.nan
+
+    if rng.random() < 0.4:
+        broken["monthly_spend"] = broken["monthly_spend"].astype(object)
 
     return Scenario(
         task_id=1,

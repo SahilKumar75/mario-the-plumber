@@ -314,7 +314,7 @@ class PipelineDoctorEnvironment(
             type_violations=len(schema_report),
             outlier_count=self._outlier_count(),
             schema_report=schema_report,
-            recent_errors=self._recent_errors[:3],
+            recent_errors=self._recent_errors[:5],
             current_score=self._state.current_score,
             steps_taken=self._state.step_count,
             stage=self._state.active_table,
@@ -340,8 +340,8 @@ class PipelineDoctorEnvironment(
                 report[column] = {"expected": expected[column], "actual": "missing"}
         return report
 
-    def _outlier_count(self) -> int:
-        count = 0
+    def _outlier_details(self) -> dict[str, int]:
+        details: dict[str, int] = {}
         current = self._current_frame()
         for column in current.columns:
             numeric = pd.to_numeric(current[column], errors="coerce")
@@ -351,7 +351,15 @@ class PipelineDoctorEnvironment(
             if pd.isna(std) or std == 0:
                 continue
             mean = float(numeric.mean(skipna=True))
-            count += int(((numeric - mean).abs() > 3 * std).fillna(False).sum())
+            outlier_count = int(((numeric - mean).abs() > 3 * std).fillna(False).sum())
+            if outlier_count > 0:
+                details[column] = outlier_count
+        return details
+
+    def _outlier_count(self) -> int:
+        count = 0
+        for column_count in self._outlier_details().values():
+            count += column_count
         return count
 
     def _refresh_errors(self) -> None:
@@ -364,6 +372,8 @@ class PipelineDoctorEnvironment(
         duplicate_count = int(current.duplicated().sum())
         if duplicate_count > 0:
             errors.append(f"{duplicate_count} duplicate rows detected")
+        for column, count in self._outlier_details().items():
+            errors.append(f"{column}: {count} outlier values")
         for column, info in self._schema_report().items():
             errors.append(
                 f"{column}: expected {info['expected']}, found {info['actual']}"
@@ -374,7 +384,7 @@ class PipelineDoctorEnvironment(
             )
             if mismatch_count > 0:
                 errors.append(f"total_price: {mismatch_count} rows have calculation mismatch")
-        self._recent_errors = errors[:3]
+        self._recent_errors = errors[:5]
 
     def _score(self) -> float:
         if self._task_id == 3:

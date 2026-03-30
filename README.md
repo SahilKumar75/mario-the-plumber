@@ -84,7 +84,8 @@ python3 -m server.app
 - uses the OpenAI client for LLM calls
 - reads `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
 - runs all 3 tasks with fixed `seed=42`
-- uses deterministic guardrails for obvious repair steps so the baseline stays stable on easy and medium tasks
+- lets the model choose among safe candidate repairs on easier tasks, with heuristic fallback for invalid or premature moves
+- supports seed benchmarking with `python3 inference.py --seeds 1 2 3 4 5`
 
 Example env setup:
 
@@ -109,6 +110,12 @@ Verified local LLM-backed run with `deepseek-ai/DeepSeek-V3-0324`:
 - Task 3: `0.9820` in 8 steps
 - Average: `0.9565`
 - Runtime: about `12.27s`
+
+Example multi-seed benchmark output now shows score variance across scenarios:
+
+- seed `1`: average `0.9690`
+- seed `2`: average `0.9148`
+- seed `3`: average `0.9148`
 
 ## Validation
 
