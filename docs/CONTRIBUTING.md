@@ -1,12 +1,12 @@
 # Contributing
 
-This repo is organized around the `pipeline_doctor/` submission project.
+This repo itself is the `PipelineDoctor` submission project.
 
 ## Where To Work
 
-- Core environment code lives in `../pipeline_doctor/`
+- Core environment code lives at the repo root
 - The latest working spec lives in `CONTEXT 3.md`
-- Submission validation lives in `../pipeline_doctor/scripts/validate-submission.sh`
+- Submission validation lives in `../scripts/validate-submission.sh`
 
 ## Recommended GitHub Workflow
 
@@ -26,9 +26,9 @@ Suggested branch prefix:
 
 Before shipping a new submission-oriented change:
 
-1. Run `python3 inference.py` inside `../pipeline_doctor/`
-2. Run `openenv validate` inside `../pipeline_doctor/`
-3. If deployed, run `../pipeline_doctor/scripts/validate-submission.sh <space-url> ../pipeline_doctor`
+1. Run `python3 inference.py` from the repo root
+2. Run `openenv validate` from the repo root
+3. If deployed, run `../scripts/validate-submission.sh <space-url> ..`
 4. Confirm the required env vars are documented:
    - `API_BASE_URL`
    - `MODEL_NAME`
@@ -36,5 +36,5 @@ Before shipping a new submission-oriented change:
 
 ## Notes
 
-- Keep the root repo lightweight and use it mainly to organize the Mario workspace
-- Put environment-specific code and docs under `pipeline_doctor/`
+- Keep the repo root aligned with the actual submission layout
+- Keep extra planning/history docs under `docs/`
