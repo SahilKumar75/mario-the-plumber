@@ -1,4 +1,4 @@
-# PipelineDoctor — Authoritative Working Spec v3
+# Mario the Plumber — Authoritative Working Spec v3
 
 This file reconciles the earlier design notes with the OpenEnv package that is actually installed in this workspace.
 
@@ -16,12 +16,12 @@ This file reconciles the earlier design notes with the OpenEnv package that is a
 ## API Resolution
 
 - Server implementation:
-  - `reset(...) -> PipelineDoctorObservation`
-  - `step(action) -> PipelineDoctorObservation`
+  - `reset(...) -> observation`
+  - `step(action) -> observation`
   - `state` is a property
 - Client implementation:
-  - `env.reset(...) -> StepResult[PipelineDoctorObservation]`
-  - `env.step(...) -> StepResult[PipelineDoctorObservation]`
+  - `env.reset(...) -> StepResult[observation]`
+  - `env.step(...) -> StepResult[observation]`
   - In the installed package here, `env.state()` is a method on the client
 
 ## Resolved Action Rules
@@ -58,7 +58,7 @@ This file reconciles the earlier design notes with the OpenEnv package that is a
 
 ## Current Scaffold Status
 
-- The repository root now contains the real `PipelineDoctor` OpenEnv scaffold
+- The repository root now contains the real Mario the Plumber OpenEnv scaffold
 - Core files added:
   - `models.py`
   - `client.py`

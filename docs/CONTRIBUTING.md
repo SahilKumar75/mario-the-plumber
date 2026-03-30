@@ -1,6 +1,6 @@
 # Contributing
 
-This repo itself is the `PipelineDoctor` submission project.
+This repo itself is the Mario the Plumber submission project.
 
 ## Where To Work
 
@@ -20,7 +20,7 @@ To keep the contribution graph more diverse and make history easier to read:
 
 Suggested branch prefix:
 
-- `codex/issue-<number>-short-topic`
+- `issue-<number>-short-topic`
 
 ## Submission Checklist
 

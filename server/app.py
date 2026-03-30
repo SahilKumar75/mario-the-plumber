@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""FastAPI app for the PipelineDoctor OpenEnv environment."""
+"""FastAPI app for the Mario the Plumber OpenEnv environment."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as exc:  # pragma: no cover
-    raise ImportError("openenv-core is required to run the PipelineDoctor server.") from exc
+    raise ImportError("openenv-core is required to run the Mario the Plumber server.") from exc
 
 try:
     from ..models import PipelineDoctorAction, PipelineDoctorObservation
@@ -38,7 +38,7 @@ app = create_app(
     PipelineDoctorEnvironment,
     PipelineDoctorAction,
     PipelineDoctorObservation,
-    env_name="pipeline_doctor",
+    env_name="mario_the_plumber",
     max_concurrent_envs=4,
 )
 
@@ -90,7 +90,7 @@ def grader(request: GraderRequest) -> dict[str, object]:
 
 @app.post("/baseline")
 def baseline() -> dict[str, object]:
-    """Run the local deterministic heuristic baseline."""
+    """Run the local submission baseline."""
 
     return run_baseline()
 

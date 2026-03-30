@@ -1,5 +1,5 @@
 spec_version: 1
-name: pipeline_doctor
+name: mario_the_plumber
 type: space
 runtime: fastapi
 app: server.app:app

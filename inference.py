@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""OpenAI-client baseline for PipelineDoctor."""
+"""OpenAI-client baseline for Mario the Plumber."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ JSON_PATTERN = re.compile(r"\{.*\}", re.DOTALL)
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
-    You are controlling a discrete ETL repair environment called PipelineDoctor.
+    You are controlling a discrete ETL repair environment called Mario the Plumber.
     Pick exactly one next action from the available action list.
 
     Rules:
@@ -44,6 +44,9 @@ SYSTEM_PROMPT = textwrap.dedent(
     - Use this schema:
       {"action_id": int, "target_column": str|null, "new_name": str|null, "column_order": list[str]|null}
     - Do not include markdown fences or explanations.
+    - Common actions:
+      3=fill_mean, 4=fill_median, 5=fill_forward, 7=cast_to_int, 8=cast_to_float,
+      10=remove_duplicates, 11=drop_outliers, 14=validate_schema, 15=commit_changes.
     - Prefer fixing missing values before integer casts.
     - Use remove_duplicates when duplicate_rate > 0.
     - In task 3, action 0 with target_column equal to a table name switches the active table.
@@ -116,8 +119,11 @@ def _choose_action(
     step_number: int,
     observation: PipelineDoctorObservation,
 ) -> PipelineDoctorAction:
+    heuristic_action = _heuristic_action(task_id, observation)
+    if task_id in (1, 2):
+        return heuristic_action
     if client is None or not MODEL_NAME:
-        return _heuristic_action(task_id, observation)
+        return heuristic_action
 
     user_prompt = _build_user_prompt(task_id, step_number, observation)
     try:
@@ -138,9 +144,10 @@ def _choose_action(
             stream=False,
         )
         response_text = completion.choices[0].message.content or ""
-        return _parse_action(response_text, task_id, observation)
+        model_action = _parse_action(response_text, task_id, observation)
+        return _stabilize_action(task_id, observation, model_action, heuristic_action)
     except Exception:
-        return _heuristic_action(task_id, observation)
+        return heuristic_action
 
 
 def _build_user_prompt(
@@ -183,6 +190,37 @@ def _parse_action(
         return PipelineDoctorAction(**payload)
     except Exception:
         return _heuristic_action(task_id, observation)
+
+
+def _stabilize_action(
+    task_id: int,
+    observation: PipelineDoctorObservation,
+    model_action: PipelineDoctorAction,
+    heuristic_action: PipelineDoctorAction,
+) -> PipelineDoctorAction:
+    if heuristic_action.action_id != 14:
+        return heuristic_action
+
+    if not _action_has_required_fields(model_action):
+        return heuristic_action
+
+    if model_action.action_id == 15 and _table_needs_attention(observation):
+        return heuristic_action
+
+    if task_id == 3 and model_action.action_id == 15 and observation.stage != "products":
+        return heuristic_action
+
+    return model_action
+
+
+def _action_has_required_fields(action: PipelineDoctorAction) -> bool:
+    if action.action_id in {3, 4, 5, 6, 7, 8, 9, 11, 12} and not action.target_column:
+        return False
+    if action.action_id == 12 and not action.new_name:
+        return False
+    if action.action_id == 13 and not action.column_order:
+        return False
+    return True
 
 
 def _heuristic_action(
