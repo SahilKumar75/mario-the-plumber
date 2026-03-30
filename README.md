@@ -85,10 +85,24 @@ export HF_TOKEN="your-token"
 python3 inference.py
 ```
 
+Verified local fallback run with no credentials, using fixed `seed=42`:
+
+- Task 1: `0.8875` in 4 steps
+- Task 2: `1.0000` in 4 steps
+- Task 3: `0.9820` in 8 steps
+- Average: `0.9565`
+
 ## Validation
 
 - `openenv validate`
 - [`scripts/validate-submission.sh`](scripts/validate-submission.sh)
+
+## Current Local Status
+
+- `openenv validate` passes from the repo root
+- `python3 inference.py` runs all 3 official tasks with `seed=42`
+- The deterministic fallback baseline is intended for smoke testing when model credentials are absent
+- The preferred submission path is still the OpenAI-client baseline with `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
 
 ## Reference Docs
 

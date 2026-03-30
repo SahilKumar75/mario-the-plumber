@@ -189,13 +189,8 @@ def _heuristic_action(
     task_id: int,
     observation: PipelineDoctorObservation,
 ) -> PipelineDoctorAction:
-    if task_id == 3 and observation.stage != "orders" and _table_needs_attention(observation):
-        return FALLBACK_ACTION
-
-    if task_id == 3 and observation.stage == "products" and not _table_needs_attention(observation):
-        if observation.current_score < TASK_THRESHOLDS[task_id]:
-            return PipelineDoctorAction(action_id=0, target_column="orders")
-        return PipelineDoctorAction(action_id=15)
+    if task_id == 3:
+        return _task3_heuristic_action(observation)
 
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
@@ -230,6 +225,64 @@ def _heuristic_action(
     return FALLBACK_ACTION
 
 
+def _task3_heuristic_action(
+    observation: PipelineDoctorObservation,
+) -> PipelineDoctorAction:
+    error_text = " | ".join(observation.recent_errors).lower()
+    mismatch = _first_schema_mismatch(observation)
+
+    if observation.stage == "orders":
+        if observation.duplicate_rate > 0:
+            return PipelineDoctorAction(action_id=10)
+
+        if mismatch:
+            column, info = mismatch
+            expected = info.get("expected")
+            if expected == "int64":
+                return PipelineDoctorAction(action_id=7, target_column=column)
+            if expected == "float64":
+                return PipelineDoctorAction(action_id=8, target_column=column)
+
+        if _only_calculation_mismatch(observation):
+            return PipelineDoctorAction(action_id=0, target_column="customers")
+
+    elif observation.stage == "customers":
+        null_column = _column_from_errors(error_text, "null")
+        if null_column:
+            return PipelineDoctorAction(action_id=4, target_column=null_column)
+
+        if mismatch:
+            column, info = mismatch
+            expected = info.get("expected")
+            if expected == "int64":
+                return PipelineDoctorAction(action_id=7, target_column=column)
+            if expected == "float64":
+                return PipelineDoctorAction(action_id=8, target_column=column)
+
+        if not _table_needs_attention(observation):
+            return PipelineDoctorAction(action_id=0, target_column="products")
+
+    elif observation.stage == "products":
+        if observation.duplicate_rate > 0:
+            return PipelineDoctorAction(action_id=10)
+
+        if observation.outlier_count > 0:
+            return PipelineDoctorAction(action_id=11, target_column="unit_price")
+
+        if mismatch:
+            column, info = mismatch
+            expected = info.get("expected")
+            if expected == "int64":
+                return PipelineDoctorAction(action_id=7, target_column=column)
+            if expected == "float64":
+                return PipelineDoctorAction(action_id=8, target_column=column)
+
+        if not _table_needs_attention(observation):
+            return PipelineDoctorAction(action_id=15)
+
+    return FALLBACK_ACTION
+
+
 def _first_schema_mismatch(
     observation: PipelineDoctorObservation,
 ) -> tuple[str, dict[str, Any]] | None:
@@ -257,10 +310,27 @@ def _table_needs_attention(observation: PipelineDoctorObservation) -> bool:
     )
 
 
+def _has_calculation_mismatch(observation: PipelineDoctorObservation) -> bool:
+    return any("calculation mismatch" in error.lower() for error in observation.recent_errors)
+
+
+def _only_calculation_mismatch(observation: PipelineDoctorObservation) -> bool:
+    return bool(
+        observation.stage == "orders"
+        and observation.missing_rate == 0
+        and observation.duplicate_rate == 0
+        and observation.type_violations == 0
+        and observation.outlier_count == 0
+        and _has_calculation_mismatch(observation)
+    )
+
+
 def _table_should_advance(
     env: PipelineDoctorEnvironment,
     observation: PipelineDoctorObservation,
 ) -> bool:
+    if _only_calculation_mismatch(observation):
+        return True
     if not env.state.done and not _table_needs_attention(observation):
         return True
     if env.state.active_table == "orders" and observation.current_score >= 0.9:
