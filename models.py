@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""Typed models for the PipelineDoctor OpenEnv environment."""
+"""Typed models for the Mario the Plumber OpenEnv environment."""
 
 from typing import Any
 
@@ -12,7 +12,7 @@ from openenv.core.env_server.types import Action, Observation, State
 from pydantic import Field
 
 
-class PipelineDoctorAction(Action):
+class MarioThePlumberAction(Action):
     """Discrete pipeline repair action with optional parameters."""
 
     action_id: int = Field(..., ge=0, le=15, description="Discrete action id.")
@@ -31,7 +31,7 @@ class PipelineDoctorAction(Action):
     )
 
 
-class PipelineDoctorObservation(Observation):
+class MarioThePlumberObservation(Observation):
     """Quality-signal observation returned after reset and step."""
 
     missing_rate: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -47,7 +47,7 @@ class PipelineDoctorObservation(Observation):
     action_result: str = Field(default="")
 
 
-class PipelineDoctorState(State):
+class MarioThePlumberState(State):
     """Internal episode metadata surfaced via the OpenEnv state endpoint."""
 
     task_id: int = Field(default=1, ge=1, le=3)
@@ -60,3 +60,8 @@ class PipelineDoctorState(State):
     success: bool | None = None
     active_table: str = Field(default="single")
     started_at: str = Field(default="")
+
+
+PipelineDoctorAction = MarioThePlumberAction
+PipelineDoctorObservation = MarioThePlumberObservation
+PipelineDoctorState = MarioThePlumberState

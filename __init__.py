@@ -7,11 +7,14 @@
 """Mario the Plumber OpenEnv package."""
 
 from .client import MarioThePlumberEnv, PipelineDoctorEnv
-from .models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-
-MarioThePlumberAction = PipelineDoctorAction
-MarioThePlumberObservation = PipelineDoctorObservation
-MarioThePlumberState = PipelineDoctorState
+from .models import (
+    MarioThePlumberAction,
+    MarioThePlumberObservation,
+    MarioThePlumberState,
+    PipelineDoctorAction,
+    PipelineDoctorObservation,
+    PipelineDoctorState,
+)
 
 __all__ = [
     "MarioThePlumberAction",

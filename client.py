@@ -13,22 +13,26 @@ from typing import Any
 from openenv.core import EnvClient
 from openenv.core.client_types import StepResult
 
-from .models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
+from .models import (
+    MarioThePlumberAction,
+    MarioThePlumberObservation,
+    MarioThePlumberState,
+)
 
 
-class PipelineDoctorEnv(
-    EnvClient[PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState]
+class MarioThePlumberEnv(
+    EnvClient[MarioThePlumberAction, MarioThePlumberObservation, MarioThePlumberState]
 ):
-    """Typed OpenEnv client for interacting with a running PipelineDoctor server."""
+    """Typed OpenEnv client for interacting with a running Mario the Plumber server."""
 
-    def _step_payload(self, action: PipelineDoctorAction) -> dict[str, Any]:
+    def _step_payload(self, action: MarioThePlumberAction) -> dict[str, Any]:
         return action.model_dump(exclude_none=True)
 
     def _parse_result(
         self, payload: dict[str, Any]
-    ) -> StepResult[PipelineDoctorObservation]:
+    ) -> StepResult[MarioThePlumberObservation]:
         obs_data = payload.get("observation", {})
-        observation = PipelineDoctorObservation(
+        observation = MarioThePlumberObservation(
             missing_rate=obs_data.get("missing_rate", 0.0),
             duplicate_rate=obs_data.get("duplicate_rate", 0.0),
             type_violations=obs_data.get("type_violations", 0),
@@ -50,9 +54,8 @@ class PipelineDoctorEnv(
             done=payload.get("done", False),
         )
 
-    def _parse_state(self, payload: dict[str, Any]) -> PipelineDoctorState:
-        return PipelineDoctorState(**payload)
+    def _parse_state(self, payload: dict[str, Any]) -> MarioThePlumberState:
+        return MarioThePlumberState(**payload)
 
 
-class MarioThePlumberEnv(PipelineDoctorEnv):
-    """Preferred public client name for the Mario the Plumber environment."""
+PipelineDoctorEnv = MarioThePlumberEnv
