@@ -16,11 +16,26 @@ tags:
 
 Mario the Plumber is an OpenEnv environment where an agent repairs broken ETL tables step by step. The environment uses a fixed discrete action space, quality-signal observations, and deterministic grading against ground truth.
 
-## Why This Environment Matters
+## Why This Benchmark Matters
 
-Real data systems break in ways that are messy but structured: missing values, duplicate records, bad types, and broken derived columns. Mario the Plumber turns that into an agent benchmark where the model has to inspect evidence, choose repair actions in the right order, and avoid making one table better while making the overall pipeline worse.
+Real data systems fail in structured ways: missing values, schema drift, duplicate records, and broken derived fields. Mario the Plumber turns that into an agent benchmark where the model has to diagnose the failure, choose the right repair, and avoid damaging the table while fixing it.
 
-This makes it useful for evaluating agents that claim to do data engineering or operations work, because success depends on repair sequencing, not just one-shot text generation.
+This is useful because it tests a kind of work that production agents actually need to do:
+
+- detect the source of a data quality regression
+- choose repairs in the correct order
+- reason over schema constraints instead of free-form text alone
+- handle cross-table dependencies before committing a final fix
+
+## Why It Is Hard
+
+The tasks are deliberately staged so the agent cannot win by emitting generic cleanup actions:
+
+- Task 1 requires basic missing-value repair without hurting schema validity
+- Task 2 mixes duplicates with type drift, so the agent has to remove redundancy and restore the expected dtypes
+- Task 3 introduces cross-table reasoning, where a premature commit can recompute bad derived values from still-broken upstream data
+
+The environment also gives partial progress signals, which means the agent has to improve score steadily instead of relying on a binary pass/fail end state.
 
 ## What Is Implemented
 
@@ -103,19 +118,39 @@ Verified local fallback run with no credentials, using fixed `seed=42`:
 - Task 3: `0.9820` in 8 steps
 - Average: `0.9565`
 
-Verified local LLM-backed run with `deepseek-ai/DeepSeek-V3-0324`:
+Verified LLM-backed run with `deepseek-ai/DeepSeek-V3-0324`, using fixed `seed=42`:
 
 - Task 1: `0.8875` in 4 steps
 - Task 2: `1.0000` in 4 steps
 - Task 3: `0.9820` in 8 steps
 - Average: `0.9565`
-- Runtime: about `12.27s`
+
+## Evaluation Summary
+
+The grading logic is deterministic and score-based rather than binary-only:
+
+- observations expose repair signals such as missing-rate, duplicate-rate, type violations, outlier count, and schema mismatches
+- each task has a fixed success threshold
+- the reward function provides partial progress and penalizes invalid or destructive actions
+- Task 3 uses weighted multi-table scoring so the agent must repair the full pipeline, not just one table
+
+Current local thresholds:
+
+- Task 1: `0.85`
+- Task 2: `0.80`
+- Task 3: `0.75`
 
 Example multi-seed benchmark output now shows score variance across scenarios:
 
 - seed `1`: average `0.9690`
 - seed `2`: average `0.9148`
 - seed `3`: average `0.9148`
+
+Task 3 hardening checks now show a meaningful difficulty gap:
+
+- initial Task 3 score over 20 seeds: min `0.2001`, max `0.2037`, avg `0.2005`
+- random agent on Task 3 over 20 seeds: min `0.2001`, max `0.2112`, avg `0.2065`
+- structured baseline on Task 3, seed `42`: `0.9070`
 
 ## Validation
 
@@ -136,3 +171,8 @@ Example multi-seed benchmark output now shows score variance across scenarios:
 - The deployed Hugging Face Space is live and responds to `/health` and `/reset`
 - The deterministic fallback baseline is intended for smoke testing when model credentials are absent
 - The preferred submission path is still the OpenAI-client baseline with `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
+
+## Known Limitations
+
+- `drop_nulls` changes row count, so the accuracy metric strongly discourages deletion-heavy repair paths; the intended agent behavior is to prefer fill and type-repair actions over row removal.
+- The provided `inference.py` is a hybrid heuristic-LLM baseline. Tasks 1 and 2 now let the model choose among safe candidate actions, but Task 3 still uses stronger heuristic guardrails than a pure LLM agent would.
