@@ -20,7 +20,7 @@ try:
     from ..inference import run_baseline
     from .data_generator import MAX_STEPS, TASK_DIFFICULTY, TASK_NAMES, TASK_THRESHOLDS
     from .pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
-except ModuleNotFoundError:
+except ImportError:
     from inference import run_baseline
     from models import PipelineDoctorAction, PipelineDoctorObservation
     from server.data_generator import MAX_STEPS, TASK_DIFFICULTY, TASK_NAMES, TASK_THRESHOLDS
@@ -41,6 +41,13 @@ app = create_app(
     env_name="mario_the_plumber",
     max_concurrent_envs=4,
 )
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    """Lightweight health endpoint for container readiness checks."""
+
+    return {"status": "ok"}
 
 
 @app.get("/tasks")

@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""Client wrapper for the PipelineDoctor environment."""
+"""Client wrapper for the Mario the Plumber environment."""
 
 from __future__ import annotations
 
@@ -52,3 +52,7 @@ class PipelineDoctorEnv(
 
     def _parse_state(self, payload: dict[str, Any]) -> PipelineDoctorState:
         return PipelineDoctorState(**payload)
+
+
+class MarioThePlumberEnv(PipelineDoctorEnv):
+    """Preferred public client name for the Mario the Plumber environment."""

@@ -31,6 +31,9 @@ dev = [
 [project.scripts]
 server = "pipeline_doctor.server.app:main"
 
+[tool.uv]
+package = false
+
 [tool.setuptools]
 include-package-data = true
 packages = ["pipeline_doctor", "pipeline_doctor.server"]

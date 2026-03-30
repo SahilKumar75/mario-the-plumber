@@ -4,12 +4,20 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""PipelineDoctor OpenEnv package."""
+"""Mario the Plumber OpenEnv package."""
 
-from .client import PipelineDoctorEnv
+from .client import MarioThePlumberEnv, PipelineDoctorEnv
 from .models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
 
+MarioThePlumberAction = PipelineDoctorAction
+MarioThePlumberObservation = PipelineDoctorObservation
+MarioThePlumberState = PipelineDoctorState
+
 __all__ = [
+    "MarioThePlumberAction",
+    "MarioThePlumberObservation",
+    "MarioThePlumberState",
+    "MarioThePlumberEnv",
     "PipelineDoctorAction",
     "PipelineDoctorObservation",
     "PipelineDoctorState",
