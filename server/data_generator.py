@@ -154,20 +154,28 @@ def _generate_task3(rng: np.random.Generator, seed: int | None) -> Scenario:
     orders_truth = orders_truth.drop(columns=["unit_price"])
 
     customers_broken = customers_truth.copy()
-    customers_broken.loc[2, "age"] = np.nan
+    customers_broken["age"] = customers_broken["age"].astype(object)
+    customers_broken.loc[int(rng.integers(0, len(customers_broken))), "age"] = np.nan
 
     products_broken = products_truth.copy()
-    products_broken = pd.concat([products_broken, products_broken.iloc[[1]]], ignore_index=True)
+    products_broken["unit_price"] = products_broken["unit_price"].astype(str)
+    duplicate_product_row = int(rng.integers(0, len(products_broken)))
+    products_broken = pd.concat(
+        [products_broken, products_broken.iloc[[duplicate_product_row]]],
+        ignore_index=True,
+    )
     if rng.random() < 0.5:
-        products_broken.loc[0, "unit_price"] = 999999.0
+        products_broken.loc[0, "unit_price"] = "999999.0"
 
     orders_broken = orders_truth.copy()
     product_prices = products_truth.set_index("product_id")["unit_price"]
+    orders_broken["customer_id"] = orders_broken["customer_id"].astype(str)
     orders_broken["quantity"] = orders_broken["quantity"].astype(str)
     numeric_quantity = pd.to_numeric(orders_truth["quantity"], errors="coerce")
     mapped_price = orders_broken["product_id"].map(product_prices)
     orders_broken["total_price"] = (numeric_quantity + mapped_price).round(2)
-    orders_broken = pd.concat([orders_broken, orders_broken.iloc[[2]]], ignore_index=True)
+    duplicate_order_row = int(rng.integers(0, len(orders_broken)))
+    orders_broken = pd.concat([orders_broken, orders_broken.iloc[[duplicate_order_row]]], ignore_index=True)
 
     return Scenario(
         task_id=3,

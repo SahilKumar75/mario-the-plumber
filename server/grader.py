@@ -71,14 +71,19 @@ def score_task3(
         ground_truth_tables["products"],
         expected_types["products"],
     )
-    score = round(
-        (0.50 * orders_score) + (0.30 * customers_score) + (0.20 * products_score),
-        4,
+    base_score = (
+        (0.50 * orders_score) + (0.30 * customers_score) + (0.20 * products_score)
     )
+    dependency_score = task3_dependency_score(
+        fixed_tables["orders"],
+        fixed_tables["products"],
+    )
+    score = round(base_score * (0.30 + (0.70 * dependency_score)), 4)
     return score, {
         "orders": orders_breakdown,
         "customers": customers_breakdown,
         "products": products_breakdown,
+        "pipeline": {"dependency_consistency": round(dependency_score, 4)},
     }
 
 
@@ -129,6 +134,17 @@ def calculation_mismatch_count(
     current_total = pd.to_numeric(merged["total_price"], errors="coerce")
     expected_total = quantity * pd.to_numeric(merged["unit_price"], errors="coerce")
     return int((current_total.round(4) != expected_total.round(4)).fillna(True).sum())
+
+
+def task3_dependency_score(
+    orders_df: pd.DataFrame,
+    products_df: pd.DataFrame,
+) -> float:
+    """Score whether cross-table derived values are internally consistent."""
+
+    total_rows = max(len(orders_df), 1)
+    mismatch_count = calculation_mismatch_count(orders_df, products_df)
+    return max(0.0, 1.0 - (mismatch_count / total_rows))
 
 
 def _accuracy(fixed_df: pd.DataFrame, ground_truth_df: pd.DataFrame) -> float:

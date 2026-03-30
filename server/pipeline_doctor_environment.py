@@ -296,6 +296,8 @@ class PipelineDoctorEnvironment(
     def _commit_changes(self) -> None:
         if self._task_id != 3:
             return
+        if not self._task3_commit_ready():
+            return
         orders = self._tables["orders"].copy()
         products = self._tables["products"][["product_id", "unit_price"]].copy()
         if "product_id" not in orders.columns or "product_id" not in products.columns:
@@ -307,6 +309,30 @@ class PipelineDoctorEnvironment(
         unit_price = pd.to_numeric(merged["unit_price"], errors="coerce")
         merged["total_price"] = (quantity * unit_price).round(2)
         self._tables["orders"] = merged[orders.columns].copy()
+
+    def _task3_commit_ready(self) -> bool:
+        if self._task_id != 3:
+            return True
+
+        if self._table_has_structural_issues("customers"):
+            return False
+        if self._table_has_structural_issues("products"):
+            return False
+        if self._table_has_structural_issues("orders"):
+            return False
+        return True
+
+    def _table_has_structural_issues(self, table_name: str) -> bool:
+        frame = self._tables[table_name]
+        if frame.isnull().sum().sum() > 0:
+            return True
+        if int(frame.duplicated().sum()) > 0:
+            return True
+        if self._schema_report_for_table(table_name):
+            return True
+        if self._outlier_details_for_frame(frame):
+            return True
+        return False
 
     def _build_observation(
         self,
@@ -341,8 +367,11 @@ class PipelineDoctorEnvironment(
         return observation
 
     def _schema_report(self) -> dict[str, dict[str, str]]:
-        current = self._current_frame()
-        expected = self._expected_types[self._state.active_table]
+        return self._schema_report_for_table(self._state.active_table)
+
+    def _schema_report_for_table(self, table_name: str) -> dict[str, dict[str, str]]:
+        current = self._tables[table_name]
+        expected = self._expected_types[table_name]
         report: dict[str, dict[str, str]] = {}
         for column in current.columns:
             actual = str(current[column].dtype)
@@ -355,8 +384,10 @@ class PipelineDoctorEnvironment(
         return report
 
     def _outlier_details(self) -> dict[str, int]:
+        return self._outlier_details_for_frame(self._current_frame())
+
+    def _outlier_details_for_frame(self, current: pd.DataFrame) -> dict[str, int]:
         details: dict[str, int] = {}
-        current = self._current_frame()
         for column in current.columns:
             selected = current[column]
             if not isinstance(selected, pd.Series):
