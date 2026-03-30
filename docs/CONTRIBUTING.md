@@ -5,8 +5,8 @@ This repo itself is the `PipelineDoctor` submission project.
 ## Where To Work
 
 - Core environment code lives at the repo root
-- The latest working spec lives in `CONTEXT 3.md`
-- Submission validation lives in `../scripts/validate-submission.sh`
+- The latest working spec lives in `docs/CONTEXT 3.md`
+- Submission validation lives in `scripts/validate-submission.sh`
 
 ## Recommended GitHub Workflow
 
@@ -28,7 +28,7 @@ Before shipping a new submission-oriented change:
 
 1. Run `python3 inference.py` from the repo root
 2. Run `openenv validate` from the repo root
-3. If deployed, run `../scripts/validate-submission.sh <space-url> ..`
+3. If deployed, run `scripts/validate-submission.sh <space-url> .`
 4. Confirm the required env vars are documented:
    - `API_BASE_URL`
    - `MODEL_NAME`
