@@ -279,6 +279,8 @@ class PipelineDoctorEnvironment(
         if column not in self._current_frame().columns:
             raise ValueError("target_column not found")
         numeric = self._numeric_series(column)
+        if numeric.dropna().empty:
+            raise ValueError("target_column has no numeric values for statistic fill")
         if statistic == "mean":
             value = numeric.mean()
         else:

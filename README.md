@@ -191,9 +191,9 @@ Current local heuristic runs with `seed=42`:
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 |
 |---|---:|---:|---:|---:|---:|
-| random | train | `0.4548` | `0.6108` | `0.5567` | `0.1968` |
+| random | train | `0.4761` | `0.6750` | `0.5567` | `0.1968` |
 | heuristic | train | `0.9370` | `0.9125` | `0.9667` | `0.9320` |
-| random | eval | `0.4548` | `0.6108` | `0.5567` | `0.1968` |
+| random | eval | `0.4761` | `0.6750` | `0.5567` | `0.1968` |
 | heuristic | eval | `0.9454` | `0.9125` | `0.9667` | `0.9570` |
 
 Pure-LLM mode is implemented in [`inference.py`](inference.py), but it requires live model credentials and is not hardcoded into the checked-in benchmark table.
