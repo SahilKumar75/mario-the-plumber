@@ -19,6 +19,7 @@ Mario the Plumber is an OpenEnv environment where an agent repairs broken ETL ta
 ## Benchmark at a Glance
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#d9f0ff', 'primaryTextColor': '#0f172a', 'primaryBorderColor': '#2563eb', 'lineColor': '#0f766e', 'secondaryColor': '#dcfce7', 'tertiaryColor': '#fef3c7'}}}%%
 flowchart LR
     A["reset(task, seed)"] --> B["Observation signals<br/>missing rate, duplicates, schema drift, score"]
     B --> C["Agent chooses discrete repair action"]
@@ -31,6 +32,7 @@ flowchart LR
 ```
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ede9fe', 'primaryTextColor': '#111827', 'primaryBorderColor': '#7c3aed', 'lineColor': '#1d4ed8', 'secondaryColor': '#dbeafe', 'tertiaryColor': '#dcfce7'}}}%%
 flowchart TD
     T1["Task 1<br/>single-table missing values"] --> T2["Task 2<br/>duplicates + type drift"]
     T2 --> T3["Task 3<br/>multi-table dependency repair"]
@@ -40,6 +42,20 @@ flowchart TD
     P --> X["derived totals stay wrong if upstream prices stay broken"]
     O --> X
 ```
+
+## Benchmark Card
+
+| Item | Value |
+|---|---|
+| Domain | ETL / data quality repair |
+| API | `reset()` / `step()` / `state` |
+| Tasks | 3 |
+| Action space | 16 discrete repair actions |
+| Success thresholds | `0.85`, `0.80`, `0.75` |
+| Initial Task 3 score over 20 seeds | avg `0.2005` |
+| Random Task 3 score over 20 seeds | avg `0.2065` |
+| Structured Task 3 baseline | `0.9070` |
+| Live Space | [`sahilksingh/mario-the-plumber`](https://huggingface.co/spaces/sahilksingh/mario-the-plumber) |
 
 ## Why This Benchmark Matters
 
@@ -176,12 +192,6 @@ Task 3 hardening checks now show a meaningful difficulty gap:
 - initial Task 3 score over 20 seeds: min `0.2001`, max `0.2037`, avg `0.2005`
 - random agent on Task 3 over 20 seeds: min `0.2001`, max `0.2112`, avg `0.2065`
 - structured baseline on Task 3, seed `42`: `0.9070`
-
-```mermaid
-flowchart LR
-    R["Random agent<br/>avg 0.2065"] --> G["Benchmark gap<br/>+0.7005"]
-    S["Structured baseline<br/>0.9070"] --> G
-```
 
 ## Validation
 
