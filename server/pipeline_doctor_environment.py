@@ -99,6 +99,10 @@ class PipelineDoctorEnvironment(
             resource_level=1,
             required_resource_level=1,
             pending_batches=0,
+            time_budget_remaining=MAX_STEPS[1],
+            truncated=False,
+            done_reason="",
+            scenario_profile="baseline",
             started_at=datetime.now(UTC).isoformat(),
         )
 
@@ -148,6 +152,10 @@ class PipelineDoctorEnvironment(
             resource_level=int(self._scenario_meta.get("resource_level", 1)),
             required_resource_level=int(self._scenario_meta.get("required_resource_level", 1)),
             pending_batches=int(self._scenario_meta.get("pending_batches", 0)),
+            time_budget_remaining=MAX_STEPS[task_id],
+            truncated=False,
+            done_reason="",
+            scenario_profile=str(self._scenario_meta.get("scenario_profile", "baseline")),
             started_at=datetime.now(UTC).isoformat(),
         )
         self._refresh_errors()
@@ -168,6 +176,8 @@ class PipelineDoctorEnvironment(
         action_result = ""
         done = False
         success = False
+        truncated = False
+        done_reason = ""
 
         self._state.step_count += 1
         action_name = ACTION_NAMES.get(action.action_id, "unknown")
@@ -188,10 +198,14 @@ class PipelineDoctorEnvironment(
         if action.action_id == 15:
             done = True
             success = score_after >= threshold and action_valid
+            done_reason = "commit_success" if success else "commit_failure"
         elif score_after < 0.10:
             done = True
+            done_reason = "quality_collapse"
         elif self._state.step_count >= self._state.max_steps:
             done = True
+            truncated = True
+            done_reason = "step_budget_exhausted"
 
         reward = compute_reward(
             score_before,
@@ -205,11 +219,21 @@ class PipelineDoctorEnvironment(
         self._state.best_score = max(self._state.best_score, score_after)
         self._state.done = done
         self._state.success = success if done else None
+        self._state.truncated = truncated
+        self._state.done_reason = done_reason
+        self._state.time_budget_remaining = max(
+            0, self._state.max_steps - self._state.step_count
+        )
         observation = self._build_observation(
             reward=reward,
             done=done,
             action_result=action_result,
-            metadata={"action_id": action.action_id, "action_name": action_name},
+            metadata={
+                "action_id": action.action_id,
+                "action_name": action_name,
+                "truncated": truncated,
+                "done_reason": done_reason,
+            },
         )
         self._store_episode_summary()
         return observation
@@ -356,23 +380,31 @@ class PipelineDoctorEnvironment(
         text = text.strip()
         column_name = (column or "").lower()
         if self._is_datetime_like_column(column_name):
-            parsed_text = self._normalize_date_string(text)
+            parsed_text = self._normalize_date_string(
+                text,
+                preserve_time=column_name.endswith("_ts") or column_name.endswith("_time"),
+            )
             if parsed_text:
                 return parsed_text
         if column_name in {"email", "category", "status"}:
             return text.lower()
         return text
 
-    def _normalize_date_string(self, text: str) -> str | None:
+    def _normalize_date_string(self, text: str, *, preserve_time: bool = False) -> str | None:
         stripped = text.strip()
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}t\d{2}:\d{2}:\d{2}z", stripped.lower()):
-            return stripped.replace("t", "T").replace("z", "Z")
+            normalized = stripped.replace("t", "T").replace("z", "Z")
+            return normalized if preserve_time else normalized[:10]
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", stripped):
             return stripped
         for fmt in ("%d/%m/%Y %H:%M", "%m-%d-%Y %H:%M"):
             try:
                 parsed = datetime.strptime(stripped, fmt)
-                return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+                return (
+                    parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    if preserve_time
+                    else parsed.strftime("%Y-%m-%d")
+                )
             except ValueError:
                 continue
         for fmt in ("%d/%m/%Y", "%m-%d-%Y", "%m/%d/%Y", "%d-%m-%Y"):
@@ -384,7 +416,12 @@ class PipelineDoctorEnvironment(
         parsed = pd.to_datetime(stripped, errors="coerce")
         if pd.notna(parsed):
             if self._looks_timestamp_string(stripped):
-                return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+                parsed = pd.to_datetime(stripped, errors="coerce", utc=True)
+                return (
+                    parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    if preserve_time
+                    else parsed.strftime("%Y-%m-%d")
+                )
             return parsed.strftime("%Y-%m-%d")
         return None
 
@@ -505,7 +542,11 @@ class PipelineDoctorEnvironment(
             products["unit_price"].map(self._normalize_numeric_value),
             errors="coerce",
         )
-        orders["event_date"] = pd.to_datetime(orders["event_ts"], errors="coerce").dt.strftime("%Y-%m-%d")
+        orders["event_date"] = orders["event_ts"].map(
+            lambda value: (
+                self._normalize_date_string(str(value), preserve_time=True) or ""
+            )[:10]
+        )
         merged = orders.merge(products[["product_id", "unit_price"]], on="product_id", how="left")
         merged["total_revenue"] = merged["quantity"] * merged["unit_price"]
         summary = (
@@ -546,6 +587,7 @@ class PipelineDoctorEnvironment(
         duplicate_rate = float(duplicate_row_count(current) / max(len(current), 1))
 
         schema_report = self._schema_report()
+        alias_hints = self._column_alias_hints()
         observation = PipelineDoctorObservation(
             missing_rate=round(missing_rate, 4),
             duplicate_rate=round(duplicate_rate, 4),
@@ -572,6 +614,19 @@ class PipelineDoctorEnvironment(
             pending_batches=self._state.pending_batches,
             downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
             orchestration_alerts=self._orchestration_alerts(),
+            observed_columns=list(current.columns),
+            missing_expected_columns=self._missing_expected_columns(self._state.active_table),
+            column_alias_hints=alias_hints,
+            scenario_profile=str(self._scenario_meta.get("scenario_profile", "baseline")),
+            open_world_patterns=list(self._scenario_meta.get("open_world_patterns", [])),
+            time_budget_remaining=max(0, self._state.max_steps - self._state.step_count),
+            time_budget_ratio=round(
+                max(0.0, (self._state.max_steps - self._state.step_count) / max(self._state.max_steps, 1)),
+                4,
+            ),
+            truncated=self._state.truncated,
+            done_reason=self._state.done_reason,
+            synthetic_data_notes=list(self._scenario_meta.get("synthetic_data_notes", [])),
             reward=reward,
             done=done,
             metadata=metadata or {},
@@ -605,6 +660,25 @@ class PipelineDoctorEnvironment(
             if column not in current.columns:
                 report[column] = {"expected": expected[column], "actual": "missing"}
         return report
+
+    def _missing_expected_columns(self, table_name: str) -> list[str]:
+        current = self._tables[table_name]
+        expected = self._expected_types[table_name]
+        return [column for column in expected if column not in current.columns]
+
+    def _column_alias_hints(self) -> dict[str, str]:
+        current_columns = set(self._current_frame().columns)
+        aliases = {
+            "product_category": "category",
+            "product_segment": "category",
+            "event_time": "event_ts",
+            "business_date": "event_date",
+        }
+        hints: dict[str, str] = {}
+        for drifted_name, expected_name in aliases.items():
+            if drifted_name in current_columns and expected_name not in current_columns:
+                hints[drifted_name] = expected_name
+        return hints
 
     def _outlier_details(self) -> dict[str, int]:
         return self._outlier_details_for_frame(self._current_frame())
@@ -794,6 +868,9 @@ class PipelineDoctorEnvironment(
             "breakdown": self._breakdown_payload(),
             "success": success,
             "steps_taken": self._state.step_count,
+            "truncated": self._state.truncated,
+            "done_reason": self._state.done_reason,
+            "scenario_profile": self._state.scenario_profile,
         }
         EPISODE_SUMMARIES[self._state.episode_id or str(uuid4())] = summary
 

@@ -44,7 +44,7 @@ class MarioThePlumberObservation(Observation):
     current_score: float = Field(default=0.0, ge=0.0, le=1.0)
     steps_taken: int = Field(default=0, ge=0)
     stage: str = Field(default="single")
-    available_actions: list[int] = Field(default_factory=lambda: list(range(16)))
+    available_actions: list[int] = Field(default_factory=lambda: list(range(20)))
     action_result: str = Field(default="")
     table_health: dict[str, float] = Field(default_factory=dict)
     dependency_alerts: list[str] = Field(default_factory=list)
@@ -59,6 +59,16 @@ class MarioThePlumberObservation(Observation):
     pending_batches: int = Field(default=0, ge=0)
     downstream_stale: bool = False
     orchestration_alerts: list[str] = Field(default_factory=list)
+    observed_columns: list[str] = Field(default_factory=list)
+    missing_expected_columns: list[str] = Field(default_factory=list)
+    column_alias_hints: dict[str, str] = Field(default_factory=dict)
+    scenario_profile: str = Field(default="baseline")
+    open_world_patterns: list[str] = Field(default_factory=list)
+    time_budget_remaining: int = Field(default=0, ge=0)
+    time_budget_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
+    truncated: bool = False
+    done_reason: str = Field(default="")
+    synthetic_data_notes: list[str] = Field(default_factory=list)
 
 
 class MarioThePlumberState(State):
@@ -79,6 +89,10 @@ class MarioThePlumberState(State):
     resource_level: int = Field(default=1, ge=1)
     required_resource_level: int = Field(default=1, ge=1)
     pending_batches: int = Field(default=0, ge=0)
+    time_budget_remaining: int = Field(default=0, ge=0)
+    truncated: bool = False
+    done_reason: str = Field(default="")
+    scenario_profile: str = Field(default="baseline")
     started_at: str = Field(default="")
 
 

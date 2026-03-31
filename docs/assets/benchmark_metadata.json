@@ -1,0 +1,167 @@
+{
+  "benchmark_metadata": {
+    "task_names": {
+      "1": "Single Table Missing Values",
+      "2": "Single Table Duplicates and Types",
+      "3": "Multi-Table Cascading Failure",
+      "4": "Incremental Pipeline Recovery"
+    },
+    "task_thresholds": {
+      "1": 0.85,
+      "2": 0.8,
+      "3": 0.75,
+      "4": 0.78
+    },
+    "max_steps": {
+      "1": 10,
+      "2": 15,
+      "3": 25,
+      "4": 30
+    },
+    "scenario_profiles": {
+      "1": {
+        "train": [
+          "nulls_and_format_drift"
+        ],
+        "eval": [
+          "nulls_and_date_drift",
+          "currency_format_pressure"
+        ]
+      },
+      "2": {
+        "train": [
+          "duplicates_and_dtype_drift"
+        ],
+        "eval": [
+          "duplicates_dtype_and_date_drift",
+          "outlier_and_currency_drift"
+        ]
+      },
+      "3": {
+        "train": [
+          "currency_date_drift",
+          "alias_encoding_drift",
+          "sentinel_missing_values"
+        ],
+        "eval": [
+          "alias_encoding_drift",
+          "timezone_and_currency_drift",
+          "sentinel_missing_values",
+          "mixed_open_world_breakage"
+        ]
+      },
+      "4": {
+        "train": [
+          "late_batch_resource_pressure",
+          "schema_alias_and_units",
+          "stale_summary_recovery"
+        ],
+        "eval": [
+          "timezone_alias_burst",
+          "schema_alias_and_units",
+          "stale_summary_recovery",
+          "mixed_operational_open_world"
+        ]
+      }
+    },
+    "synthetic_data_notes": [
+      "Synthetic tables preserve schema-level repair structure, not enterprise-scale row volume.",
+      "Utility is benchmarked through relative policy separation across tasks and held-out splits.",
+      "Profiles intentionally vary failure combinations so agents cannot rely on a single fixed script."
+    ]
+  },
+  "initial_score_stats": {
+    "train": {
+      "task_1": {
+        "name": "Single Table Missing Values",
+        "threshold": 0.85,
+        "initial_score_mean": 0.7275,
+        "initial_score_min": 0.7175,
+        "initial_score_max": 0.7575,
+        "profiles_seen": {
+          "nulls_and_format_drift": 5
+        }
+      },
+      "task_2": {
+        "name": "Single Table Duplicates and Types",
+        "threshold": 0.8,
+        "initial_score_mean": 0.545,
+        "initial_score_min": 0.545,
+        "initial_score_max": 0.545,
+        "profiles_seen": {
+          "duplicates_and_dtype_drift": 5
+        }
+      },
+      "task_3": {
+        "name": "Multi-Table Cascading Failure",
+        "threshold": 0.75,
+        "initial_score_mean": 0.1963,
+        "initial_score_min": 0.1913,
+        "initial_score_max": 0.203,
+        "profiles_seen": {
+          "alias_encoding_drift": 1,
+          "sentinel_missing_values": 4
+        }
+      },
+      "task_4": {
+        "name": "Incremental Pipeline Recovery",
+        "threshold": 0.78,
+        "initial_score_mean": 0.2489,
+        "initial_score_min": 0.2369,
+        "initial_score_max": 0.2969,
+        "profiles_seen": {
+          "schema_alias_and_units": 1,
+          "stale_summary_recovery": 4
+        }
+      }
+    },
+    "eval": {
+      "task_1": {
+        "name": "Single Table Missing Values",
+        "threshold": 0.85,
+        "initial_score_mean": 0.7125,
+        "initial_score_min": 0.6425,
+        "initial_score_max": 0.7575,
+        "profiles_seen": {
+          "nulls_and_date_drift": 1,
+          "currency_format_pressure": 4
+        }
+      },
+      "task_2": {
+        "name": "Single Table Duplicates and Types",
+        "threshold": 0.8,
+        "initial_score_mean": 0.545,
+        "initial_score_min": 0.545,
+        "initial_score_max": 0.545,
+        "profiles_seen": {
+          "duplicates_dtype_and_date_drift": 1,
+          "outlier_and_currency_drift": 4
+        }
+      },
+      "task_3": {
+        "name": "Multi-Table Cascading Failure",
+        "threshold": 0.75,
+        "initial_score_mean": 0.1959,
+        "initial_score_min": 0.1937,
+        "initial_score_max": 0.1976,
+        "profiles_seen": {
+          "timezone_and_currency_drift": 1,
+          "mixed_open_world_breakage": 2,
+          "sentinel_missing_values": 2
+        }
+      },
+      "task_4": {
+        "name": "Incremental Pipeline Recovery",
+        "threshold": 0.78,
+        "initial_score_mean": 0.2209,
+        "initial_score_min": 0.1892,
+        "initial_score_max": 0.2969,
+        "profiles_seen": {
+          "schema_alias_and_units": 1,
+          "mixed_operational_open_world": 2,
+          "stale_summary_recovery": 2
+        }
+      }
+    }
+  }
+}

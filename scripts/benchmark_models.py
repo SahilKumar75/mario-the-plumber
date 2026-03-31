@@ -4,10 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 import random
-from statistics import mean
+from statistics import mean, pstdev
 import sys
 from typing import Any
 
@@ -98,7 +99,11 @@ def _random_action(
 def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "average_score_mean": round(mean(run["average_score"] for run in runs), 4),
+        "average_score_std": round(pstdev(run["average_score"] for run in runs), 4)
+        if len(runs) > 1
+        else 0.0,
         "task_means": {},
+        "task_stds": {},
     }
     for task_id in sorted(TASK_THRESHOLDS):
         scores = [
@@ -106,6 +111,7 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             for run in runs
         ]
         summary["task_means"][f"task_{task_id}"] = round(mean(scores), 4)
+        summary["task_stds"][f"task_{task_id}"] = round(pstdev(scores), 4) if len(scores) > 1 else 0.0
     return summary
 
 
@@ -122,6 +128,27 @@ def to_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def write_csv(report: dict[str, Any], path: str) -> None:
+    fieldnames = [
+        "policy",
+        "split",
+        "average_score_mean",
+        "average_score_std",
+        "task_1",
+        "task_1_std",
+        "task_2",
+        "task_2_std",
+        "task_3",
+        "task_3_std",
+        "task_4",
+        "task_4_std",
+    ]
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(report["rows"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark Mario the Plumber baselines.")
     parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3, 4, 5])
@@ -134,6 +161,8 @@ def main() -> None:
     )
     parser.add_argument("--model-name", default=None)
     parser.add_argument("--format", choices=["json", "markdown"], default="markdown")
+    parser.add_argument("--json-out", default=None)
+    parser.add_argument("--csv-out", default=None)
     args = parser.parse_args()
 
     rows: list[dict[str, Any]] = []
@@ -159,15 +188,24 @@ def main() -> None:
                     "policy": policy,
                     "split": split,
                     "average_score_mean": summary["average_score_mean"],
+                    "average_score_std": summary["average_score_std"],
                     "task_1": summary["task_means"]["task_1"],
+                    "task_1_std": summary["task_stds"]["task_1"],
                     "task_2": summary["task_means"]["task_2"],
+                    "task_2_std": summary["task_stds"]["task_2"],
                     "task_3": summary["task_means"]["task_3"],
+                    "task_3_std": summary["task_stds"]["task_3"],
                     "task_4": summary["task_means"]["task_4"],
+                    "task_4_std": summary["task_stds"]["task_4"],
                 }
             )
             raw_runs[f"{policy}:{split}"] = runs
 
     report = {"rows": rows, "runs": raw_runs}
+    if args.json_out:
+        Path(args.json_out).write_text(json.dumps(report, indent=2), encoding="utf-8")
+    if args.csv_out:
+        write_csv(report, args.csv_out)
     if args.format == "json":
         print(json.dumps(report, indent=2))
     else:

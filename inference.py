@@ -221,6 +221,8 @@ def _build_user_prompt(
         Task id: {task_id}
         Task threshold: {TASK_THRESHOLDS[task_id]}
         Scenario split: {observation.scenario_split}
+        Scenario profile: {observation.scenario_profile}
+        Open-world patterns: {json.dumps(observation.open_world_patterns)}
         Step: {step_number}
         Active table: {observation.stage}
         Current score: {observation.current_score}
@@ -233,6 +235,9 @@ def _build_user_prompt(
         Table health: {json.dumps(observation.table_health, sort_keys=True)}
         Dependency alerts: {json.dumps(observation.dependency_alerts)}
         Schema drift count: {observation.schema_drift_count}
+        Observed columns: {json.dumps(observation.observed_columns)}
+        Missing expected columns: {json.dumps(observation.missing_expected_columns)}
+        Column alias hints: {json.dumps(observation.column_alias_hints, sort_keys=True)}
         Backlog rows: {observation.backlog_rows}
         Freshness lag minutes: {observation.freshness_lag_minutes}
         Resource level: {observation.resource_level}
@@ -241,6 +246,11 @@ def _build_user_prompt(
         Pending batches: {observation.pending_batches}
         Downstream stale: {observation.downstream_stale}
         Orchestration alerts: {json.dumps(observation.orchestration_alerts)}
+        Time budget remaining: {observation.time_budget_remaining}
+        Time budget ratio: {observation.time_budget_ratio}
+        Truncated: {observation.truncated}
+        Done reason: {observation.done_reason}
+        Synthetic data notes: {json.dumps(observation.synthetic_data_notes)}
         Schema report: {json.dumps(observation.schema_report, sort_keys=True)}
         Recent errors: {json.dumps(observation.recent_errors)}
         Last action result: {observation.action_result or ""}
@@ -324,6 +334,10 @@ def _heuristic_action(
 
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
+
+    if alias_action:
+        return alias_action
 
     if observation.duplicate_rate > 0:
         return PipelineDoctorAction(action_id=10)
@@ -336,13 +350,7 @@ def _heuristic_action(
 
     if mismatch:
         column, info = mismatch
-        expected = info.get("expected")
-        if expected == "int64":
-            return PipelineDoctorAction(action_id=7, target_column=column)
-        if expected == "float64":
-            return PipelineDoctorAction(action_id=8, target_column=column)
-        if expected == "object":
-            return PipelineDoctorAction(action_id=9, target_column=column)
+        return _repair_action_for_mismatch(column, info)
 
     format_column = _column_from_errors(error_text, "format mismatch")
     if format_column:
@@ -372,6 +380,10 @@ def _candidate_actions(
 
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
+
+    if alias_action:
+        return [alias_action]
 
     if observation.duplicate_rate > 0:
         return [PipelineDoctorAction(action_id=10)]
@@ -394,13 +406,7 @@ def _candidate_actions(
 
     if mismatch:
         column, info = mismatch
-        expected = info.get("expected")
-        if expected == "int64":
-            return [PipelineDoctorAction(action_id=7, target_column=column)]
-        if expected == "float64":
-            return [PipelineDoctorAction(action_id=8, target_column=column)]
-        if expected == "object":
-            return [PipelineDoctorAction(action_id=9, target_column=column)]
+        return [_repair_action_for_mismatch(column, info)]
 
     format_column = _column_from_errors(error_text, "format mismatch")
     if observation.format_issues > 0 and format_column:
@@ -430,9 +436,13 @@ def _task3_candidate_actions(
     actions: list[PipelineDoctorAction] = []
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
 
     if policy_mode != "pure-llm" and heuristic_action.action_id != FALLBACK_ACTION.action_id:
         actions.append(heuristic_action)
+
+    if alias_action:
+        actions.append(alias_action)
 
     if observation.duplicate_rate > 0:
         actions.append(PipelineDoctorAction(action_id=10))
@@ -452,13 +462,7 @@ def _task3_candidate_actions(
 
     if mismatch:
         column, info = mismatch
-        expected = info.get("expected")
-        if expected == "int64":
-            actions.append(PipelineDoctorAction(action_id=7, target_column=column))
-        elif expected == "float64":
-            actions.append(PipelineDoctorAction(action_id=8, target_column=column))
-        elif expected == "object":
-            actions.append(PipelineDoctorAction(action_id=9, target_column=column))
+        actions.append(_repair_action_for_mismatch(column, info))
 
     outlier_column = _column_from_errors(error_text, "outlier")
     if observation.outlier_count > 0 and outlier_column:
@@ -494,9 +498,13 @@ def _task4_candidate_actions(
     actions: list[PipelineDoctorAction] = []
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
 
     if policy_mode != "pure-llm" and heuristic_action.action_id != FALLBACK_ACTION.action_id:
         actions.append(heuristic_action)
+
+    if alias_action:
+        actions.append(alias_action)
 
     if observation.stage == "orders":
         if observation.backlog_rows > 0:
@@ -520,13 +528,7 @@ def _task4_candidate_actions(
 
     if mismatch:
         column, info = mismatch
-        expected = info.get("expected")
-        if expected == "int64":
-            actions.append(PipelineDoctorAction(action_id=7, target_column=column))
-        elif expected == "float64":
-            actions.append(PipelineDoctorAction(action_id=8, target_column=column))
-        elif expected == "object":
-            actions.append(PipelineDoctorAction(action_id=9, target_column=column))
+        actions.append(_repair_action_for_mismatch(column, info))
 
     outlier_column = _column_from_errors(error_text, "outlier")
     if observation.outlier_count > 0 and outlier_column:
@@ -597,6 +599,10 @@ def _task3_heuristic_action(
 ) -> PipelineDoctorAction:
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
+
+    if alias_action:
+        return alias_action
 
     if observation.stage == "orders":
         if observation.duplicate_rate > 0:
@@ -608,13 +614,7 @@ def _task3_heuristic_action(
 
         if mismatch:
             column, info = mismatch
-            expected = info.get("expected")
-            if expected == "int64":
-                return PipelineDoctorAction(action_id=7, target_column=column)
-            if expected == "float64":
-                return PipelineDoctorAction(action_id=8, target_column=column)
-            if expected == "object":
-                return PipelineDoctorAction(action_id=9, target_column=column)
+            return _repair_action_for_mismatch(column, info)
 
         if _only_calculation_mismatch(observation):
             return PipelineDoctorAction(action_id=0, target_column="customers")
@@ -630,13 +630,7 @@ def _task3_heuristic_action(
 
         if mismatch:
             column, info = mismatch
-            expected = info.get("expected")
-            if expected == "int64":
-                return PipelineDoctorAction(action_id=7, target_column=column)
-            if expected == "float64":
-                return PipelineDoctorAction(action_id=8, target_column=column)
-            if expected == "object":
-                return PipelineDoctorAction(action_id=9, target_column=column)
+            return _repair_action_for_mismatch(column, info)
 
         if not _table_needs_attention(observation):
             return PipelineDoctorAction(action_id=0, target_column="products")
@@ -654,13 +648,7 @@ def _task3_heuristic_action(
 
         if mismatch:
             column, info = mismatch
-            expected = info.get("expected")
-            if expected == "int64":
-                return PipelineDoctorAction(action_id=7, target_column=column)
-            if expected == "float64":
-                return PipelineDoctorAction(action_id=8, target_column=column)
-            if expected == "object":
-                return PipelineDoctorAction(action_id=9, target_column=column)
+            return _repair_action_for_mismatch(column, info)
 
         if not _table_needs_attention(observation):
             return PipelineDoctorAction(action_id=15)
@@ -673,6 +661,10 @@ def _task4_heuristic_action(
 ) -> PipelineDoctorAction:
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
+
+    if alias_action:
+        return alias_action
 
     if observation.stage == "orders":
         if observation.backlog_rows > 0:
@@ -686,13 +678,7 @@ def _task4_heuristic_action(
             return PipelineDoctorAction(action_id=9, target_column=format_column)
         if mismatch:
             column, info = mismatch
-            expected = info.get("expected")
-            if expected == "int64":
-                return PipelineDoctorAction(action_id=7, target_column=column)
-            if expected == "float64":
-                return PipelineDoctorAction(action_id=8, target_column=column)
-            if expected == "object":
-                return PipelineDoctorAction(action_id=9, target_column=column)
+            return _repair_action_for_mismatch(column, info)
         if not _table_needs_attention(observation):
             return PipelineDoctorAction(action_id=0, target_column="products")
 
@@ -707,13 +693,7 @@ def _task4_heuristic_action(
             return PipelineDoctorAction(action_id=11, target_column=outlier_column)
         if mismatch:
             column, info = mismatch
-            expected = info.get("expected")
-            if expected == "int64":
-                return PipelineDoctorAction(action_id=7, target_column=column)
-            if expected == "float64":
-                return PipelineDoctorAction(action_id=8, target_column=column)
-            if expected == "object":
-                return PipelineDoctorAction(action_id=9, target_column=column)
+            return _repair_action_for_mismatch(column, info)
         if not _table_needs_attention(observation):
             return PipelineDoctorAction(action_id=0, target_column="daily_summary")
 
@@ -723,11 +703,7 @@ def _task4_heuristic_action(
             return PipelineDoctorAction(action_id=9, target_column=format_column)
         if mismatch:
             column, info = mismatch
-            expected = info.get("expected")
-            if expected == "float64":
-                return PipelineDoctorAction(action_id=8, target_column=column)
-            if expected == "object":
-                return PipelineDoctorAction(action_id=9, target_column=column)
+            return _repair_action_for_mismatch(column, info)
         if observation.downstream_stale or observation.freshness_lag_minutes > 0:
             return PipelineDoctorAction(action_id=19)
         if observation.resource_level > observation.required_resource_level:
@@ -746,6 +722,37 @@ def _first_schema_mismatch(
     for column, info in observation.schema_report.items():
         return column, info
     return None
+
+
+def _alias_fix_action(
+    observation: PipelineDoctorObservation,
+) -> PipelineDoctorAction | None:
+    for drifted_name, expected_name in observation.column_alias_hints.items():
+        return PipelineDoctorAction(
+            action_id=12,
+            target_column=drifted_name,
+            new_name=expected_name,
+        )
+    return None
+
+
+def _repair_action_for_mismatch(
+    column: str,
+    info: dict[str, Any],
+) -> PipelineDoctorAction:
+    expected = info.get("expected")
+    actual = info.get("actual")
+    if expected == "int64":
+        if actual == "object":
+            return PipelineDoctorAction(action_id=4, target_column=column)
+        return PipelineDoctorAction(action_id=7, target_column=column)
+    if expected == "float64":
+        if actual == "object":
+            return PipelineDoctorAction(action_id=3, target_column=column)
+        return PipelineDoctorAction(action_id=8, target_column=column)
+    if expected == "object":
+        return PipelineDoctorAction(action_id=9, target_column=column)
+    return PipelineDoctorAction(action_id=14)
 
 
 def _column_from_errors(error_text: str, keyword: str) -> str | None:

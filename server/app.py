@@ -18,12 +18,24 @@ except Exception as exc:  # pragma: no cover
 try:
     from ..models import PipelineDoctorAction, PipelineDoctorObservation
     from ..inference import run_baseline
-    from .data_generator import MAX_STEPS, TASK_DIFFICULTY, TASK_NAMES, TASK_THRESHOLDS
+    from .data_generator import (
+        MAX_STEPS,
+        TASK_DIFFICULTY,
+        TASK_NAMES,
+        TASK_THRESHOLDS,
+        benchmark_metadata,
+    )
     from .pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 except ImportError:
     from inference import run_baseline
     from models import PipelineDoctorAction, PipelineDoctorObservation
-    from server.data_generator import MAX_STEPS, TASK_DIFFICULTY, TASK_NAMES, TASK_THRESHOLDS
+    from server.data_generator import (
+        MAX_STEPS,
+        TASK_DIFFICULTY,
+        TASK_NAMES,
+        TASK_THRESHOLDS,
+        benchmark_metadata,
+    )
     from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 
 
@@ -73,6 +85,7 @@ def get_tasks() -> dict[str, object]:
             ),
             "new_name": "str (optional, required for action 12 only)",
             "column_order": "list[str] (optional, required for action 13 only)",
+            "time_budget": "episodes end with truncation when max_steps is exhausted",
             "orchestration_actions": {
                 "16": "scale_resources_up",
                 "17": "scale_resources_down",
@@ -81,6 +94,13 @@ def get_tasks() -> dict[str, object]:
             },
         },
     }
+
+
+@app.get("/benchmark-metadata")
+def get_benchmark_metadata() -> dict[str, object]:
+    """Expose benchmark profiles, utility notes, and task metadata."""
+
+    return benchmark_metadata()
 
 
 @app.post("/grader")

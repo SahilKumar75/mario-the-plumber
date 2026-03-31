@@ -52,12 +52,13 @@ flowchart TD
 | Tasks | 4 |
 | Action space | 20 discrete actions |
 | Scenario splits | `train`, `eval` |
+| Scenario profiles | adaptive per-task profile families |
 | Policy modes | `random`, `heuristic`, `hybrid`, `pure-llm` |
 | Success thresholds | `0.85`, `0.80`, `0.75`, `0.78` |
 | Initial Task 3 score over 20 seeds | avg `0.2005` |
 | Random Task 3 score over 20 seeds | avg `0.2065` |
 | Structured Task 3 baseline | `0.9070` |
-| Initial Task 4 score over 10 seeds | train avg `0.3196`, eval avg `0.3169` |
+| Initial Task 4 score over 5 seeds | train avg `0.2489`, eval avg `0.2209` |
 | Live Space | [`sahilksingh/mario-the-plumber`](https://huggingface.co/spaces/sahilksingh/mario-the-plumber) |
 
 ## What Changed In The New Benchmark Version
@@ -68,6 +69,8 @@ flowchart TD
 | Baselines | mostly one hybrid path | `random`, `heuristic`, `hybrid`, `pure-llm` modes |
 | Task 3 difficulty | random agent stayed too high | random stays near initial broken score |
 | Observation design | flat error summary | table-health, dependency alerts, format issues, commit readiness, workload signals |
+| Open-world realism | mostly fixed corruption templates | adaptive profile families with alias drift, timezone drift, sentinel values, stale summaries |
+| Episode semantics | single `done` flag | explicit budget/truncation signals and done reasons |
 | Reporting | one-off runs | reproducible benchmark table via `scripts/benchmark_models.py` |
 
 ## Visuals
@@ -88,6 +91,51 @@ This is useful because it tests a kind of work that production agents actually n
 - handle cross-table dependencies before committing a final fix
 - recover a live ETL system while backlog, freshness, and resource pressure are still changing
 
+## Open-World Failure Patterns
+
+Mario now samples from profile families instead of only replaying one fixed corruption recipe per task. Depending on task and split, an episode can include combinations of:
+
+- schema alias drift like `event_time -> event_ts`
+- mixed timezone and datetime formatting drift
+- sentinel values like `unknown` or `missing`
+- delayed batches plus stale downstream tables
+- unit and currency formatting drift
+
+The environment surfaces these through:
+
+- `scenario_profile`
+- `open_world_patterns`
+- `missing_expected_columns`
+- `column_alias_hints`
+
+## Episode Budget Semantics
+
+Mario now distinguishes a terminal commit from a budget truncation:
+
+- `done_reason = commit_success`
+- `done_reason = commit_failure`
+- `done_reason = quality_collapse`
+- `done_reason = step_budget_exhausted`
+
+Observations also expose:
+
+- `time_budget_remaining`
+- `time_budget_ratio`
+- `truncated`
+
+This makes the benchmark cleaner under standard RL semantics where completion and truncation should not be conflated.
+
+## Synthetic Data Utility Story
+
+Mario uses synthetic data as **controlled benchmark data**, not as a claim of full enterprise realism.
+
+The utility claim is:
+
+- schemas and dependencies are realistic enough to require meaningful repair/orchestration decisions
+- random and structured policies separate clearly
+- held-out `eval` profiles differ from `train` profiles
+- scenario diversity can grow without exposing private production data
+
 ## Why It Is Hard
 
 The task suite is deliberately staged so the agent cannot win by emitting generic cleanup actions:
@@ -104,10 +152,11 @@ The environment also gives partial progress signals, which means the agent has t
 - typed action, observation, and state models
 - Synthetic generators for all 4 tasks
 - train/eval scenario split for held-out evaluation
+- adaptive scenario profiles with open-world drift families
 - Deterministic graders for single-table and multi-table scoring
 - Task 4 orchestration features for backlog, freshness lag, and resource pressure
 - OpenEnv server environment with `reset`, `step`, and `state`
-- Extra FastAPI endpoints: `/tasks`, `/grader`, and `/baseline`
+- Extra FastAPI endpoints: `/tasks`, `/grader`, `/baseline`, and `/benchmark-metadata`
 - Typed client in [`client.py`](client.py)
 
 ## Task Suite
@@ -171,6 +220,7 @@ python3 -m server.app
 - reads `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
 - supports `heuristic`, `hybrid`, and `pure-llm` policy modes
 - supports `train` and `eval` scenario splits
+- handles alias-drift repair candidates via `rename_column`
 - records where actions came from (`llm`, `heuristic_guardrail`, `heuristic`, `auto_table_switch`)
 - supports seed benchmarking with `python3 inference.py --seeds 1 2 3 4 5`
 
@@ -197,23 +247,23 @@ Current local heuristic runs with `seed=42`:
   - Task 1: `0.9250` in 4 steps
   - Task 2: `1.0000` in 4 steps
   - Task 3: `0.9820` in 12 steps
-  - Task 4: `0.8000` in 11 steps
-  - Average: `0.9268`
+  - Task 4: `0.8000` in 14 steps
+  - Average: `0.9267`
 - eval split:
-  - Task 1: `0.9250` in 5 steps
+  - Task 1: `0.8875` in 5 steps
   - Task 2: `1.0000` in 5 steps
-  - Task 3: `0.9820` in 13 steps
-  - Task 4: `0.8000` in 11 steps
-  - Average: `0.9091`
+  - Task 3: `0.9520` in 15 steps
+  - Task 4: `0.7850` in 15 steps
+  - Average: `0.9061`
 
 ## Benchmark Results
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 |
 |---|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4314` | `0.6883` | `0.5433` | `0.1952` | `0.2988` |
-| heuristic | train | `0.9028` | `0.9125` | `0.9667` | `0.9320` | `0.8000` |
-| random | eval | `0.4278` | `0.6883` | `0.5433` | `0.1952` | `0.2844` |
-| heuristic | eval | `0.9091` | `0.9125` | `0.9667` | `0.9570` | `0.8000` |
+| random | train | `0.4405` | `0.6883` | `0.5433` | `0.1906` | `0.3399` |
+| heuristic | train | `0.8923` | `0.9125` | `0.9667` | `0.8900` | `0.8000` |
+| random | eval | `0.4246` | `0.6998` | `0.5433` | `0.1917` | `0.2639` |
+| heuristic | eval | `0.8913` | `0.9125` | `0.9667` | `0.8960` | `0.7900` |
 
 Strict `pure-llm` mode is implemented in [`inference.py`](inference.py). It now disables heuristic rescue so model-only evaluation is honest, but it should be re-benchmarked after the Task 4 upgrade with your preferred live model credentials.
 
@@ -222,6 +272,7 @@ Strict `pure-llm` mode is implemented in [`inference.py`](inference.py). It now 
 The grading logic is deterministic and score-based rather than binary-only:
 
 - observations expose repair signals such as missing-rate, duplicate-rate, type violations, outlier count, format mismatches, dependency alerts, per-table health summaries, backlog rows, freshness lag, workload pressure, and resource requirements
+- observations now also expose scenario-profile metadata, alias hints, open-world pattern tags, and time-budget semantics
 - each task has a fixed success threshold
 - the reward function provides partial progress and penalizes invalid or destructive actions
 - Task 3 uses weighted multi-table scoring so the agent must repair the full pipeline, not just one table
@@ -241,14 +292,15 @@ Task 3 hardening checks now show a meaningful difficulty gap:
 
 Task 4 checks show the online recovery setting is meaningfully harder than static repair:
 
-- initial Task 4 score over 10 seeds: train avg `0.3196`, eval avg `0.3169`
-- random Task 4 benchmark score: train `0.2988`, eval `0.2844`
+- initial Task 4 score over 5 seeds: train avg `0.2489`, eval avg `0.2209`
+- random Task 4 benchmark score: train `0.3399`, eval `0.2639`
 - structured Task 4 baseline, seed `42`: `0.8000`
 
 ## Validation
 
 - `openenv validate`
 - [`scripts/validate-submission.sh`](scripts/validate-submission.sh)
+- `python3 scripts/export_benchmark_metadata.py`
 - Research-grounded benchmark review: [`docs/RL_BENCHMARK_REVIEW.md`](docs/RL_BENCHMARK_REVIEW.md)
 
 ## Evaluation Snapshot
@@ -263,9 +315,10 @@ Task 4 checks show the online recovery setting is meaningfully harder than stati
 - `openenv validate` passes from the repo root
 - `python3 inference.py` now runs all 4 benchmark tasks with explicit split + policy controls
 - `python3 scripts/benchmark_models.py` produces reproducible benchmark tables
+- `docs/assets/benchmark_runs.json`, `docs/assets/benchmark_runs.csv`, and `docs/assets/benchmark_metadata.json` are generated benchmark artifacts
 - The deployed Hugging Face Space is live and responds to `/health` and `/reset`
 - The preferred submission path is still the OpenAI-client baseline with `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
-- The repo now supports held-out evaluation, orchestration-heavy Task 4 recovery, and strict pure-LLM benchmarking without changing the environment API
+- The repo now supports held-out evaluation, orchestration-heavy Task 4 recovery, adaptive open-world profiles, and strict pure-LLM benchmarking without changing the environment API
 
 ## Known Limitations
 
@@ -277,3 +330,5 @@ Task 4 checks show the online recovery setting is meaningfully harder than stati
 
 - [Research-grounded benchmark review](docs/RL_BENCHMARK_REVIEW.md)
 - [Adaptive ETL upgrade notes](docs/ADAPTIVE_ETL_UPGRADE.md)
+- [Open-world benchmark notes](docs/OPEN_WORLD_BENCHMARK_NOTES.md)
+- [What the papers imply we should build next](docs/NEXT_STEPS_FROM_PAPERS.md)
