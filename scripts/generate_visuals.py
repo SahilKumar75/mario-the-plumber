@@ -1,150 +1,139 @@
 #!/usr/bin/env python3
-"""Generate static benchmark visuals for the Mario the Plumber README."""
+"""Generate README visuals from the latest benchmark artifacts."""
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
-import sys
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/mario-mpl")
 os.environ.setdefault("XDG_CACHE_HOME", "/tmp/mario-fontconfig")
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 import matplotlib
 
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-import pandas as pd
+import numpy as np
 
-from inference import _next_table, _table_should_advance, _task4_heuristic_action
-from models import PipelineDoctorAction
-from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "docs" / "assets"
 
 
-def build_benchmark_landscape() -> None:
-    data = pd.DataFrame(
-        [
-            ("random", "train", 0.6883, 0.5433, 0.1952, 0.2988),
-            ("heuristic", "train", 0.9125, 0.9667, 0.9320, 0.8000),
-            ("random", "eval", 0.6883, 0.5433, 0.1952, 0.2844),
-            ("heuristic", "eval", 0.9125, 0.9667, 0.9570, 0.8000),
-        ],
-        columns=["policy", "split", "task_1", "task_2", "task_3", "task_4"],
-    )
-    task_columns = ["task_1", "task_2", "task_3", "task_4"]
-    labels = ["Task 1", "Task 2", "Task 3", "Task 4"]
-    colors = {
-        ("random", "train"): "#94a3b8",
-        ("heuristic", "train"): "#2563eb",
-        ("random", "eval"): "#cbd5e1",
-        ("heuristic", "eval"): "#0f766e",
-    }
+def _load_json(name: str) -> dict:
+    return json.loads((ASSETS / name).read_text(encoding="utf-8"))
 
-    fig, ax = plt.subplots(figsize=(10.5, 5.8))
-    x = range(len(task_columns))
+
+def build_benchmark_overview() -> None:
+    report = _load_json("benchmark_runs.json")
+    rows = report["rows"]
+    tasks = [f"task_{index}" for index in range(1, 6)]
+    task_labels = ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"]
+    row_order = [
+        ("random", "train", "#94a3b8"),
+        ("heuristic", "train", "#2563eb"),
+        ("random", "eval", "#cbd5e1"),
+        ("heuristic", "eval", "#0f766e"),
+    ]
+
+    fig, ax = plt.subplots(figsize=(11, 5.8))
+    x = np.arange(len(tasks))
     width = 0.18
 
-    for index, row in enumerate(data.itertuples(index=False)):
-        offset = (index - 1.5) * width
-        values = [getattr(row, column) for column in task_columns]
-        ax.bar(
-            [position + offset for position in x],
-            values,
-            width=width,
-            label=f"{row.policy}-{row.split}",
-            color=colors[(row.policy, row.split)],
-        )
+    for idx, (policy, split, color) in enumerate(row_order):
+        row = next(item for item in rows if item["policy"] == policy and item["split"] == split)
+        offset = (idx - 1.5) * width
+        values = [row[task] for task in tasks]
+        ax.bar(x + offset, values, width=width, color=color, label=f"{policy}-{split}")
 
     ax.set_ylim(0, 1.05)
-    ax.set_xticks(list(x))
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Average Score")
-    ax.set_title("Mario Benchmark Landscape")
+    ax.set_xticks(x)
+    ax.set_xticklabels(task_labels)
+    ax.set_ylabel("Average score")
+    ax.set_title("Mario Benchmark Overview")
+    ax.grid(axis="y", alpha=0.18)
     ax.legend(frameon=False, ncol=2)
-    ax.grid(axis="y", alpha=0.2)
     fig.tight_layout()
-    fig.savefig(ASSETS / "benchmark_landscape.png", dpi=180, bbox_inches="tight")
+    fig.savefig(ASSETS / "benchmark_overview.png", dpi=180, bbox_inches="tight")
     plt.close(fig)
 
 
-def build_task4_recovery_curve() -> None:
-    env = PipelineDoctorEnvironment()
-    observation = env.reset(seed=42, task_id=4, split="train")
-    history = [
-        {
-            "step": 0,
-            "score": observation.current_score,
-            "backlog_rows": observation.backlog_rows,
-            "resource_level": observation.resource_level,
-            "freshness_lag": observation.freshness_lag_minutes,
-        }
-    ]
+def build_task_difficulty_profile() -> None:
+    metadata = _load_json("benchmark_metadata.json")
+    train = metadata["initial_score_stats"]["train"]
+    eval_ = metadata["initial_score_stats"]["eval"]
+    labels = [train[f"task_{index}"]["name"].replace("Temporal ETL Recovery with Reward Machine Structure", "Task 5") for index in range(1, 6)]
+    train_scores = [train[f"task_{index}"]["initial_score_mean"] for index in range(1, 6)]
+    eval_scores = [eval_[f"task_{index}"]["initial_score_mean"] for index in range(1, 6)]
 
-    for _ in range(20):
-        action = _task4_heuristic_action(observation)
-        observation = env.step(action)
-        history.append(
-            {
-                "step": env.state.step_count,
-                "score": observation.current_score,
-                "backlog_rows": observation.backlog_rows,
-                "resource_level": observation.resource_level,
-                "freshness_lag": observation.freshness_lag_minutes,
-            }
-        )
-        if env.state.done:
-            break
-        if _table_should_advance(4, env, observation):
-            next_table = _next_table(env.state.active_table, task_id=4)
-            if next_table:
-                observation = env.step(PipelineDoctorAction(action_id=0, target_column=next_table))
-                history.append(
-                    {
-                        "step": env.state.step_count,
-                        "score": observation.current_score,
-                        "backlog_rows": observation.backlog_rows,
-                        "resource_level": observation.resource_level,
-                        "freshness_lag": observation.freshness_lag_minutes,
-                    }
-                )
-                if env.state.done:
-                    break
-
-    frame = pd.DataFrame(history)
-    fig, ax1 = plt.subplots(figsize=(10.5, 5.6))
-    ax1.plot(frame["step"], frame["score"], color="#2563eb", linewidth=2.5, label="score")
-    ax1.set_xlabel("Step")
-    ax1.set_ylabel("Score", color="#2563eb")
-    ax1.tick_params(axis="y", labelcolor="#2563eb")
-    ax1.set_ylim(0, 1.05)
-    ax1.grid(alpha=0.2)
-
-    ax2 = ax1.twinx()
-    ax2.plot(frame["step"], frame["backlog_rows"], color="#dc2626", linewidth=2, label="backlog")
-    ax2.plot(frame["step"], frame["resource_level"], color="#0f766e", linewidth=2, label="resource level")
-    ax2.plot(frame["step"], frame["freshness_lag"] / 30.0, color="#f59e0b", linewidth=2, linestyle="--", label="freshness lag / 30")
-    ax2.set_ylabel("Operational Signals", color="#374151")
-    ax2.tick_params(axis="y", labelcolor="#374151")
-
-    handles = ax1.get_lines() + ax2.get_lines()
-    labels = [line.get_label() for line in handles]
-    ax1.legend(handles, labels, loc="upper left", frameon=False)
-    ax1.set_title("Task 4 Incremental Recovery Trajectory")
+    fig, ax = plt.subplots(figsize=(11, 5.8))
+    y = np.arange(len(labels))
+    ax.barh(y + 0.18, train_scores, height=0.34, color="#2563eb", label="train")
+    ax.barh(y - 0.18, eval_scores, height=0.34, color="#0f766e", label="eval")
+    ax.set_xlim(0, 1.0)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.set_xlabel("Initial score before any repair")
+    ax.set_title("Starting Difficulty by Task")
+    ax.grid(axis="x", alpha=0.18)
+    ax.legend(frameon=False)
     fig.tight_layout()
-    fig.savefig(ASSETS / "task4_recovery_curve.png", dpi=180, bbox_inches="tight")
+    fig.savefig(ASSETS / "task_difficulty_profile.png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
+def build_task5_adaptation() -> None:
+    report = _load_json("adaptation_report.json")
+    labels = ["Task 5 train", "Task 5 eval", "Held-out eval family"]
+    means = [
+        report["train_task5"]["mean"],
+        report["eval_task5"]["mean"],
+        report["heldout_profile_family_task5"]["mean"],
+    ]
+    mins = [
+        report["train_task5"]["min"],
+        report["eval_task5"]["min"],
+        report["heldout_profile_family_task5"]["min"],
+    ]
+    maxes = [
+        report["train_task5"]["max"],
+        report["eval_task5"]["max"],
+        report["heldout_profile_family_task5"]["max"],
+    ]
+    lowers = [mean - min_ for mean, min_ in zip(means, mins, strict=True)]
+    uppers = [max_ - mean for mean, max_ in zip(means, maxes, strict=True)]
+
+    fig, ax = plt.subplots(figsize=(8.8, 5.2))
+    x = np.arange(len(labels))
+    bars = ax.bar(x, means, color=["#2563eb", "#0f766e", "#7c3aed"], width=0.56)
+    ax.errorbar(
+        x,
+        means,
+        yerr=[lowers, uppers],
+        fmt="none",
+        ecolor="#111827",
+        elinewidth=1.5,
+        capsize=5,
+    )
+    for bar, value in zip(bars, means, strict=True):
+        ax.text(bar.get_x() + bar.get_width() / 2, value + 0.01, f"{value:.4f}", ha="center", va="bottom", fontsize=10)
+    ax.set_ylim(0, 1.05)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("Average score")
+    ax.set_title("Task 5 Held-out Adaptation Snapshot")
+    ax.grid(axis="y", alpha=0.18)
+    fig.tight_layout()
+    fig.savefig(ASSETS / "task5_adaptation.png", dpi=180, bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> None:
     ASSETS.mkdir(parents=True, exist_ok=True)
-    build_benchmark_landscape()
-    build_task4_recovery_curve()
+    build_benchmark_overview()
+    build_task_difficulty_profile()
+    build_task5_adaptation()
 
 
 if __name__ == "__main__":
