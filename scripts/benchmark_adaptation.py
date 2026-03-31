@@ -14,8 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from inference import run_baseline
-from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from inference import run_baseline  # noqa: E402
+from server.pipeline_doctor_environment import PipelineDoctorEnvironment  # noqa: E402
 
 
 def discover_heldout_task5_seeds(seeds: list[int]) -> list[int]:

@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from server.data_generator import TASK_NAMES, TASK_THRESHOLDS, benchmark_metadata
-from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from server.data_generator import TASK_NAMES, TASK_THRESHOLDS, benchmark_metadata  # noqa: E402
+from server.pipeline_doctor_environment import PipelineDoctorEnvironment  # noqa: E402
 
 
 def collect_initial_score_stats(seeds: list[int]) -> dict[str, object]:

@@ -16,10 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from inference import run_baseline
-from models import PipelineDoctorAction
-from server.data_generator import MAX_STEPS, TASK_THRESHOLDS
-from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from inference import run_baseline  # noqa: E402
+from models import PipelineDoctorAction  # noqa: E402
+from server.data_generator import MAX_STEPS, TASK_THRESHOLDS  # noqa: E402
+from server.pipeline_doctor_environment import PipelineDoctorEnvironment  # noqa: E402
 
 
 def run_random_baseline(seed: int, *, split: str = "train") -> dict[str, Any]:
