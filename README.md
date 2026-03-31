@@ -14,7 +14,7 @@ tags:
 
 # Mario the Plumber
 
-Mario the Plumber is an OpenEnv benchmark for **ETL repair, online recovery, and temporal pipeline orchestration**. Agents do not edit tables directly. They interact through discrete actions and must improve quality, clear backlog, restore freshness, and commit only when the pipeline is safe.
+Mario the Plumber is an OpenEnv benchmark for **ETL repair, online recovery, and temporal pipeline orchestration**. Agents interact through a discrete action space and must improve data quality, dependency consistency, freshness, backlog state, and safe commit timing.
 
 ## Benchmark Card
 
@@ -25,7 +25,7 @@ Mario the Plumber is an OpenEnv benchmark for **ETL repair, online recovery, and
 | Tasks | `5` |
 | Actions | `20` discrete actions |
 | Splits | `train`, `eval` |
-| Hardest tasks | Task 4 and Task 5 |
+| Hard tasks | Task 3, Task 4, Task 5 |
 | Structured signals | reward breakdown, tradeoff weights, subgoal progress, reward-machine state |
 | Live Space | [sahilksingh/mario-the-plumber](https://huggingface.co/spaces/sahilksingh/mario-the-plumber) |
 
@@ -43,13 +43,43 @@ flowchart LR
     F --> G["success / failure / truncation"]
 ```
 
-## Visual Overview
+## Results Overview
 
 ![Benchmark overview](docs/assets/benchmark_overview.png)
 
-![Starting difficulty by task](docs/assets/task_difficulty_profile.png)
+The benchmark separates weak and structured policies clearly. On the current local sweep over seeds `1 2`, heuristic policies stay around `0.91`, while random policies stay around `0.42`.
 
-![Task 5 adaptation snapshot](docs/assets/task5_adaptation.png)
+## Difficulty Structure
+
+![Difficulty gap](docs/assets/difficulty_gap.png)
+
+This chart compares:
+
+- the initial broken state
+- random behavior on `eval`
+- structured heuristic behavior on `eval`
+
+The hard tasks now show the intended benchmark gap:
+
+- Task 3: initial ~ `0.20`, random ~ `0.19`, heuristic ~ `0.89`
+- Task 4: initial ~ `0.23`, random ~ `0.30`, heuristic ~ `0.79`
+- Task 5: initial ~ `0.36`, random ~ `0.38`, heuristic ~ `0.98`
+
+## Grading Structure
+
+![Objective weights](docs/assets/objective_weights.png)
+
+Tasks 3-5 still return a scalar OpenEnv reward, but the benchmark now also exposes structured grading signals:
+
+- `reward_breakdown`
+- `objective_breakdown`
+- `tradeoff_weights`
+- `subgoal_progress`
+- `subgoal_order`
+- `active_subgoal`
+- `reward_machine_state`
+
+This makes the reward system more interpretable without breaking the hackathon API contract.
 
 ## Task Suite
 
@@ -58,35 +88,24 @@ flowchart LR
 | 1 | Easy | missing values + format cleanup | `single` |
 | 2 | Medium | duplicates + dtype repair | `single` |
 | 3 | Hard | cross-table dependency repair | `orders`, `customers`, `products` |
-| 4 | Hard | online ETL recovery under backlog/freshness/resource pressure | `orders`, `products`, `daily_summary` |
+| 4 | Hard | online ETL recovery under backlog, freshness, and resource pressure | `orders`, `products`, `daily_summary` |
 | 5 | Hard | temporal recovery with formal subgoal structure | `source_orders`, `catalog`, `hourly_rollup` |
 
-## What Makes Mario Useful
+## Observation Design
 
-- It evaluates a real operational problem instead of a toy control task.
-- It separates random behavior from structured repair clearly.
-- It includes held-out `eval` profile families instead of only fixed-seed demos.
-- It now exposes explicit multi-objective and temporal task structure for Tasks 3-5.
-
-## Observation and Reward Design
-
-Observations include:
+Observations expose:
 
 - quality signals: `missing_rate`, `duplicate_rate`, `type_violations`, `outlier_count`, `format_issues`
-- multi-table signals: `table_health`, `dependency_alerts`, `commit_ready`
-- operational signals: `backlog_rows`, `freshness_lag_minutes`, `resource_level`, `required_resource_level`, `pending_batches`
+- dependency and table signals: `table_health`, `dependency_alerts`, `commit_ready`
+- orchestration signals: `backlog_rows`, `freshness_lag_minutes`, `resource_level`, `required_resource_level`, `pending_batches`
 - open-world signals: `scenario_profile`, `open_world_patterns`, `missing_expected_columns`, `column_alias_hints`
-- temporal signals: `time_budget_remaining`, `truncated`, `done_reason`
-- structured RL signals for Tasks 3-5:
+- episode semantics: `time_budget_remaining`, `truncated`, `done_reason`
+- structured benchmark signals for Tasks 3-5:
   - `reward_breakdown`
   - `objective_breakdown`
   - `tradeoff_weights`
   - `subgoal_progress`
-  - `subgoal_order`
-  - `active_subgoal`
   - `reward_machine_state`
-
-The environment still returns a standard scalar OpenEnv reward, but the harder tasks now also expose structured reward semantics for analysis and benchmarking.
 
 ## Action Space
 
@@ -95,7 +114,7 @@ Core repair actions:
 - `0`: inspect schema / switch table on multi-table tasks
 - `3-5`: fill values
 - `6`: drop nulls
-- `7-9`: cast / normalize columns
+- `7-9`: cast or normalize columns
 - `10`: remove duplicates
 - `11`: drop outliers
 - `12`: rename column
@@ -147,7 +166,7 @@ Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.
 | random | eval | `0.4165` | `0.6659` | `0.5425` | `0.1931` | `0.3012` | `0.3800` |
 | heuristic | eval | `0.9089` | `0.9062` | `0.9750` | `0.8920` | `0.7925` | `0.9789` |
 
-Task 5 held-out adaptation snapshot from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
+Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
 
 - train mean: `0.9774`
 - eval mean: `0.9774`
@@ -174,7 +193,7 @@ python3 inference.py --policy-mode heuristic --split train --seed 42
 python3 inference.py --policy-mode heuristic --split eval --seed 42
 ```
 
-Generate benchmark reports:
+Generate benchmark artifacts:
 
 ```bash
 python3 scripts/benchmark_models.py --policies random heuristic --splits train eval --seeds 1 2 --format markdown
@@ -207,7 +226,7 @@ Key submission files:
 ## Known Limitations
 
 - `drop_nulls` changes row count, so the accuracy metric strongly discourages deletion-heavy repairs.
-- `inference.py` is still a benchmark baseline family, not a learned RL policy.
+- `inference.py` is a benchmark baseline family, not a learned RL policy.
 - Task 5 uses a hand-authored formal subgoal structure; it is more serious than before, but still not a learned task specification.
 
 ## Additional Docs

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate README visuals from the latest benchmark artifacts."""
+"""Generate benchmark-wide visuals for the README."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def build_benchmark_overview() -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(task_labels)
     ax.set_ylabel("Average score")
-    ax.set_title("Mario Benchmark Overview")
+    ax.set_title("Benchmark Performance Overview")
     ax.grid(axis="y", alpha=0.18)
     ax.legend(frameon=False, ncol=2)
     fig.tight_layout()
@@ -59,81 +59,89 @@ def build_benchmark_overview() -> None:
     plt.close(fig)
 
 
-def build_task_difficulty_profile() -> None:
+def build_task_gap_chart() -> None:
+    report = _load_json("benchmark_runs.json")
     metadata = _load_json("benchmark_metadata.json")
-    train = metadata["initial_score_stats"]["train"]
-    eval_ = metadata["initial_score_stats"]["eval"]
-    labels = [train[f"task_{index}"]["name"].replace("Temporal ETL Recovery with Reward Machine Structure", "Task 5") for index in range(1, 6)]
-    train_scores = [train[f"task_{index}"]["initial_score_mean"] for index in range(1, 6)]
-    eval_scores = [eval_[f"task_{index}"]["initial_score_mean"] for index in range(1, 6)]
+    rows = report["rows"]
+    initial_stats = metadata["initial_score_stats"]
+    tasks = [1, 2, 3, 4, 5]
+    labels = [f"Task {task_id}" for task_id in tasks]
+
+    initial = []
+    random_eval = []
+    heuristic_eval = []
+    for task_id in tasks:
+        train_mean = initial_stats["train"][f"task_{task_id}"]["initial_score_mean"]
+        eval_mean = initial_stats["eval"][f"task_{task_id}"]["initial_score_mean"]
+        initial.append((train_mean + eval_mean) / 2.0)
+        random_row = next(item for item in rows if item["policy"] == "random" and item["split"] == "eval")
+        heuristic_row = next(item for item in rows if item["policy"] == "heuristic" and item["split"] == "eval")
+        random_eval.append(random_row[f"task_{task_id}"])
+        heuristic_eval.append(heuristic_row[f"task_{task_id}"])
 
     fig, ax = plt.subplots(figsize=(11, 5.8))
-    y = np.arange(len(labels))
-    ax.barh(y + 0.18, train_scores, height=0.34, color="#2563eb", label="train")
-    ax.barh(y - 0.18, eval_scores, height=0.34, color="#0f766e", label="eval")
-    ax.set_xlim(0, 1.0)
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels)
-    ax.set_xlabel("Initial score before any repair")
-    ax.set_title("Starting Difficulty by Task")
-    ax.grid(axis="x", alpha=0.18)
-    ax.legend(frameon=False)
-    fig.tight_layout()
-    fig.savefig(ASSETS / "task_difficulty_profile.png", dpi=180, bbox_inches="tight")
-    plt.close(fig)
-
-
-def build_task5_adaptation() -> None:
-    report = _load_json("adaptation_report.json")
-    labels = ["Task 5 train", "Task 5 eval", "Held-out eval family"]
-    means = [
-        report["train_task5"]["mean"],
-        report["eval_task5"]["mean"],
-        report["heldout_profile_family_task5"]["mean"],
-    ]
-    mins = [
-        report["train_task5"]["min"],
-        report["eval_task5"]["min"],
-        report["heldout_profile_family_task5"]["min"],
-    ]
-    maxes = [
-        report["train_task5"]["max"],
-        report["eval_task5"]["max"],
-        report["heldout_profile_family_task5"]["max"],
-    ]
-    lowers = [mean - min_ for mean, min_ in zip(means, mins, strict=True)]
-    uppers = [max_ - mean for mean, max_ in zip(means, maxes, strict=True)]
-
-    fig, ax = plt.subplots(figsize=(8.8, 5.2))
-    x = np.arange(len(labels))
-    bars = ax.bar(x, means, color=["#2563eb", "#0f766e", "#7c3aed"], width=0.56)
-    ax.errorbar(
-        x,
-        means,
-        yerr=[lowers, uppers],
-        fmt="none",
-        ecolor="#111827",
-        elinewidth=1.5,
-        capsize=5,
-    )
-    for bar, value in zip(bars, means, strict=True):
-        ax.text(bar.get_x() + bar.get_width() / 2, value + 0.01, f"{value:.4f}", ha="center", va="bottom", fontsize=10)
+    x = np.arange(len(tasks))
+    width = 0.24
+    ax.bar(x - width, initial, width=width, color="#cbd5e1", label="initial state")
+    ax.bar(x, random_eval, width=width, color="#94a3b8", label="random (eval)")
+    ax.bar(x + width, heuristic_eval, width=width, color="#0f766e", label="heuristic (eval)")
     ax.set_ylim(0, 1.05)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel("Average score")
-    ax.set_title("Task 5 Held-out Adaptation Snapshot")
+    ax.set_title("Difficulty Gap by Task")
     ax.grid(axis="y", alpha=0.18)
+    ax.legend(frameon=False, ncol=3)
     fig.tight_layout()
-    fig.savefig(ASSETS / "task5_adaptation.png", dpi=180, bbox_inches="tight")
+    fig.savefig(ASSETS / "difficulty_gap.png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
+def build_objective_weights_chart() -> None:
+    metadata = _load_json("benchmark_metadata.json")
+    weights = metadata["benchmark_metadata"]["objective_weights"]
+    task_ids = ["3", "4", "5"]
+    labels = ["Task 3", "Task 4", "Task 5"]
+    keys = sorted({key for task_id in task_ids for key in weights[task_id]})
+    colors = {
+        "data_quality": "#2563eb",
+        "dependency_consistency": "#0f766e",
+        "freshness": "#f59e0b",
+        "backlog": "#dc2626",
+        "resource_efficiency": "#7c3aed",
+        "summary_consistency": "#14b8a6",
+        "schema_alignment": "#1d4ed8",
+        "temporal_backfill": "#ea580c",
+        "rollup_consistency": "#0f766e",
+    }
+
+    fig, ax = plt.subplots(figsize=(10.8, 5.8))
+    x = np.arange(len(task_ids))
+    bottom = np.zeros(len(task_ids))
+    for key in keys:
+        values = np.array([weights[task_id].get(key, 0.0) for task_id in task_ids])
+        if np.allclose(values, 0.0):
+            continue
+        ax.bar(x, values, bottom=bottom, color=colors.get(key, "#64748b"), label=key.replace("_", " "))
+        bottom += values
+
+    ax.set_ylim(0, 1.0)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("Weight")
+    ax.set_title("Objective Weights for Hard Tasks")
+    ax.grid(axis="y", alpha=0.18)
+    ax.legend(frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
+    fig.tight_layout()
+    fig.savefig(ASSETS / "objective_weights.png", dpi=180, bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> None:
     ASSETS.mkdir(parents=True, exist_ok=True)
     build_benchmark_overview()
-    build_task_difficulty_profile()
-    build_task5_adaptation()
+    build_task_gap_chart()
+    build_objective_weights_chart()
 
 
 if __name__ == "__main__":
