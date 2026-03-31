@@ -57,8 +57,10 @@ SYSTEM_PROMPT = textwrap.dedent(
     - Use cast_to_string to normalize mixed date formats, noisy text encodings, and whitespace drift.
     - In task 3, action 0 with target_column equal to a table name switches the active table.
     - In task 4, action 0 can also switch among orders, products, and daily_summary.
+    - In task 5, action 0 can also switch among source_orders, catalog, and hourly_rollup.
     - Read dependency_alerts and commit_ready before committing on task 3.
-    - In task 4, read orchestration_alerts, backlog_rows, freshness_lag_minutes, and resource_level before committing.
+    - In task 4 and task 5, read orchestration_alerts, backlog_rows, freshness_lag_minutes, and resource_level before committing.
+    - Read reward_machine_state, active_subgoal, and subgoal_progress before choosing the next action on tasks 3-5.
     - Use action 15 only when commit_ready is true or the score is above the task threshold with no obvious remaining errors.
     """
 ).strip()
@@ -251,6 +253,15 @@ def _build_user_prompt(
         Truncated: {observation.truncated}
         Done reason: {observation.done_reason}
         Synthetic data notes: {json.dumps(observation.synthetic_data_notes)}
+        Reward breakdown: {json.dumps(observation.reward_breakdown, sort_keys=True)}
+        Objective breakdown: {json.dumps(observation.objective_breakdown, sort_keys=True)}
+        Tradeoff weights: {json.dumps(observation.tradeoff_weights, sort_keys=True)}
+        Subgoal progress: {json.dumps(observation.subgoal_progress, sort_keys=True)}
+        Subgoal order: {json.dumps(observation.subgoal_order)}
+        Active subgoal: {observation.active_subgoal}
+        Reward machine state: {observation.reward_machine_state}
+        Adaptation target: {observation.adaptation_target}
+        Heldout profile family: {observation.heldout_profile_family}
         Schema report: {json.dumps(observation.schema_report, sort_keys=True)}
         Recent errors: {json.dumps(observation.recent_errors)}
         Last action result: {observation.action_result or ""}
@@ -331,6 +342,8 @@ def _heuristic_action(
         return _task3_heuristic_action(observation)
     if task_id == 4:
         return _task4_heuristic_action(observation)
+    if task_id == 5:
+        return _task5_heuristic_action(observation)
 
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
@@ -377,6 +390,8 @@ def _candidate_actions(
         return _task3_candidate_actions(observation, heuristic_action, policy_mode)
     if task_id == 4:
         return _task4_candidate_actions(observation, heuristic_action, policy_mode)
+    if task_id == 5:
+        return _task5_candidate_actions(observation, heuristic_action, policy_mode)
 
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
@@ -556,6 +571,79 @@ def _task4_candidate_actions(
     return deduped or [heuristic_action]
 
 
+def _task5_candidate_actions(
+    observation: PipelineDoctorObservation,
+    heuristic_action: PipelineDoctorAction,
+    policy_mode: str,
+) -> list[PipelineDoctorAction]:
+    if policy_mode == "hybrid":
+        return [heuristic_action]
+
+    actions: list[PipelineDoctorAction] = []
+    error_text = " | ".join(observation.recent_errors).lower()
+    mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
+
+    if policy_mode != "pure-llm" and heuristic_action.action_id != FALLBACK_ACTION.action_id:
+        actions.append(heuristic_action)
+
+    if alias_action:
+        actions.append(alias_action)
+
+    if observation.stage == "source_orders":
+        if observation.backlog_rows > 0:
+            if observation.resource_level < observation.required_resource_level:
+                actions.append(PipelineDoctorAction(action_id=16))
+            actions.append(PipelineDoctorAction(action_id=18))
+        null_column = _column_from_errors(error_text, "null")
+        if null_column:
+            actions.extend(
+                [
+                    PipelineDoctorAction(action_id=4, target_column=null_column),
+                    PipelineDoctorAction(action_id=5, target_column=null_column),
+                ]
+            )
+
+    if observation.duplicate_rate > 0:
+        actions.append(PipelineDoctorAction(action_id=10))
+
+    format_column = _column_from_errors(error_text, "format mismatch")
+    if observation.format_issues > 0 and format_column:
+        actions.append(PipelineDoctorAction(action_id=9, target_column=format_column))
+
+    if mismatch:
+        column, info = mismatch
+        actions.append(_repair_action_for_mismatch(column, info))
+
+    outlier_column = _column_from_errors(error_text, "outlier")
+    if observation.outlier_count > 0 and outlier_column:
+        actions.append(PipelineDoctorAction(action_id=11, target_column=outlier_column))
+
+    if observation.stage != "hourly_rollup":
+        next_table = _next_table(observation.stage, task_id=5)
+        if next_table:
+            actions.append(PipelineDoctorAction(action_id=0, target_column=next_table))
+
+    if observation.stage == "hourly_rollup":
+        actions.append(PipelineDoctorAction(action_id=19))
+        if observation.resource_level > observation.required_resource_level:
+            actions.append(PipelineDoctorAction(action_id=17))
+
+    actions.append(PipelineDoctorAction(action_id=14))
+    if observation.commit_ready or observation.current_score >= TASK_THRESHOLDS[5]:
+        actions.append(PipelineDoctorAction(action_id=15))
+
+    deduped: list[PipelineDoctorAction] = []
+    seen: set[str] = set()
+    for action in actions:
+        key = json.dumps(action.model_dump(exclude_none=True), sort_keys=True)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(action)
+    return deduped or [heuristic_action]
+
+
 def _normalize_candidate_action(
     model_action: PipelineDoctorAction,
     candidate_actions: list[PipelineDoctorAction],
@@ -716,6 +804,66 @@ def _task4_heuristic_action(
     return FALLBACK_ACTION
 
 
+def _task5_heuristic_action(
+    observation: PipelineDoctorObservation,
+) -> PipelineDoctorAction:
+    error_text = " | ".join(observation.recent_errors).lower()
+    mismatch = _first_schema_mismatch(observation)
+    alias_action = _alias_fix_action(observation)
+
+    if alias_action:
+        return alias_action
+
+    if observation.stage == "source_orders":
+        if observation.backlog_rows > 0:
+            if observation.resource_level < observation.required_resource_level:
+                return PipelineDoctorAction(action_id=16)
+            return PipelineDoctorAction(action_id=18)
+        if observation.duplicate_rate > 0:
+            return PipelineDoctorAction(action_id=10)
+        format_column = _column_from_errors(error_text, "format mismatch")
+        if format_column:
+            return PipelineDoctorAction(action_id=9, target_column=format_column)
+        if mismatch:
+            column, info = mismatch
+            return _repair_action_for_mismatch(column, info)
+        if not _table_needs_attention(observation):
+            return PipelineDoctorAction(action_id=0, target_column="catalog")
+
+    elif observation.stage == "catalog":
+        if observation.duplicate_rate > 0:
+            return PipelineDoctorAction(action_id=10)
+        format_column = _column_from_errors(error_text, "format mismatch")
+        if format_column:
+            return PipelineDoctorAction(action_id=9, target_column=format_column)
+        if observation.outlier_count > 0:
+            outlier_column = _column_from_errors(error_text, "outlier") or "unit_price"
+            return PipelineDoctorAction(action_id=11, target_column=outlier_column)
+        if mismatch:
+            column, info = mismatch
+            return _repair_action_for_mismatch(column, info)
+        if not _table_needs_attention(observation):
+            return PipelineDoctorAction(action_id=0, target_column="hourly_rollup")
+
+    elif observation.stage == "hourly_rollup":
+        format_column = _column_from_errors(error_text, "format mismatch")
+        if format_column:
+            return PipelineDoctorAction(action_id=9, target_column=format_column)
+        if mismatch:
+            column, info = mismatch
+            return _repair_action_for_mismatch(column, info)
+        if observation.downstream_stale or observation.freshness_lag_minutes > 30:
+            return PipelineDoctorAction(action_id=19)
+        if observation.resource_level > observation.required_resource_level:
+            return PipelineDoctorAction(action_id=17)
+        if observation.commit_ready:
+            return PipelineDoctorAction(action_id=15)
+
+    if observation.commit_ready:
+        return PipelineDoctorAction(action_id=15)
+    return FALLBACK_ACTION
+
+
 def _first_schema_mismatch(
     observation: PipelineDoctorObservation,
 ) -> tuple[str, dict[str, Any]] | None:
@@ -771,8 +919,9 @@ def _table_needs_attention(observation: PipelineDoctorObservation) -> bool:
         or observation.type_violations > 0
         or observation.outlier_count > 0
         or observation.format_issues > 0
-        or (observation.stage == "orders" and observation.backlog_rows > 0)
-        or (observation.stage == "daily_summary" and observation.downstream_stale)
+        or (observation.stage in {"orders", "source_orders"} and observation.backlog_rows > 0)
+        or (observation.stage in {"daily_summary", "hourly_rollup"} and observation.downstream_stale)
+        or (observation.stage == "hourly_rollup" and observation.freshness_lag_minutes > 30)
     )
 
 
@@ -805,6 +954,12 @@ def _table_should_advance(
         if env.state.active_table == "products":
             return not _table_needs_attention(observation)
         return False
+    if task_id == 5:
+        if env.state.active_table == "source_orders":
+            return observation.backlog_rows == 0 and not _table_needs_attention(observation)
+        if env.state.active_table == "catalog":
+            return not _table_needs_attention(observation)
+        return False
     if not env.state.done and not _table_needs_attention(observation):
         return True
     if env.state.active_table == "orders" and observation.current_score >= 0.9:
@@ -815,6 +970,8 @@ def _table_should_advance(
 def _next_table(current_table: str, task_id: int = 3) -> str | None:
     if task_id == 4:
         order = ["orders", "products", "daily_summary"]
+    elif task_id == 5:
+        order = ["source_orders", "catalog", "hourly_rollup"]
     else:
         order = ["orders", "customers", "products"]
     if current_table not in order:

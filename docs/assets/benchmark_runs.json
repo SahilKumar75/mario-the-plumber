@@ -3,58 +3,66 @@
     {
       "policy": "random",
       "split": "train",
-      "average_score_mean": 0.4405,
-      "average_score_std": 0.0278,
-      "task_1": 0.6883,
-      "task_1_std": 0.0583,
-      "task_2": 0.5433,
-      "task_2_std": 0.0024,
-      "task_3": 0.1906,
-      "task_3_std": 0.0031,
-      "task_4": 0.3399,
-      "task_4_std": 0.1581
+      "average_score_mean": 0.4351,
+      "average_score_std": 0.0208,
+      "task_1": 0.6512,
+      "task_1_std": 0.0312,
+      "task_2": 0.5425,
+      "task_2_std": 0.0025,
+      "task_3": 0.19,
+      "task_3_std": 0.0037,
+      "task_4": 0.3915,
+      "task_4_std": 0.1719,
+      "task_5": 0.4003,
+      "task_5_std": 0.0305
     },
     {
       "policy": "heuristic",
       "split": "train",
-      "average_score_mean": 0.8923,
-      "average_score_std": 0.014,
-      "task_1": 0.9125,
-      "task_1_std": 0.0177,
-      "task_2": 0.9667,
-      "task_2_std": 0.0236,
-      "task_3": 0.89,
-      "task_3_std": 0.022,
+      "average_score_mean": 0.9169,
+      "average_score_std": 0.0053,
+      "task_1": 0.925,
+      "task_1_std": 0.0,
+      "task_2": 0.975,
+      "task_2_std": 0.025,
+      "task_3": 0.9055,
+      "task_3_std": 0.0015,
       "task_4": 0.8,
-      "task_4_std": 0.0
+      "task_4_std": 0.0,
+      "task_5": 0.9789,
+      "task_5_std": 0.0
     },
     {
       "policy": "random",
       "split": "eval",
-      "average_score_mean": 0.4246,
-      "average_score_std": 0.0091,
-      "task_1": 0.6998,
-      "task_1_std": 0.0638,
-      "task_2": 0.5433,
-      "task_2_std": 0.0024,
-      "task_3": 0.1917,
+      "average_score_mean": 0.4165,
+      "average_score_std": 0.0068,
+      "task_1": 0.6659,
+      "task_1_std": 0.0516,
+      "task_2": 0.5425,
+      "task_2_std": 0.0025,
+      "task_3": 0.1931,
       "task_3_std": 0.0036,
-      "task_4": 0.2639,
-      "task_4_std": 0.0985
+      "task_4": 0.3012,
+      "task_4_std": 0.1019,
+      "task_5": 0.38,
+      "task_5_std": 0.0778
     },
     {
       "policy": "heuristic",
       "split": "eval",
-      "average_score_mean": 0.8913,
-      "average_score_std": 0.0059,
-      "task_1": 0.9125,
-      "task_1_std": 0.0177,
-      "task_2": 0.9667,
-      "task_2_std": 0.0236,
-      "task_3": 0.896,
-      "task_3_std": 0.0135,
-      "task_4": 0.79,
-      "task_4_std": 0.0071
+      "average_score_mean": 0.9089,
+      "average_score_std": 0.0057,
+      "task_1": 0.9062,
+      "task_1_std": 0.0188,
+      "task_2": 0.975,
+      "task_2_std": 0.025,
+      "task_3": 0.892,
+      "task_3_std": 0.015,
+      "task_4": 0.7925,
+      "task_4_std": 0.0075,
+      "task_5": 0.9789,
+      "task_5_std": 0.0
     }
   ],
   "runs": {
@@ -87,9 +95,15 @@
             "score": 0.2196,
             "steps": 17,
             "success": false
+          },
+          {
+            "task_id": 5,
+            "score": 0.4308,
+            "steps": 13,
+            "success": false
           }
         ],
-        "average_score": 0.4102
+        "average_score": 0.4143
       },
       {
         "status": "complete",
@@ -119,41 +133,15 @@
             "score": 0.5633,
             "steps": 30,
             "success": false
-          }
-        ],
-        "average_score": 0.4774
-      },
-      {
-        "status": "complete",
-        "policy_mode": "random",
-        "scenario_split": "train",
-        "results": [
-          {
-            "task_id": 1,
-            "score": 0.7625,
-            "steps": 5,
-            "success": false
           },
           {
-            "task_id": 2,
-            "score": 0.545,
-            "steps": 5,
-            "success": false
-          },
-          {
-            "task_id": 3,
-            "score": 0.1917,
-            "steps": 3,
-            "success": false
-          },
-          {
-            "task_id": 4,
-            "score": 0.2369,
-            "steps": 3,
+            "task_id": 5,
+            "score": 0.3698,
+            "steps": 11,
             "success": false
           }
         ],
-        "average_score": 0.434
+        "average_score": 0.4559
       }
     ],
     "heuristic:train": [
@@ -200,14 +188,23 @@
               "heuristic": 15,
               "auto_table_switch": 1
             }
+          },
+          {
+            "task_id": 5,
+            "score": 0.9789,
+            "steps": 17,
+            "success": true,
+            "action_sources": {
+              "heuristic": 17
+            }
           }
         ],
-        "average_score": 0.908,
+        "average_score": 0.9222,
         "action_source_totals": {
-          "heuristic": 35,
+          "heuristic": 52,
           "auto_table_switch": 3
         },
-        "runtime_seconds": 0.5
+        "runtime_seconds": 1.04
       },
       {
         "status": "complete",
@@ -252,66 +249,23 @@
               "heuristic": 14,
               "auto_table_switch": 1
             }
-          }
-        ],
-        "average_score": 0.8948,
-        "action_source_totals": {
-          "heuristic": 34,
-          "auto_table_switch": 3
-        },
-        "runtime_seconds": 0.35
-      },
-      {
-        "status": "complete",
-        "policy_mode": "heuristic",
-        "scenario_split": "train",
-        "model_name": null,
-        "results": [
-          {
-            "task_id": 1,
-            "score": 0.8875,
-            "steps": 5,
-            "success": true,
-            "action_sources": {
-              "heuristic": 5
-            }
           },
           {
-            "task_id": 2,
-            "score": 0.95,
-            "steps": 4,
+            "task_id": 5,
+            "score": 0.9789,
+            "steps": 15,
             "success": true,
             "action_sources": {
-              "heuristic": 4
-            }
-          },
-          {
-            "task_id": 3,
-            "score": 0.859,
-            "steps": 14,
-            "success": true,
-            "action_sources": {
-              "heuristic": 12,
-              "auto_table_switch": 2
-            }
-          },
-          {
-            "task_id": 4,
-            "score": 0.8,
-            "steps": 14,
-            "success": true,
-            "action_sources": {
-              "heuristic": 13,
-              "auto_table_switch": 1
+              "heuristic": 15
             }
           }
         ],
-        "average_score": 0.8741,
+        "average_score": 0.9116,
         "action_source_totals": {
-          "heuristic": 34,
+          "heuristic": 49,
           "auto_table_switch": 3
         },
-        "runtime_seconds": 0.36
+        "runtime_seconds": 0.8
       }
     ],
     "random:eval": [
@@ -343,9 +297,15 @@
             "score": 0.1993,
             "steps": 17,
             "success": false
+          },
+          {
+            "task_id": 5,
+            "score": 0.4579,
+            "steps": 13,
+            "success": false
           }
         ],
-        "average_score": 0.4146
+        "average_score": 0.4233
       },
       {
         "status": "complete",
@@ -375,41 +335,15 @@
             "score": 0.4031,
             "steps": 30,
             "success": false
-          }
-        ],
-        "average_score": 0.4367
-      },
-      {
-        "status": "complete",
-        "policy_mode": "random",
-        "scenario_split": "eval",
-        "results": [
-          {
-            "task_id": 1,
-            "score": 0.7675,
-            "steps": 5,
-            "success": false
           },
           {
-            "task_id": 2,
-            "score": 0.545,
-            "steps": 5,
-            "success": false
-          },
-          {
-            "task_id": 3,
-            "score": 0.1887,
-            "steps": 3,
-            "success": false
-          },
-          {
-            "task_id": 4,
-            "score": 0.1892,
-            "steps": 3,
+            "task_id": 5,
+            "score": 0.3022,
+            "steps": 11,
             "success": false
           }
         ],
-        "average_score": 0.4226
+        "average_score": 0.4098
       }
     ],
     "heuristic:eval": [
@@ -456,14 +390,23 @@
               "heuristic": 15,
               "auto_table_switch": 1
             }
+          },
+          {
+            "task_id": 5,
+            "score": 0.9789,
+            "steps": 15,
+            "success": true,
+            "action_sources": {
+              "heuristic": 15
+            }
           }
         ],
-        "average_score": 0.8986,
+        "average_score": 0.9147,
         "action_source_totals": {
-          "heuristic": 37,
+          "heuristic": 52,
           "auto_table_switch": 3
         },
-        "runtime_seconds": 0.67
+        "runtime_seconds": 1.05
       },
       {
         "status": "complete",
@@ -508,66 +451,23 @@
               "heuristic": 16,
               "auto_table_switch": 1
             }
-          }
-        ],
-        "average_score": 0.8842,
-        "action_source_totals": {
-          "heuristic": 39,
-          "auto_table_switch": 3
-        },
-        "runtime_seconds": 1.02
-      },
-      {
-        "status": "complete",
-        "policy_mode": "heuristic",
-        "scenario_split": "eval",
-        "model_name": null,
-        "results": [
-          {
-            "task_id": 1,
-            "score": 0.925,
-            "steps": 5,
-            "success": true,
-            "action_sources": {
-              "heuristic": 5
-            }
           },
           {
-            "task_id": 2,
-            "score": 0.95,
-            "steps": 5,
+            "task_id": 5,
+            "score": 0.9789,
+            "steps": 18,
             "success": true,
             "action_sources": {
-              "heuristic": 5
-            }
-          },
-          {
-            "task_id": 3,
-            "score": 0.904,
-            "steps": 15,
-            "success": true,
-            "action_sources": {
-              "heuristic": 13,
-              "auto_table_switch": 2
-            }
-          },
-          {
-            "task_id": 4,
-            "score": 0.785,
-            "steps": 17,
-            "success": true,
-            "action_sources": {
-              "heuristic": 16,
-              "auto_table_switch": 1
+              "heuristic": 18
             }
           }
         ],
-        "average_score": 0.891,
+        "average_score": 0.9032,
         "action_source_totals": {
-          "heuristic": 39,
+          "heuristic": 57,
           "auto_table_switch": 3
         },
-        "runtime_seconds": 0.51
+        "runtime_seconds": 1.05
       }
     ]
   }

@@ -19,25 +19,41 @@ from openenv.core.env_server.interfaces import Environment
 
 try:
     from ..models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-    from .data_generator import MAX_STEPS, TASK_THRESHOLDS, generate_scenario
+    from .data_generator import (
+        FORMAL_TASK_SPECS,
+        MAX_STEPS,
+        TASK_OBJECTIVE_WEIGHTS,
+        TASK_THRESHOLDS,
+        generate_scenario,
+    )
     from .grader import (
         calculation_mismatch_count,
         compute_reward,
+        compute_reward_breakdown,
         duplicate_row_count,
         score_single_table,
         score_task3,
         score_task4,
+        score_task5,
     )
 except ImportError:
     from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-    from server.data_generator import MAX_STEPS, TASK_THRESHOLDS, generate_scenario
+    from server.data_generator import (
+        FORMAL_TASK_SPECS,
+        MAX_STEPS,
+        TASK_OBJECTIVE_WEIGHTS,
+        TASK_THRESHOLDS,
+        generate_scenario,
+    )
     from server.grader import (
         calculation_mismatch_count,
         compute_reward,
+        compute_reward_breakdown,
         duplicate_row_count,
         score_single_table,
         score_task3,
         score_task4,
+        score_task5,
     )
 
 ACTION_NAMES = {
@@ -82,6 +98,7 @@ class PipelineDoctorEnvironment(
         self._seed: int | None = None
         self._split = "train"
         self._recent_errors: list[str] = []
+        self._last_reward_breakdown: dict[str, float] = {}
         self._state = PipelineDoctorState(
             episode_id=str(uuid4()),
             task_id=1,
@@ -104,6 +121,9 @@ class PipelineDoctorEnvironment(
             done_reason="",
             scenario_profile="baseline",
             started_at=datetime.now(UTC).isoformat(),
+            active_subgoal="",
+            reward_machine_state="",
+            heldout_profile_family=False,
         )
 
     def reset(
@@ -157,8 +177,12 @@ class PipelineDoctorEnvironment(
             done_reason="",
             scenario_profile=str(self._scenario_meta.get("scenario_profile", "baseline")),
             started_at=datetime.now(UTC).isoformat(),
+            active_subgoal="",
+            reward_machine_state="",
+            heldout_profile_family=bool(self._scenario_meta.get("heldout_profile_family", False)),
         )
         self._refresh_errors()
+        self._update_task_progress_state()
         self._store_episode_summary()
         return self._build_observation(reward=0.0, done=False)
 
@@ -214,6 +238,13 @@ class PipelineDoctorEnvironment(
             done=done,
             success=success,
         )
+        self._last_reward_breakdown = compute_reward_breakdown(
+            score_before,
+            score_after,
+            action_valid=action_valid,
+            done=done,
+            success=success,
+        )
 
         self._state.current_score = score_after
         self._state.best_score = max(self._state.best_score, score_after)
@@ -224,6 +255,7 @@ class PipelineDoctorEnvironment(
         self._state.time_budget_remaining = max(
             0, self._state.max_steps - self._state.step_count
         )
+        self._update_task_progress_state()
         observation = self._build_observation(
             reward=reward,
             done=done,
@@ -450,6 +482,8 @@ class PipelineDoctorEnvironment(
     def _commit_changes(self) -> None:
         if self._task_id == 4:
             return
+        if self._task_id == 5:
+            return
         if self._task_id != 3:
             return
         if not self._task3_commit_ready():
@@ -492,9 +526,25 @@ class PipelineDoctorEnvironment(
             return False
         return True
 
+    def _task5_commit_ready(self) -> bool:
+        if self._task_id != 5:
+            return True
+        for table_name in ("source_orders", "catalog", "hourly_rollup"):
+            if self._table_has_structural_issues(table_name):
+                return False
+        if self._state.backlog_rows > 0 or self._state.pending_batches > 0:
+            return False
+        if self._state.resource_level < self._state.required_resource_level:
+            return False
+        if self._state.freshness_lag_minutes > 30:
+            return False
+        if bool(self._scenario_meta.get("downstream_stale", False)):
+            return False
+        return True
+
     def _scale_resources(self, *, up: bool) -> str:
-        if self._task_id != 4:
-            raise ValueError("resource scaling is only available in task 4")
+        if self._task_id not in {4, 5}:
+            raise ValueError("resource scaling is only available in task 4 or task 5")
         current = self._state.resource_level
         if up:
             self._state.resource_level = min(current + 1, 3)
@@ -506,15 +556,16 @@ class PipelineDoctorEnvironment(
         return f"resources_scaled_{direction}: level={self._state.resource_level}, pressure={pressure:.2f}"
 
     def _prioritize_incremental_batch(self) -> str:
-        if self._task_id != 4:
-            raise ValueError("incremental batch prioritization is only available in task 4")
+        if self._task_id not in {4, 5}:
+            raise ValueError("incremental batch prioritization is only available in task 4 or task 5")
         pending_orders = self._scenario_meta.get("pending_orders")
         if not isinstance(pending_orders, pd.DataFrame) or pending_orders.empty:
             return "No pending incremental batch detected."
         if self._state.resource_level < self._state.required_resource_level:
             raise ValueError("resource level is too low for incremental batch recovery")
-        self._tables["orders"] = pd.concat(
-            [self._tables["orders"], pending_orders.copy(deep=True)],
+        target_table = "orders" if self._task_id == 4 else "source_orders"
+        self._tables[target_table] = pd.concat(
+            [self._tables[target_table], pending_orders.copy(deep=True)],
             ignore_index=True,
         )
         self._scenario_meta["pending_orders"] = pending_orders.iloc[0:0].copy(deep=True)
@@ -522,13 +573,16 @@ class PipelineDoctorEnvironment(
         self._state.pending_batches = 0
         self._scenario_meta["backlog_rows"] = 0
         self._scenario_meta["pending_batches"] = 0
-        self._state.freshness_lag_minutes = max(0, self._state.freshness_lag_minutes - 90)
+        lag_reduction = 90 if self._task_id == 4 else 120
+        self._state.freshness_lag_minutes = max(0, self._state.freshness_lag_minutes - lag_reduction)
         self._scenario_meta["freshness_lag_minutes"] = self._state.freshness_lag_minutes
         return "Incremental batch prioritized and loaded into the live orders table."
 
     def _refresh_downstream_summary(self) -> str:
-        if self._task_id != 4:
-            raise ValueError("downstream refresh is only available in task 4")
+        if self._task_id not in {4, 5}:
+            raise ValueError("downstream refresh is only available in task 4 or task 5")
+        if self._task_id == 5:
+            return self._refresh_hourly_rollup()
         orders = self._tables["orders"].copy()
         products = self._tables["products"].copy()
         if not {"product_id", "quantity", "event_ts"}.issubset(orders.columns):
@@ -559,6 +613,39 @@ class PipelineDoctorEnvironment(
         self._scenario_meta["downstream_stale"] = self._state.backlog_rows > 0
         return "Downstream daily summary refreshed from the current upstream tables."
 
+    def _refresh_hourly_rollup(self) -> str:
+        source = self._tables["source_orders"].copy()
+        catalog = self._tables["catalog"].copy()
+        time_column = "event_ts" if "event_ts" in source.columns else "observed_at"
+        if not {"product_id", "quantity", time_column}.issubset(source.columns):
+            raise ValueError("source_orders is missing required columns for hourly rollup refresh")
+        if not {"product_id", "unit_price"}.issubset(catalog.columns):
+            raise ValueError("catalog is missing required columns for hourly rollup refresh")
+        source["product_id"] = pd.to_numeric(source["product_id"], errors="coerce")
+        source["quantity"] = pd.to_numeric(source["quantity"].map(self._normalize_numeric_value), errors="coerce")
+        source["event_ts"] = source[time_column].map(
+            lambda value: self._normalize_date_string(str(value), preserve_time=True)
+        )
+        catalog["product_id"] = pd.to_numeric(catalog["product_id"], errors="coerce")
+        catalog["unit_price"] = pd.to_numeric(
+            catalog["unit_price"].map(self._normalize_numeric_value),
+            errors="coerce",
+        )
+        merged = source.merge(catalog[["product_id", "unit_price"]], on="product_id", how="left")
+        merged["gross_revenue"] = merged["quantity"] * merged["unit_price"]
+        merged["hour_bucket"] = pd.to_datetime(merged["event_ts"], errors="coerce", utc=True).dt.strftime(
+            "%Y-%m-%dT%H:00:00Z"
+        )
+        rollup = (
+            merged.groupby("hour_bucket", as_index=False)
+            .agg(order_count=("order_id", "count"), gross_revenue=("gross_revenue", "sum"))
+        )
+        self._tables["hourly_rollup"] = rollup
+        self._state.freshness_lag_minutes = 0 if self._state.backlog_rows == 0 else max(30, self._state.freshness_lag_minutes)
+        self._scenario_meta["freshness_lag_minutes"] = self._state.freshness_lag_minutes
+        self._scenario_meta["downstream_stale"] = self._state.backlog_rows > 0
+        return "Hourly rollup refreshed from source_orders and catalog."
+
     def _table_has_structural_issues(self, table_name: str) -> bool:
         frame = self._tables[table_name]
         if frame.isnull().sum().sum() > 0:
@@ -588,6 +675,7 @@ class PipelineDoctorEnvironment(
 
         schema_report = self._schema_report()
         alias_hints = self._column_alias_hints()
+        subgoal_progress, subgoal_order, active_subgoal, reward_machine_state = self._task_progress_bundle()
         observation = PipelineDoctorObservation(
             missing_rate=round(missing_rate, 4),
             duplicate_rate=round(duplicate_rate, 4),
@@ -603,7 +691,7 @@ class PipelineDoctorEnvironment(
             action_result=action_result,
             table_health=self._table_health(),
             dependency_alerts=self._dependency_alerts(),
-            commit_ready=self._task3_commit_ready() if self._task_id == 3 else self._task4_commit_ready(),
+            commit_ready=self._commit_ready(),
             scenario_split=self._split,
             schema_drift_count=len(schema_report) + self._format_issue_count(),
             backlog_rows=self._state.backlog_rows,
@@ -627,6 +715,15 @@ class PipelineDoctorEnvironment(
             truncated=self._state.truncated,
             done_reason=self._state.done_reason,
             synthetic_data_notes=list(self._scenario_meta.get("synthetic_data_notes", [])),
+            reward_breakdown=dict(self._last_reward_breakdown),
+            objective_breakdown=self._objective_breakdown(),
+            tradeoff_weights=dict(TASK_OBJECTIVE_WEIGHTS.get(self._task_id, {})),
+            subgoal_progress=subgoal_progress,
+            subgoal_order=subgoal_order,
+            active_subgoal=active_subgoal,
+            reward_machine_state=reward_machine_state,
+            adaptation_target=str(self._scenario_meta.get("adaptation_target", "")),
+            heldout_profile_family=bool(self._scenario_meta.get("heldout_profile_family", False)),
             reward=reward,
             done=done,
             metadata=metadata or {},
@@ -673,6 +770,8 @@ class PipelineDoctorEnvironment(
             "product_segment": "category",
             "event_time": "event_ts",
             "business_date": "event_date",
+            "observed_at": "event_ts",
+            "window_start": "hour_bucket",
         }
         hints: dict[str, str] = {}
         for drifted_name, expected_name in aliases.items():
@@ -738,6 +837,17 @@ class PipelineDoctorEnvironment(
         return sum(self._format_issue_details().values())
 
     def _dependency_alerts(self) -> list[str]:
+        if self._task_id == 5:
+            alerts: list[str] = []
+            if self._state.backlog_rows > 0:
+                alerts.append("late source batches still need replay into source_orders")
+            if bool(self._scenario_meta.get("downstream_stale", False)):
+                alerts.append("hourly_rollup is stale relative to source_orders and catalog")
+            if self._state.freshness_lag_minutes > 30:
+                alerts.append("freshness SLA is still violated for the temporal pipeline")
+            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
+                alerts.append("resource level is too low for late-batch replay")
+            return alerts[:4]
         if self._task_id == 4:
             alerts: list[str] = []
             if self._state.backlog_rows > 0:
@@ -764,6 +874,18 @@ class PipelineDoctorEnvironment(
         return alerts[:3]
 
     def _table_health(self) -> dict[str, float]:
+        if self._task_id == 5:
+            return {
+                table_name: round(
+                    score_single_table(
+                        self._tables[table_name],
+                        self._ground_truth[table_name],
+                        self._expected_types[table_name],
+                    )[0],
+                    4,
+                )
+                for table_name in ("source_orders", "catalog", "hourly_rollup")
+            }
         if self._task_id == 4:
             return {
                 table_name: round(
@@ -825,6 +947,21 @@ class PipelineDoctorEnvironment(
                 errors.append(
                     f"resources: level {self._state.resource_level} below required {self._state.required_resource_level}"
                 )
+        if self._task_id == 5:
+            if self._state.backlog_rows > 0:
+                errors.append(f"late_batches: {self._state.backlog_rows} rows still await replay")
+            if self._state.pending_batches > 0:
+                errors.append(f"pending_batches: {self._state.pending_batches} temporal batches remain unreplayed")
+            if bool(self._scenario_meta.get("downstream_stale", False)):
+                errors.append("hourly_rollup: downstream aggregate is stale")
+            if self._state.freshness_lag_minutes > 30:
+                errors.append(
+                    f"freshness_sla: lag is {self._state.freshness_lag_minutes} minutes"
+                )
+            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
+                errors.append(
+                    f"resources: level {self._state.resource_level} below temporal requirement {self._state.required_resource_level}"
+                )
         errors.extend(self._dependency_alerts())
         errors.extend(self._orchestration_alerts())
         self._recent_errors = errors[:6]
@@ -835,6 +972,18 @@ class PipelineDoctorEnvironment(
             return score
         if self._task_id == 4:
             score, _ = score_task4(
+                self._tables,
+                self._ground_truth,
+                self._expected_types,
+                backlog_rows=self._state.backlog_rows,
+                freshness_lag_minutes=self._state.freshness_lag_minutes,
+                resource_level=self._state.resource_level,
+                required_resource_level=self._state.required_resource_level,
+                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
+            )
+            return score
+        if self._task_id == 5:
+            score, _ = score_task5(
                 self._tables,
                 self._ground_truth,
                 self._expected_types,
@@ -890,6 +1039,18 @@ class PipelineDoctorEnvironment(
                 downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
             )
             return breakdown
+        if self._task_id == 5:
+            _, breakdown = score_task5(
+                self._tables,
+                self._ground_truth,
+                self._expected_types,
+                backlog_rows=self._state.backlog_rows,
+                freshness_lag_minutes=self._state.freshness_lag_minutes,
+                resource_level=self._state.resource_level,
+                required_resource_level=self._state.required_resource_level,
+                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
+            )
+            return breakdown
         _, breakdown = score_single_table(
             self._tables["single"],
             self._ground_truth["single"],
@@ -899,14 +1060,23 @@ class PipelineDoctorEnvironment(
 
     def _workload_pressure(self) -> float:
         base_pressure = float(self._scenario_meta.get("workload_pressure", 0.0))
-        if self._task_id != 4:
+        if self._task_id not in {4, 5}:
             return round(base_pressure, 4)
-        backlog_bonus = min(self._state.backlog_rows / 10.0, 0.4)
+        backlog_bonus = min(self._state.backlog_rows / 10.0, 0.4 if self._task_id == 4 else 0.5)
         resource_relief = 0.15 * max(self._state.resource_level - 1, 0)
         pressure = max(0.0, min(1.0, base_pressure + backlog_bonus - resource_relief))
         return round(pressure, 4)
 
     def _orchestration_alerts(self) -> list[str]:
+        if self._task_id == 5:
+            alerts: list[str] = []
+            if self._state.backlog_rows > 0 and self._state.resource_level < self._state.required_resource_level:
+                alerts.append("scale resources before replaying the held-out temporal batches")
+            if self._state.backlog_rows == 0 and bool(self._scenario_meta.get("downstream_stale", False)):
+                alerts.append("refresh hourly_rollup after replay to close the temporal task")
+            if self._state.freshness_lag_minutes > 30:
+                alerts.append("bring freshness lag below the 30-minute SLA before committing")
+            return alerts[:3]
         if self._task_id != 4:
             return []
         alerts: list[str] = []
@@ -919,3 +1089,80 @@ class PipelineDoctorEnvironment(
                 f"freshness lag is still {self._state.freshness_lag_minutes} minutes"
             )
         return alerts[:3]
+
+    def _commit_ready(self) -> bool:
+        if self._task_id == 3:
+            return self._task3_commit_ready()
+        if self._task_id == 4:
+            return self._task4_commit_ready()
+        if self._task_id == 5:
+            return self._task5_commit_ready()
+        return True
+
+    def _objective_breakdown(self) -> dict[str, float]:
+        breakdown = self._breakdown_payload()
+        pipeline = breakdown.get("pipeline", {}) if isinstance(breakdown, dict) else {}
+        return {
+            key: round(float(value), 4)
+            for key, value in pipeline.items()
+            if isinstance(value, (int, float))
+        }
+
+    def _task_progress_bundle(self) -> tuple[dict[str, bool], list[str], str, str]:
+        subgoal_progress = self._subgoal_progress()
+        order = list(FORMAL_TASK_SPECS.get(self._task_id, {}).get("reward_machine_order", []))
+        active_subgoal = next((name for name in order if not subgoal_progress.get(name, False)), "")
+        completed = sum(1 for name in order if subgoal_progress.get(name, False))
+        reward_machine_state = (
+            f"s{completed}/{len(order)}:{active_subgoal or 'terminal'}" if order else ""
+        )
+        return subgoal_progress, order, active_subgoal, reward_machine_state
+
+    def _update_task_progress_state(self) -> None:
+        _, _, active_subgoal, reward_machine_state = self._task_progress_bundle()
+        self._state.active_subgoal = active_subgoal
+        self._state.reward_machine_state = reward_machine_state
+
+    def _subgoal_progress(self) -> dict[str, bool]:
+        if self._task_id == 3:
+            progress = {
+                "repair_customers": not self._table_has_structural_issues("customers"),
+                "repair_products": not self._table_has_structural_issues("products"),
+                "repair_orders": not self._table_has_structural_issues("orders"),
+                "restore_dependency_consistency": calculation_mismatch_count(
+                    self._tables["orders"],
+                    self._tables["products"],
+                ) == 0,
+                "commit_pipeline": bool(self._state.done and self._state.success),
+            }
+            return progress
+        if self._task_id == 4:
+            return {
+                "normalize_orders_stream": not self._table_has_structural_issues("orders"),
+                "scale_resources_if_needed": (
+                    self._state.resource_level >= self._state.required_resource_level
+                    if self._state.backlog_rows > 0
+                    else True
+                ),
+                "load_incremental_backlog": self._state.backlog_rows == 0 and self._state.pending_batches == 0,
+                "refresh_daily_summary": (
+                    not bool(self._scenario_meta.get("downstream_stale", False))
+                    and self._state.freshness_lag_minutes == 0
+                ),
+                "commit_recovery": bool(self._state.done and self._state.success),
+            }
+        if self._task_id == 5:
+            schema_ok = not self._table_has_structural_issues("source_orders") and not self._table_has_structural_issues("catalog")
+            no_aliases = not self._missing_expected_columns("source_orders") and not self._missing_expected_columns("catalog")
+            return {
+                "reconcile_schema_aliases": no_aliases,
+                "repair_catalog_and_source_quality": schema_ok,
+                "replay_late_batches": self._state.backlog_rows == 0 and self._state.pending_batches == 0,
+                "refresh_temporal_rollup": (
+                    not self._table_has_structural_issues("hourly_rollup")
+                    and not bool(self._scenario_meta.get("downstream_stale", False))
+                ),
+                "meet_freshness_sla": self._state.freshness_lag_minutes <= 30,
+                "commit_temporal_pipeline": bool(self._state.done and self._state.success),
+            }
+        return {}

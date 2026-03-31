@@ -1,0 +1,31 @@
+{
+  "policy_mode": "heuristic",
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "heldout_task5_seeds": [
+    2,
+    3
+  ],
+  "train_task5": {
+    "mean": 0.9774,
+    "min": 0.9744,
+    "max": 0.9834
+  },
+  "eval_task5": {
+    "mean": 0.9774,
+    "min": 0.9744,
+    "max": 0.9834
+  },
+  "heldout_profile_family_task5": {
+    "mean": 0.9767,
+    "min": 0.9744,
+    "max": 0.9789
+  },
+  "adaptation_gap": 0.0
+}

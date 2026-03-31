@@ -13,20 +13,22 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-TASK_THRESHOLDS = {1: 0.85, 2: 0.80, 3: 0.75, 4: 0.78}
-MAX_STEPS = {1: 10, 2: 15, 3: 25, 4: 30}
+TASK_THRESHOLDS = {1: 0.85, 2: 0.80, 3: 0.75, 4: 0.78, 5: 0.82}
+MAX_STEPS = {1: 10, 2: 15, 3: 25, 4: 30, 5: 35}
 TASK_NAMES = {
     1: "Single Table Missing Values",
     2: "Single Table Duplicates and Types",
     3: "Multi-Table Cascading Failure",
     4: "Incremental Pipeline Recovery",
+    5: "Temporal ETL Recovery with Reward Machine Structure",
 }
-TASK_DIFFICULTY = {1: "easy", 2: "medium", 3: "hard", 4: "hard"}
+TASK_DIFFICULTY = {1: "easy", 2: "medium", 3: "hard", 4: "hard", 5: "hard"}
 TASK_TABLES = {
     1: ["single"],
     2: ["single"],
     3: ["orders", "customers", "products"],
     4: ["orders", "products", "daily_summary"],
+    5: ["source_orders", "catalog", "hourly_rollup"],
 }
 
 SCENARIO_PROFILES: dict[int, dict[str, list[str]]] = {
@@ -64,6 +66,19 @@ SCENARIO_PROFILES: dict[int, dict[str, list[str]]] = {
             "mixed_operational_open_world",
         ],
     },
+    5: {
+        "train": [
+            "temporal_rollup_recovery",
+            "schema_evolution_and_backfill",
+            "late_correction_backpressure",
+        ],
+        "eval": [
+            "schema_evolution_and_backfill",
+            "late_correction_backpressure",
+            "temporal_open_world_shift",
+            "heldout_temporal_profile_family",
+        ],
+    },
 }
 
 SYNTHETIC_DATA_NOTES = [
@@ -89,6 +104,64 @@ PROFILE_PATTERNS = {
     "stale_summary_recovery": ["stale_summary", "downstream_refresh"],
     "timezone_alias_burst": ["timezone_drift", "schema_alias", "workload_burst"],
     "mixed_operational_open_world": ["schema_alias", "timezone_drift", "stale_summary", "resource_pressure"],
+    "temporal_rollup_recovery": ["late_batch", "stale_summary", "timestamp_rollup"],
+    "schema_evolution_and_backfill": ["schema_alias", "unit_drift", "backfill_required"],
+    "late_correction_backpressure": ["late_batch", "resource_pressure", "correction_replay"],
+    "temporal_open_world_shift": ["schema_alias", "timezone_drift", "timestamp_rollup", "correction_replay"],
+    "heldout_temporal_profile_family": ["schema_alias", "backfill_required", "workload_burst", "timestamp_rollup"],
+}
+
+TASK_OBJECTIVE_WEIGHTS: dict[int, dict[str, float]] = {
+    3: {"data_quality": 0.55, "dependency_consistency": 0.45},
+    4: {
+        "data_quality": 0.45,
+        "freshness": 0.20,
+        "backlog": 0.15,
+        "resource_efficiency": 0.10,
+        "summary_consistency": 0.10,
+    },
+    5: {
+        "schema_alignment": 0.20,
+        "temporal_backfill": 0.20,
+        "rollup_consistency": 0.20,
+        "freshness": 0.15,
+        "resource_efficiency": 0.10,
+        "data_quality": 0.15,
+    },
+}
+
+FORMAL_TASK_SPECS: dict[int, dict[str, object]] = {
+    3: {
+        "reward_machine_order": [
+            "repair_customers",
+            "repair_products",
+            "repair_orders",
+            "restore_dependency_consistency",
+            "commit_pipeline",
+        ],
+        "ltl_hint": "G(commit -> products_clean & customers_clean & orders_clean & dependency_consistent)",
+    },
+    4: {
+        "reward_machine_order": [
+            "normalize_orders_stream",
+            "scale_resources_if_needed",
+            "load_incremental_backlog",
+            "refresh_daily_summary",
+            "commit_recovery",
+        ],
+        "ltl_hint": "G(commit -> backlog_cleared & freshness_restored & summary_fresh)",
+    },
+    5: {
+        "reward_machine_order": [
+            "reconcile_schema_aliases",
+            "repair_catalog_and_source_quality",
+            "replay_late_batches",
+            "refresh_temporal_rollup",
+            "meet_freshness_sla",
+            "commit_temporal_pipeline",
+        ],
+        "ltl_hint": "G(commit -> schema_aligned & backlog_cleared & rollup_consistent & freshness_sla_met)",
+    },
 }
 
 
@@ -122,6 +195,8 @@ def generate_scenario(
         return _generate_task3(rng, seed, split)
     if task_id == 4:
         return _generate_task4(rng, seed, split)
+    if task_id == 5:
+        return _generate_task5(rng, seed, split)
     raise ValueError(f"Unsupported task_id: {task_id}")
 
 
@@ -134,6 +209,8 @@ def benchmark_metadata() -> dict[str, object]:
         "max_steps": MAX_STEPS,
         "scenario_profiles": SCENARIO_PROFILES,
         "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
+        "objective_weights": TASK_OBJECTIVE_WEIGHTS,
+        "formal_task_specs": FORMAL_TASK_SPECS,
     }
 
 
@@ -550,6 +627,147 @@ def _generate_task4(
             "scenario_profile": profile,
             "open_world_patterns": _patterns_for_profile(profile),
             "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
+        },
+    )
+
+
+def _generate_task5(
+    rng: np.random.Generator,
+    seed: int | None,
+    split: str,
+) -> Scenario:
+    profile = _sample_profile(5, split, rng)
+    catalog_truth = pd.DataFrame(
+        {
+            "product_id": [601, 602, 603, 604],
+            "product_name": ["Valve", "Sensor", "Pump", "Controller"],
+            "unit_price": [18.0, 52.0, 77.0, 112.0],
+            "category": ["hardware", "iot", "hardware", "iot"],
+        }
+    )
+    source_truth = pd.DataFrame(
+        {
+            "order_id": [11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008, 11009, 11010],
+            "batch_id": ["t1", "t1", "t1", "t2", "t2", "t2", "t3", "t3", "t4", "t4"],
+            "product_id": [601, 602, 604, 603, 601, 602, 604, 603, 601, 604],
+            "quantity": [2, 1, 3, 2, 4, 1, 2, 3, 1, 5],
+            "event_ts": [
+                "2026-03-29T10:00:00Z",
+                "2026-03-29T10:30:00Z",
+                "2026-03-29T11:00:00Z",
+                "2026-03-29T12:00:00Z",
+                "2026-03-29T12:20:00Z",
+                "2026-03-29T13:00:00Z",
+                "2026-03-29T14:00:00Z",
+                "2026-03-29T14:20:00Z",
+                "2026-03-29T15:00:00Z",
+                "2026-03-29T15:30:00Z",
+            ],
+        }
+    )
+    source_truth = source_truth.merge(
+        catalog_truth[["product_id", "unit_price"]],
+        on="product_id",
+        how="left",
+    )
+    source_truth["gross_revenue"] = source_truth["quantity"] * source_truth["unit_price"]
+    source_truth = source_truth.drop(columns=["unit_price"])
+    rollup_truth = (
+        source_truth.assign(
+            hour_bucket=pd.to_datetime(source_truth["event_ts"]).dt.strftime("%Y-%m-%dT%H:00:00Z")
+        )
+        .groupby("hour_bucket", as_index=False)
+        .agg(order_count=("order_id", "count"), gross_revenue=("gross_revenue", "sum"))
+    )
+
+    pending_orders = source_truth[source_truth["batch_id"].isin(["t3", "t4"])].copy()
+    visible_orders = source_truth[source_truth["batch_id"].isin(["t1", "t2"])].copy()
+    source_broken = visible_orders.copy()
+    catalog_broken = catalog_truth.copy()
+    rollup_broken = rollup_truth[rollup_truth["hour_bucket"] < "2026-03-29T14:00:00Z"].copy()
+
+    source_broken["product_id"] = source_broken["product_id"].astype(str)
+    source_broken["quantity"] = source_broken["quantity"].astype(object)
+    source_broken["event_ts"] = source_broken["event_ts"].astype(object)
+    source_broken["gross_revenue"] = (visible_orders["gross_revenue"] * 0.83).round(2).astype(object)
+
+    if profile in {"schema_evolution_and_backfill", "temporal_open_world_shift", "heldout_temporal_profile_family"}:
+        source_broken = source_broken.rename(columns={"event_ts": "observed_at"})
+    time_column = "observed_at" if "observed_at" in source_broken.columns else "event_ts"
+    drift_rows = rng.choice(len(source_broken), size=min(3, len(source_broken)), replace=False)
+    for index, row in enumerate(drift_rows):
+        ts = pd.to_datetime(visible_orders.iloc[row]["event_ts"])
+        if index % 2 == 0:
+            source_broken.iloc[row, source_broken.columns.get_loc(time_column)] = ts.strftime("%d/%m/%Y %H:%M")
+        else:
+            source_broken.iloc[row, source_broken.columns.get_loc(time_column)] = ts.strftime("%Y-%m-%d %H:%M:%S+05:30")
+    quantity_rows = rng.choice(len(source_broken), size=min(3, len(source_broken)), replace=False)
+    for row in quantity_rows:
+        quantity = visible_orders.iloc[row]["quantity"]
+        source_broken.iloc[row, source_broken.columns.get_loc("quantity")] = (
+            "missing" if row == quantity_rows[0] else f"{quantity} units"
+        )
+
+    catalog_broken["unit_price"] = catalog_broken["unit_price"].astype(object)
+    formatted_rows = rng.choice(len(catalog_broken), size=min(3, len(catalog_broken)), replace=False)
+    for row in formatted_rows:
+        value = catalog_truth.iloc[row]["unit_price"]
+        catalog_broken.iloc[row, catalog_broken.columns.get_loc("unit_price")] = (
+            f"${value:,.2f}" if row % 2 == 0 else f"{int(value * 100)} cents"
+        )
+    if profile in {"schema_evolution_and_backfill", "heldout_temporal_profile_family"}:
+        catalog_broken = catalog_broken.rename(columns={"category": "product_segment"})
+    category_column = "product_segment" if "product_segment" in catalog_broken.columns else "category"
+    catalog_broken.iloc[1, catalog_broken.columns.get_loc(category_column)] = " IoT "
+    catalog_broken = pd.concat([catalog_broken, catalog_broken.iloc[[2]]], ignore_index=True)
+
+    if profile in {"temporal_rollup_recovery", "temporal_open_world_shift", "heldout_temporal_profile_family"}:
+        rollup_broken = rollup_broken.rename(columns={"hour_bucket": "window_start"})
+    rollup_time_column = "window_start" if "window_start" in rollup_broken.columns else "hour_bucket"
+    if len(rollup_broken) > 0:
+        rollup_broken.iloc[0, rollup_broken.columns.get_loc(rollup_time_column)] = "29/03/2026 10:00"
+    rollup_broken["gross_revenue"] = (rollup_broken["gross_revenue"] * 0.88).round(2)
+
+    backlog_rows = len(pending_orders)
+    required_resource_level = 3 if backlog_rows >= 4 else 2
+    freshness_lag_minutes = 180 if split == "eval" else 120
+
+    return Scenario(
+        task_id=5,
+        seed=seed,
+        broken_tables={
+            "source_orders": source_broken,
+            "catalog": catalog_broken,
+            "hourly_rollup": rollup_broken,
+        },
+        ground_truth_tables={
+            "source_orders": source_truth,
+            "catalog": catalog_truth,
+            "hourly_rollup": rollup_truth,
+        },
+        expected_types={
+            "source_orders": _expected_types(source_truth),
+            "catalog": _expected_types(catalog_truth),
+            "hourly_rollup": _expected_types(rollup_truth),
+        },
+        active_table="source_orders",
+        split=split,
+        metadata={
+            "pending_orders": pending_orders,
+            "backlog_rows": backlog_rows,
+            "freshness_lag_minutes": freshness_lag_minutes,
+            "resource_level": 1,
+            "required_resource_level": required_resource_level,
+            "pending_batches": 2 if backlog_rows > 0 else 0,
+            "downstream_stale": True,
+            "workload_pressure": 0.95 if split == "eval" else 0.8,
+            "scenario_profile": profile,
+            "open_world_patterns": _patterns_for_profile(profile),
+            "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
+            "heldout_profile_family": profile == "heldout_temporal_profile_family",
+            "adaptation_target": "Recover an unseen temporal profile family in one episode.",
+            "task_spec": FORMAL_TASK_SPECS[5],
+            "tradeoff_weights": TASK_OBJECTIVE_WEIGHTS[5],
         },
     )
 

@@ -168,6 +168,83 @@ def score_task4(
     }
 
 
+def score_task5(
+    fixed_tables: dict[str, pd.DataFrame],
+    ground_truth_tables: dict[str, pd.DataFrame],
+    expected_types: dict[str, dict[str, str]],
+    *,
+    backlog_rows: int,
+    freshness_lag_minutes: int,
+    resource_level: int,
+    required_resource_level: int,
+    downstream_stale: bool,
+) -> tuple[float, dict[str, dict[str, float]]]:
+    """Temporal ETL score with explicit multi-objective structure."""
+
+    source_score, source_breakdown = score_single_table(
+        fixed_tables["source_orders"],
+        ground_truth_tables["source_orders"],
+        expected_types["source_orders"],
+    )
+    catalog_score, catalog_breakdown = score_single_table(
+        fixed_tables["catalog"],
+        ground_truth_tables["catalog"],
+        expected_types["catalog"],
+    )
+    rollup_score, rollup_breakdown = score_single_table(
+        fixed_tables["hourly_rollup"],
+        ground_truth_tables["hourly_rollup"],
+        expected_types["hourly_rollup"],
+    )
+
+    schema_alignment = 1.0 if source_breakdown["validity"] >= 1.0 and catalog_breakdown["validity"] >= 1.0 else max(
+        0.0, (source_breakdown["validity"] + catalog_breakdown["validity"]) / 2.0
+    )
+    temporal_backfill = task4_batch_completeness_score(
+        fixed_tables["source_orders"],
+        ground_truth_tables["source_orders"],
+        backlog_rows,
+    )
+    rollup_consistency = task5_rollup_consistency_score(
+        fixed_tables["source_orders"],
+        fixed_tables["catalog"],
+        fixed_tables["hourly_rollup"],
+    )
+    freshness = max(0.0, 1.0 - (freshness_lag_minutes / 240.0))
+    if downstream_stale:
+        freshness *= 0.5
+
+    if backlog_rows > 0 and resource_level < required_resource_level:
+        resource_efficiency = 0.2
+    else:
+        overscale = max(resource_level - required_resource_level, 0)
+        resource_efficiency = max(0.65, 1.0 - (0.10 * overscale))
+
+    data_quality = (0.45 * source_score) + (0.25 * catalog_score) + (0.30 * rollup_score)
+    score = round(
+        (0.20 * schema_alignment)
+        + (0.20 * temporal_backfill)
+        + (0.20 * rollup_consistency)
+        + (0.15 * freshness)
+        + (0.10 * resource_efficiency)
+        + (0.15 * data_quality),
+        4,
+    )
+    return score, {
+        "source_orders": source_breakdown,
+        "catalog": catalog_breakdown,
+        "hourly_rollup": rollup_breakdown,
+        "pipeline": {
+            "schema_alignment": round(schema_alignment, 4),
+            "temporal_backfill": round(temporal_backfill, 4),
+            "rollup_consistency": round(rollup_consistency, 4),
+            "freshness": round(freshness, 4),
+            "resource_efficiency": round(resource_efficiency, 4),
+            "data_quality": round(data_quality, 4),
+        },
+    }
+
+
 def compute_reward(
     score_before: float,
     score_after: float,
@@ -187,6 +264,28 @@ def compute_reward(
     if done and not success:
         reward -= 0.5
     return round(reward, 4)
+
+
+def compute_reward_breakdown(
+    score_before: float,
+    score_after: float,
+    *,
+    action_valid: bool,
+    done: bool,
+    success: bool,
+) -> dict[str, float]:
+    """Expose a structured reward explanation alongside the scalar reward."""
+
+    delta = round(0.5 * (score_after - score_before), 4)
+    breakdown = {
+        "score_delta": delta,
+        "step_cost": -0.001,
+        "invalid_action_penalty": -0.1 if not action_valid else 0.0,
+        "success_bonus": 1.0 if done and success else 0.0,
+        "failure_penalty": -0.5 if done and not success else 0.0,
+    }
+    breakdown["total"] = round(sum(breakdown.values()), 4)
+    return breakdown
 
 
 def calculation_mismatch_count(
@@ -290,6 +389,51 @@ def task4_summary_consistency_score(
     return float(matches.mean()) if len(matches) else 1.0
 
 
+def task5_rollup_consistency_score(
+    source_df: pd.DataFrame,
+    catalog_df: pd.DataFrame,
+    rollup_df: pd.DataFrame,
+) -> float:
+    """Score whether temporal rollup matches the repaired upstream source."""
+
+    if not {"product_id", "quantity"}.issubset(source_df.columns):
+        return 0.0
+    time_column = "event_ts" if "event_ts" in source_df.columns else "observed_at"
+    if time_column not in source_df.columns:
+        return 0.0
+    if not {"product_id", "unit_price"}.issubset(catalog_df.columns):
+        return 0.0
+    rollup_time_column = "hour_bucket" if "hour_bucket" in rollup_df.columns else "window_start"
+    if not {rollup_time_column, "order_count", "gross_revenue"}.issubset(rollup_df.columns):
+        return 0.0
+
+    source = source_df.copy()
+    catalog = catalog_df.copy()
+    source["product_id"] = pd.to_numeric(source["product_id"], errors="coerce")
+    catalog["product_id"] = pd.to_numeric(catalog["product_id"], errors="coerce")
+    source["quantity"] = pd.to_numeric(source["quantity"], errors="coerce")
+    catalog["unit_price"] = pd.to_numeric(catalog["unit_price"], errors="coerce")
+    source["hour_bucket"] = source[time_column].map(_canonical_hour_bucket)
+    merged = source.merge(catalog[["product_id", "unit_price"]], on="product_id", how="left")
+    merged["gross_revenue"] = merged["quantity"] * merged["unit_price"]
+    expected_rollup = (
+        merged.groupby("hour_bucket", as_index=False)
+        .agg(order_count=("order_id", "count"), gross_revenue=("gross_revenue", "sum"))
+        .sort_values("hour_bucket")
+        .reset_index(drop=True)
+    )
+    observed_rollup = rollup_df.copy().rename(columns={rollup_time_column: "hour_bucket"})
+    observed_rollup = observed_rollup.sort_values("hour_bucket").reset_index(drop=True)
+    if list(observed_rollup.columns) != list(expected_rollup.columns):
+        return 0.0
+    if len(observed_rollup) != len(expected_rollup):
+        return 0.0
+    observed_rollup["gross_revenue"] = pd.to_numeric(observed_rollup["gross_revenue"], errors="coerce").round(2)
+    expected_rollup["gross_revenue"] = pd.to_numeric(expected_rollup["gross_revenue"], errors="coerce").round(2)
+    matches = (observed_rollup == expected_rollup).all(axis=1)
+    return float(matches.mean()) if len(matches) else 1.0
+
+
 def _canonical_event_date(value: object) -> str | None:
     if pd.isna(value):
         return None
@@ -308,6 +452,28 @@ def _canonical_event_date(value: object) -> str | None:
     parsed = pd.to_datetime(text, errors="coerce", utc=True)
     if pd.notna(parsed):
         return parsed.strftime("%Y-%m-%d")
+    return None
+
+
+def _canonical_hour_bucket(value: object) -> str | None:
+    if pd.isna(value):
+        return None
+    text = str(value).strip()
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%d/%m/%Y %H:%M",
+        "%Y-%m-%d %H:%M:%S+05:30",
+        "%Y-%m-%d %H:%M:%S%z",
+        "%Y-%m-%d %H:%M:%S",
+    ):
+        try:
+            parsed = pd.to_datetime(text, format=fmt, utc=True)
+            return parsed.strftime("%Y-%m-%dT%H:00:00Z")
+        except Exception:
+            continue
+    parsed = pd.to_datetime(text, errors="coerce", utc=True)
+    if pd.notna(parsed):
+        return parsed.strftime("%Y-%m-%dT%H:00:00Z")
     return None
 
 

@@ -4,19 +4,22 @@
       "1": "Single Table Missing Values",
       "2": "Single Table Duplicates and Types",
       "3": "Multi-Table Cascading Failure",
-      "4": "Incremental Pipeline Recovery"
+      "4": "Incremental Pipeline Recovery",
+      "5": "Temporal ETL Recovery with Reward Machine Structure"
     },
     "task_thresholds": {
       "1": 0.85,
       "2": 0.8,
       "3": 0.75,
-      "4": 0.78
+      "4": 0.78,
+      "5": 0.82
     },
     "max_steps": {
       "1": 10,
       "2": 15,
       "3": 25,
-      "4": 30
+      "4": 30,
+      "5": 35
     },
     "scenario_profiles": {
       "1": {
@@ -62,24 +65,91 @@
           "stale_summary_recovery",
           "mixed_operational_open_world"
         ]
+      },
+      "5": {
+        "train": [
+          "temporal_rollup_recovery",
+          "schema_evolution_and_backfill",
+          "late_correction_backpressure"
+        ],
+        "eval": [
+          "schema_evolution_and_backfill",
+          "late_correction_backpressure",
+          "temporal_open_world_shift",
+          "heldout_temporal_profile_family"
+        ]
       }
     },
     "synthetic_data_notes": [
       "Synthetic tables preserve schema-level repair structure, not enterprise-scale row volume.",
       "Utility is benchmarked through relative policy separation across tasks and held-out splits.",
       "Profiles intentionally vary failure combinations so agents cannot rely on a single fixed script."
-    ]
+    ],
+    "objective_weights": {
+      "3": {
+        "data_quality": 0.55,
+        "dependency_consistency": 0.45
+      },
+      "4": {
+        "data_quality": 0.45,
+        "freshness": 0.2,
+        "backlog": 0.15,
+        "resource_efficiency": 0.1,
+        "summary_consistency": 0.1
+      },
+      "5": {
+        "schema_alignment": 0.2,
+        "temporal_backfill": 0.2,
+        "rollup_consistency": 0.2,
+        "freshness": 0.15,
+        "resource_efficiency": 0.1,
+        "data_quality": 0.15
+      }
+    },
+    "formal_task_specs": {
+      "3": {
+        "reward_machine_order": [
+          "repair_customers",
+          "repair_products",
+          "repair_orders",
+          "restore_dependency_consistency",
+          "commit_pipeline"
+        ],
+        "ltl_hint": "G(commit -> products_clean & customers_clean & orders_clean & dependency_consistent)"
+      },
+      "4": {
+        "reward_machine_order": [
+          "normalize_orders_stream",
+          "scale_resources_if_needed",
+          "load_incremental_backlog",
+          "refresh_daily_summary",
+          "commit_recovery"
+        ],
+        "ltl_hint": "G(commit -> backlog_cleared & freshness_restored & summary_fresh)"
+      },
+      "5": {
+        "reward_machine_order": [
+          "reconcile_schema_aliases",
+          "repair_catalog_and_source_quality",
+          "replay_late_batches",
+          "refresh_temporal_rollup",
+          "meet_freshness_sla",
+          "commit_temporal_pipeline"
+        ],
+        "ltl_hint": "G(commit -> schema_aligned & backlog_cleared & rollup_consistent & freshness_sla_met)"
+      }
+    }
   },
   "initial_score_stats": {
     "train": {
       "task_1": {
         "name": "Single Table Missing Values",
         "threshold": 0.85,
-        "initial_score_mean": 0.7275,
+        "initial_score_mean": 0.7392,
         "initial_score_min": 0.7175,
-        "initial_score_max": 0.7575,
+        "initial_score_max": 0.7975,
         "profiles_seen": {
-          "nulls_and_format_drift": 5
+          "nulls_and_format_drift": 6
         }
       },
       "task_2": {
@@ -89,29 +159,40 @@
         "initial_score_min": 0.545,
         "initial_score_max": 0.545,
         "profiles_seen": {
-          "duplicates_and_dtype_drift": 5
+          "duplicates_and_dtype_drift": 6
         }
       },
       "task_3": {
         "name": "Multi-Table Cascading Failure",
         "threshold": 0.75,
-        "initial_score_mean": 0.1963,
+        "initial_score_mean": 0.1968,
         "initial_score_min": 0.1913,
         "initial_score_max": 0.203,
         "profiles_seen": {
-          "alias_encoding_drift": 1,
+          "alias_encoding_drift": 2,
           "sentinel_missing_values": 4
         }
       },
       "task_4": {
         "name": "Incremental Pipeline Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.2489,
-        "initial_score_min": 0.2369,
+        "initial_score_mean": 0.245,
+        "initial_score_min": 0.2256,
         "initial_score_max": 0.2969,
         "profiles_seen": {
-          "schema_alias_and_units": 1,
+          "schema_alias_and_units": 2,
           "stale_summary_recovery": 4
+        }
+      },
+      "task_5": {
+        "name": "Temporal ETL Recovery with Reward Machine Structure",
+        "threshold": 0.82,
+        "initial_score_mean": 0.3829,
+        "initial_score_min": 0.3508,
+        "initial_score_max": 0.3966,
+        "profiles_seen": {
+          "schema_evolution_and_backfill": 2,
+          "late_correction_backpressure": 4
         }
       }
     },
@@ -119,11 +200,11 @@
       "task_1": {
         "name": "Single Table Missing Values",
         "threshold": 0.85,
-        "initial_score_mean": 0.7125,
+        "initial_score_mean": 0.7196,
         "initial_score_min": 0.6425,
         "initial_score_max": 0.7575,
         "profiles_seen": {
-          "nulls_and_date_drift": 1,
+          "nulls_and_date_drift": 2,
           "currency_format_pressure": 4
         }
       },
@@ -134,18 +215,18 @@
         "initial_score_min": 0.545,
         "initial_score_max": 0.545,
         "profiles_seen": {
-          "duplicates_dtype_and_date_drift": 1,
+          "duplicates_dtype_and_date_drift": 2,
           "outlier_and_currency_drift": 4
         }
       },
       "task_3": {
         "name": "Multi-Table Cascading Failure",
         "threshold": 0.75,
-        "initial_score_mean": 0.1959,
+        "initial_score_mean": 0.1969,
         "initial_score_min": 0.1937,
-        "initial_score_max": 0.1976,
+        "initial_score_max": 0.2021,
         "profiles_seen": {
-          "timezone_and_currency_drift": 1,
+          "timezone_and_currency_drift": 2,
           "mixed_open_world_breakage": 2,
           "sentinel_missing_values": 2
         }
@@ -153,13 +234,25 @@
       "task_4": {
         "name": "Incremental Pipeline Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.2209,
+        "initial_score_mean": 0.2182,
         "initial_score_min": 0.1892,
         "initial_score_max": 0.2969,
         "profiles_seen": {
-          "schema_alias_and_units": 1,
+          "schema_alias_and_units": 2,
           "mixed_operational_open_world": 2,
           "stale_summary_recovery": 2
+        }
+      },
+      "task_5": {
+        "name": "Temporal ETL Recovery with Reward Machine Structure",
+        "threshold": 0.82,
+        "initial_score_mean": 0.3559,
+        "initial_score_min": 0.3291,
+        "initial_score_max": 0.3872,
+        "profiles_seen": {
+          "late_correction_backpressure": 2,
+          "heldout_temporal_profile_family": 2,
+          "temporal_open_world_shift": 2
         }
       }
     }

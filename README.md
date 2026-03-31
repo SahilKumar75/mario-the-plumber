@@ -49,16 +49,17 @@ flowchart TD
 |---|---|
 | Domain | ETL / data quality repair + online recovery |
 | API | `reset()` / `step()` / `state` |
-| Tasks | 4 |
+| Tasks | 5 |
 | Action space | 20 discrete actions |
 | Scenario splits | `train`, `eval` |
 | Scenario profiles | adaptive per-task profile families |
 | Policy modes | `random`, `heuristic`, `hybrid`, `pure-llm` |
-| Success thresholds | `0.85`, `0.80`, `0.75`, `0.78` |
+| Success thresholds | `0.85`, `0.80`, `0.75`, `0.78`, `0.82` |
 | Initial Task 3 score over 20 seeds | avg `0.2005` |
 | Random Task 3 score over 20 seeds | avg `0.2065` |
 | Structured Task 3 baseline | `0.9070` |
 | Initial Task 4 score over 5 seeds | train avg `0.2489`, eval avg `0.2209` |
+| Task 5 adaptation benchmark | held-out profile family avg `0.9767` |
 | Live Space | [`sahilksingh/mario-the-plumber`](https://huggingface.co/spaces/sahilksingh/mario-the-plumber) |
 
 ## What Changed In The New Benchmark Version
@@ -71,6 +72,8 @@ flowchart TD
 | Observation design | flat error summary | table-health, dependency alerts, format issues, commit readiness, workload signals |
 | Open-world realism | mostly fixed corruption templates | adaptive profile families with alias drift, timezone drift, sentinel values, stale summaries |
 | Episode semantics | single `done` flag | explicit budget/truncation signals and done reasons |
+| Reward semantics | one opaque scalar | scalar reward plus reward breakdown, tradeoff weights, and subgoal progress |
+| Formal task structure | implicit | Reward-Machine-style subgoal order for Tasks 3-5 |
 | Reporting | one-off runs | reproducible benchmark table via `scripts/benchmark_models.py` |
 
 ## Visuals
@@ -144,17 +147,20 @@ The task suite is deliberately staged so the agent cannot win by emitting generi
 - Task 2 mixes duplicates with type drift, so the agent has to remove redundancy and restore the expected dtypes
 - Task 3 introduces cross-table reasoning, where a premature commit can recompute bad derived values from still-broken upstream data
 - Task 4 adds incremental recovery, where the agent must scale resources, ingest delayed batches, normalize schema drift, refresh downstream aggregates, and only then commit
+- Task 5 adds temporal/compositional recovery, where the agent must satisfy a formal sequence of subgoals before a final commit is safe
 
 The environment also gives partial progress signals, which means the agent has to improve score steadily instead of relying on a binary pass/fail end state.
 
 ## What Is Implemented
 
 - typed action, observation, and state models
-- Synthetic generators for all 4 tasks
+- Synthetic generators for all 5 tasks
 - train/eval scenario split for held-out evaluation
 - adaptive scenario profiles with open-world drift families
 - Deterministic graders for single-table and multi-table scoring
 - Task 4 orchestration features for backlog, freshness lag, and resource pressure
+- Reward-machine-style task structure for Tasks 3-5 via subgoal progress and automaton state
+- Tradeoff weights and objective breakdowns exposed in observations for Tasks 3-5
 - OpenEnv server environment with `reset`, `step`, and `state`
 - Extra FastAPI endpoints: `/tasks`, `/grader`, `/baseline`, and `/benchmark-metadata`
 - Typed client in [`client.py`](client.py)
@@ -165,6 +171,7 @@ The environment also gives partial progress signals, which means the agent has t
 2. Task 2: single table duplicates and type violations
 3. Task 3: multi-table cascading failures across `orders`, `customers`, and `products`
 4. Task 4: incremental ETL recovery across `orders`, `products`, and `daily_summary`
+5. Task 5: temporal ETL recovery across `source_orders`, `catalog`, and `hourly_rollup`
 
 ## What Makes It Hard
 
@@ -172,6 +179,7 @@ The environment also gives partial progress signals, which means the agent has t
 - some fixes are only safe after earlier cleanup, like filling nulls before casting to integers
 - Task 3 is cross-table: cleaning one table is not enough if downstream calculations still depend on broken inputs
 - Task 4 is operational: over time the agent must reason about backlog, freshness, resource level, and stale downstream state
+- Task 5 is compositional: the benchmark exposes an explicit subgoal sequence and requires temporal rollup repair plus SLA recovery before commit
 - committing too early can lock in a worse overall score
 
 ## Action Model
@@ -193,6 +201,12 @@ The environment also gives partial progress signals, which means the agent has t
   - `17`: `scale_resources_down`
   - `18`: `prioritize_incremental_batch`
   - `19`: `refresh_downstream_summary`
+- Tasks 3-5 also expose:
+  - `reward_breakdown`
+  - `objective_breakdown`
+  - `tradeoff_weights`
+  - `subgoal_progress`
+  - `reward_machine_state`
 
 ## Required Submission Files
 
@@ -248,22 +262,24 @@ Current local heuristic runs with `seed=42`:
   - Task 2: `1.0000` in 4 steps
   - Task 3: `0.9820` in 12 steps
   - Task 4: `0.8000` in 14 steps
-  - Average: `0.9267`
+  - Task 5: `0.9789` in 10 steps
+  - Average: `0.9362`
 - eval split:
   - Task 1: `0.8875` in 5 steps
   - Task 2: `1.0000` in 5 steps
   - Task 3: `0.9520` in 15 steps
-  - Task 4: `0.7850` in 15 steps
-  - Average: `0.9061`
+  - Task 4: `0.7925` in 16 steps
+  - Task 5: `0.9789` in 10 steps
+  - Average: `0.9089`
 
 ## Benchmark Results
 
-| Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 |
-|---|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4405` | `0.6883` | `0.5433` | `0.1906` | `0.3399` |
-| heuristic | train | `0.8923` | `0.9125` | `0.9667` | `0.8900` | `0.8000` |
-| random | eval | `0.4246` | `0.6998` | `0.5433` | `0.1917` | `0.2639` |
-| heuristic | eval | `0.8913` | `0.9125` | `0.9667` | `0.8960` | `0.7900` |
+| Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| random | train | `0.4351` | `0.6512` | `0.5425` | `0.1900` | `0.3915` | `0.4003` |
+| heuristic | train | `0.9169` | `0.9250` | `0.9750` | `0.9055` | `0.8000` | `0.9789` |
+| random | eval | `0.4165` | `0.6659` | `0.5425` | `0.1931` | `0.3012` | `0.3800` |
+| heuristic | eval | `0.9089` | `0.9062` | `0.9750` | `0.8920` | `0.7925` | `0.9789` |
 
 Strict `pure-llm` mode is implemented in [`inference.py`](inference.py). It now disables heuristic rescue so model-only evaluation is honest, but it should be re-benchmarked after the Task 4 upgrade with your preferred live model credentials.
 
@@ -272,10 +288,11 @@ Strict `pure-llm` mode is implemented in [`inference.py`](inference.py). It now 
 The grading logic is deterministic and score-based rather than binary-only:
 
 - observations expose repair signals such as missing-rate, duplicate-rate, type violations, outlier count, format mismatches, dependency alerts, per-table health summaries, backlog rows, freshness lag, workload pressure, and resource requirements
-- observations now also expose scenario-profile metadata, alias hints, open-world pattern tags, and time-budget semantics
+- observations now also expose scenario-profile metadata, alias hints, open-world pattern tags, time-budget semantics, structured reward breakdowns, tradeoff weights, and reward-machine state
 - each task has a fixed success threshold
 - the reward function provides partial progress and penalizes invalid or destructive actions
 - Task 3 uses weighted multi-table scoring so the agent must repair the full pipeline, not just one table
+- Tasks 3-5 expose explicit subgoal progress so multi-step repair is easier to audit and benchmark
 
 Current local thresholds:
 
@@ -283,6 +300,7 @@ Current local thresholds:
 - Task 2: `0.80`
 - Task 3: `0.75`
 - Task 4: `0.78`
+- Task 5: `0.82`
 
 Task 3 hardening checks now show a meaningful difficulty gap:
 
@@ -296,39 +314,50 @@ Task 4 checks show the online recovery setting is meaningfully harder than stati
 - random Task 4 benchmark score: train `0.3399`, eval `0.2639`
 - structured Task 4 baseline, seed `42`: `0.8000`
 
+Task 5 checks now show direct one-shot adaptation to unseen temporal profile families:
+
+- heuristic Task 5, train split over seeds `1-6`: avg `0.9774`
+- heuristic Task 5, eval split over seeds `1-6`: avg `0.9774`
+- held-out Task 5 eval profile family over seeds `2,3`: avg `0.9767`
+- adaptation report: `python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 5 6`
+
 ## Validation
 
 - `openenv validate`
 - [`scripts/validate-submission.sh`](scripts/validate-submission.sh)
 - `python3 scripts/export_benchmark_metadata.py`
+- `python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 5 6`
 - Research-grounded benchmark review: [`docs/RL_BENCHMARK_REVIEW.md`](docs/RL_BENCHMARK_REVIEW.md)
 
 ## Evaluation Snapshot
 
 - deterministic graders return scores in `0.0-1.0`
-- success thresholds are `0.85`, `0.80`, `0.75`, and `0.78`
+- success thresholds are `0.85`, `0.80`, `0.75`, `0.78`, and `0.82`
 - local validation is currently passing
 - the remaining high-value pre-submission check is the live HF Space validator run
 
 ## Current Local Status
 
 - `openenv validate` passes from the repo root
-- `python3 inference.py` now runs all 4 benchmark tasks with explicit split + policy controls
+- `python3 inference.py` now runs all 5 benchmark tasks with explicit split + policy controls
 - `python3 scripts/benchmark_models.py` produces reproducible benchmark tables
+- `python3 scripts/benchmark_adaptation.py` reports held-out temporal-profile adaptation on Task 5
 - `docs/assets/benchmark_runs.json`, `docs/assets/benchmark_runs.csv`, and `docs/assets/benchmark_metadata.json` are generated benchmark artifacts
 - The deployed Hugging Face Space is live and responds to `/health` and `/reset`
 - The preferred submission path is still the OpenAI-client baseline with `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
-- The repo now supports held-out evaluation, orchestration-heavy Task 4 recovery, adaptive open-world profiles, and strict pure-LLM benchmarking without changing the environment API
+- The repo now supports held-out evaluation, orchestration-heavy Task 4 recovery, Task 5 temporal recovery with formal subgoal structure, adaptive open-world profiles, and strict pure-LLM benchmarking without changing the environment API
 
 ## Known Limitations
 
 - `drop_nulls` changes row count, so the accuracy metric strongly discourages deletion-heavy repair paths; the intended agent behavior is to prefer fill and type-repair actions over row removal.
 - The provided `inference.py` is a family of baselines, not a learned RL policy. `pure-llm` mode is now strict and does not borrow heuristic rescue, so its lower score should be read as a cleaner model-only benchmark rather than a submission-optimized baseline.
 - Task 4 currently models one style of online ETL recovery. Future extensions should vary workload bursts during the episode rather than only at reset time.
+- Task 5 currently encodes formal progress through an explicit subgoal sequence, but it is still a hand-authored reward machine rather than a learned task specification.
 
 ## Additional Docs
 
 - [Research-grounded benchmark review](docs/RL_BENCHMARK_REVIEW.md)
 - [Adaptive ETL upgrade notes](docs/ADAPTIVE_ETL_UPGRADE.md)
 - [Open-world benchmark notes](docs/OPEN_WORLD_BENCHMARK_NOTES.md)
+- [Reward structure and adaptation notes](docs/REWARD_STRUCTURE_AND_ADAPTATION.md)
 - [What the papers imply we should build next](docs/NEXT_STEPS_FROM_PAPERS.md)

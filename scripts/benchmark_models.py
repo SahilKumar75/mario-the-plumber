@@ -74,6 +74,8 @@ def _random_action(
             target_column = "customers" if env.state.active_table == "orders" else "products"
         elif env.state.task_id == 4 and env.state.active_table in {"orders", "products"}:
             target_column = "products" if env.state.active_table == "orders" else "daily_summary"
+        elif env.state.task_id == 5 and env.state.active_table in {"source_orders", "catalog"}:
+            target_column = "catalog" if env.state.active_table == "source_orders" else "hourly_rollup"
         else:
             target_column = None
     else:
@@ -116,33 +118,24 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def to_markdown(report: dict[str, Any]) -> str:
+    task_ids = sorted(TASK_THRESHOLDS)
+    task_headers = " | ".join(f"Task {task_id}" for task_id in task_ids)
     lines = [
-        "| Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        f"| Policy | Split | Avg Score | {task_headers} |",
+        "|---|---:|---:|" + "---:|" * len(task_ids),
     ]
     for row in report["rows"]:
+        task_values = " | ".join(f"{row[f'task_{task_id}']:.4f}" for task_id in task_ids)
         lines.append(
-            f"| {row['policy']} | {row['split']} | {row['average_score_mean']:.4f} | "
-            f"{row['task_1']:.4f} | {row['task_2']:.4f} | {row['task_3']:.4f} | {row['task_4']:.4f} |"
+            f"| {row['policy']} | {row['split']} | {row['average_score_mean']:.4f} | {task_values} |"
         )
     return "\n".join(lines)
 
 
 def write_csv(report: dict[str, Any], path: str) -> None:
-    fieldnames = [
-        "policy",
-        "split",
-        "average_score_mean",
-        "average_score_std",
-        "task_1",
-        "task_1_std",
-        "task_2",
-        "task_2_std",
-        "task_3",
-        "task_3_std",
-        "task_4",
-        "task_4_std",
-    ]
+    fieldnames = ["policy", "split", "average_score_mean", "average_score_std"]
+    for task_id in sorted(TASK_THRESHOLDS):
+        fieldnames.extend([f"task_{task_id}", f"task_{task_id}_std"])
     with open(path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
@@ -189,14 +182,14 @@ def main() -> None:
                     "split": split,
                     "average_score_mean": summary["average_score_mean"],
                     "average_score_std": summary["average_score_std"],
-                    "task_1": summary["task_means"]["task_1"],
-                    "task_1_std": summary["task_stds"]["task_1"],
-                    "task_2": summary["task_means"]["task_2"],
-                    "task_2_std": summary["task_stds"]["task_2"],
-                    "task_3": summary["task_means"]["task_3"],
-                    "task_3_std": summary["task_stds"]["task_3"],
-                    "task_4": summary["task_means"]["task_4"],
-                    "task_4_std": summary["task_stds"]["task_4"],
+                    **{
+                        key: value
+                        for task_id in sorted(TASK_THRESHOLDS)
+                        for key, value in (
+                            (f"task_{task_id}", summary["task_means"][f"task_{task_id}"]),
+                            (f"task_{task_id}_std", summary["task_stds"][f"task_{task_id}"]),
+                        )
+                    },
                 }
             )
             raw_runs[f"{policy}:{split}"] = runs

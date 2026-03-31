@@ -1,11 +1,23 @@
 # What The Papers Imply We Should Build Next
 
-This is the concrete build plan suggested by the latest papers on open-world ML, Gymnasium, RL generalization, and synthetic data.
+This is the concrete build plan suggested by the latest papers on open-world ML, Gymnasium, RL generalization, reward design, Reward Machines, temporal task specification, and synthetic data.
+
+## What Is Now Implemented
+
+The repo now includes several upgrades that used to live in this plan:
+
+- held-out `train` / `eval` splits
+- adaptive open-world profile families
+- explicit truncation / time-budget semantics
+- structured reward signals for Tasks 3-5
+- tradeoff weights and objective breakdowns in observations
+- Task 5 with Reward-Machine-style subgoal ordering
+- a direct adaptation benchmark script for held-out Task 5 profile families
 
 ## Highest-Value Next Steps
 
 1. **In-episode workload shifts**
-   - Today workload pressure is sampled at reset time.
+   - Today workload pressure is still mostly sampled at reset time.
    - Next version should inject bursts during the episode.
    - This would make orchestration less scriptable and more adaptive.
 
@@ -36,11 +48,13 @@ This is the concrete build plan suggested by the latest papers on open-world ML,
    - compare whether policy ranking is stable when scenario distributions change
    - if ranking stays stable, synthetic scenarios are doing their job as benchmark data
 
-7. **Longer horizon task family**
-   - a future Task 5 could require:
-     - two-stage recovery
-     - delayed downstream reconciliation
-     - budget tradeoffs over multiple commits
+7. **Task 5 evolution beyond hand-authored reward machines**
+   - Task 5 now exists and is formalized.
+   - The next step is to move from hand-authored temporal progression to richer dynamics:
+     - mid-episode workload shifts
+     - corrections that invalidate a previous rollup
+     - optional alternate valid recovery paths
+     - task specifications that are still explicit, but less scripted
 
 ## What Not To Change Casually
 
@@ -58,3 +72,4 @@ The papers point toward a stronger Mario that behaves less like a scripted clean
 - delayed and partial data arrival
 - multiple valid but cost-sensitive recovery paths
 - reproducible reporting across scenario families
+- compositional temporal tasks with explicit but auditable subgoal structure

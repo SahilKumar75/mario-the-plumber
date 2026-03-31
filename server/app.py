@@ -81,7 +81,7 @@ def get_tasks() -> dict[str, object]:
             "action_id": "int (0-19, required)",
             "target_column": (
                 "str (optional; required for actions 3-9, 11, 12; optional for "
-                "action 0 when switching tables in task 3 or task 4)"
+                "action 0 when switching tables in task 3, task 4, or task 5)"
             ),
             "new_name": "str (optional, required for action 12 only)",
             "column_order": "list[str] (optional, required for action 13 only)",
@@ -92,6 +92,13 @@ def get_tasks() -> dict[str, object]:
                 "18": "prioritize_incremental_batch",
                 "19": "refresh_downstream_summary",
             },
+            "reward_machine_signals": [
+                "reward_breakdown",
+                "objective_breakdown",
+                "tradeoff_weights",
+                "subgoal_progress",
+                "reward_machine_state",
+            ],
         },
     }
 

@@ -69,12 +69,21 @@ class MarioThePlumberObservation(Observation):
     truncated: bool = False
     done_reason: str = Field(default="")
     synthetic_data_notes: list[str] = Field(default_factory=list)
+    reward_breakdown: dict[str, float] = Field(default_factory=dict)
+    objective_breakdown: dict[str, float] = Field(default_factory=dict)
+    tradeoff_weights: dict[str, float] = Field(default_factory=dict)
+    subgoal_progress: dict[str, bool] = Field(default_factory=dict)
+    subgoal_order: list[str] = Field(default_factory=list)
+    active_subgoal: str = Field(default="")
+    reward_machine_state: str = Field(default="")
+    adaptation_target: str = Field(default="")
+    heldout_profile_family: bool = False
 
 
 class MarioThePlumberState(State):
     """Internal episode metadata surfaced via the OpenEnv state endpoint."""
 
-    task_id: int = Field(default=1, ge=1, le=4)
+    task_id: int = Field(default=1, ge=1, le=5)
     seed: int | None = None
     max_steps: int = Field(default=10, ge=1)
     current_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -94,6 +103,9 @@ class MarioThePlumberState(State):
     done_reason: str = Field(default="")
     scenario_profile: str = Field(default="baseline")
     started_at: str = Field(default="")
+    active_subgoal: str = Field(default="")
+    reward_machine_state: str = Field(default="")
+    heldout_profile_family: bool = False
 
 
 PipelineDoctorAction = MarioThePlumberAction
