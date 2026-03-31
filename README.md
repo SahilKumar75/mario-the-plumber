@@ -16,6 +16,31 @@ tags:
 
 Mario the Plumber is an OpenEnv environment where an agent repairs broken ETL tables step by step. The environment uses a fixed discrete action space, quality-signal observations, and deterministic grading against ground truth.
 
+## Benchmark at a Glance
+
+```mermaid
+flowchart LR
+    A["reset(task, seed)"] --> B["Observation signals<br/>missing rate, duplicates, schema drift, score"]
+    B --> C["Agent chooses discrete repair action"]
+    C --> D["step(action)"]
+    D --> E["Updated table state"]
+    E --> F["Reward + current score"]
+    F -->|repeat| B
+    F --> G["commit_changes"]
+    G --> H["Final success / failure"]
+```
+
+```mermaid
+flowchart TD
+    T1["Task 1<br/>single-table missing values"] --> T2["Task 2<br/>duplicates + type drift"]
+    T2 --> T3["Task 3<br/>multi-table dependency repair"]
+    T3 --> O["orders"]
+    T3 --> C["customers"]
+    T3 --> P["products"]
+    P --> X["derived totals stay wrong if upstream prices stay broken"]
+    O --> X
+```
+
 ## Why This Benchmark Matters
 
 Real data systems fail in structured ways: missing values, schema drift, duplicate records, and broken derived fields. Mario the Plumber turns that into an agent benchmark where the model has to diagnose the failure, choose the right repair, and avoid damaging the table while fixing it.
@@ -151,6 +176,12 @@ Task 3 hardening checks now show a meaningful difficulty gap:
 - initial Task 3 score over 20 seeds: min `0.2001`, max `0.2037`, avg `0.2005`
 - random agent on Task 3 over 20 seeds: min `0.2001`, max `0.2112`, avg `0.2065`
 - structured baseline on Task 3, seed `42`: `0.9070`
+
+```mermaid
+flowchart LR
+    R["Random agent<br/>avg 0.2065"] --> G["Benchmark gap<br/>+0.7005"]
+    S["Structured baseline<br/>0.9070"] --> G
+```
 
 ## Validation
 

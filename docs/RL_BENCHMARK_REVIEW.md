@@ -7,8 +7,32 @@ This note updates the project assessment using ideas from the following material
 - Yuxi Li, *Deep Reinforcement Learning: An Overview* (2018)
 - Ashish Kumar Shakya et al., *Reinforcement learning algorithms: A brief survey* (2023)
 - Cédric Vandelaer, *Reinforcement Learning: An introduction (Part 1/4)*
+- Niels Justesen et al., *Illuminating Generalization in Deep Reinforcement Learning through Procedural Level Generation* (2018)
+- Alberto Maria Metelli, *Configurable Environments in Reinforcement Learning: An Overview* (2022)
+- Lei Yuan et al., *A Survey of Progress on Cooperative Multi-Agent Reinforcement Learning in Open Environment* (2023)
+- Rui Wang et al., *Enhanced POET: Open-ended Reinforcement Learning through Unbounded Invention of Learning Challenges and their Solutions* (2020)
 
 The goal is not to restate RL theory. The goal is to judge whether Mario the Plumber behaves like a meaningful RL / agent benchmark and to identify the highest-value next improvements.
+
+## Additional Takeaways from the Second Reading Pass
+
+The newer papers sharpened four ideas that matter directly for Mario:
+
+### Generalization matters more than single-seed success
+
+Justesen et al. show that RL systems often overfit to fixed environments and can look stronger than they really are when episode diversity is too low. That strengthens the case for Mario's move toward seed variation and harder Task 3 distributions. It also means Mario should keep growing the variety of corruption patterns instead of optimizing too hard for one canonical seed.
+
+### Configurable environments are a benchmark strength, not a side feature
+
+Metelli's overview of configurable RL environments supports an important framing choice: exposing task IDs, seeds, and controllable scenario generation is a feature of a serious benchmark. It makes evaluation more systematic, lets us stress-test generalization, and supports curriculum-like analysis without changing the agent interface.
+
+### Open environments reward robustness, not just optimal trajectories
+
+The open-environment MARL survey emphasizes that real environments change, expand, and surprise agents. For Mario, the single-agent version of that lesson is: the benchmark gets stronger when table states, error mixes, and dependency structures vary enough that agents must adapt instead of replaying one memorized cleanup script.
+
+### Open-ended challenge generation is a long-term direction
+
+Enhanced POET reinforces the value of environments that keep producing novel but still learnable challenges. Mario is not open-ended today, but the paper is a strong argument for future work where corruption generators evolve or diversify automatically instead of being hand-authored forever.
 
 ## 1. Research-Grounded Rating
 
