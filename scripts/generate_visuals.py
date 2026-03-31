@@ -100,22 +100,26 @@ def build_task_gap_chart() -> None:
 def build_objective_weights_chart() -> None:
     metadata = _load_json("benchmark_metadata.json")
     weights = metadata["benchmark_metadata"]["objective_weights"]
-    task_ids = ["3", "4", "5"]
-    labels = ["Task 3", "Task 4", "Task 5"]
+    task_ids = ["1", "2", "3", "4", "5"]
+    labels = ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"]
     keys = sorted({key for task_id in task_ids for key in weights[task_id]})
     colors = {
+        "accuracy": "#0f766e",
+        "completeness": "#2563eb",
+        "consistency": "#1d4ed8",
         "data_quality": "#2563eb",
         "dependency_consistency": "#0f766e",
         "freshness": "#f59e0b",
         "backlog": "#dc2626",
         "resource_efficiency": "#7c3aed",
+        "validity": "#14b8a6",
         "summary_consistency": "#14b8a6",
         "schema_alignment": "#1d4ed8",
         "temporal_backfill": "#ea580c",
         "rollup_consistency": "#0f766e",
     }
 
-    fig, ax = plt.subplots(figsize=(10.8, 5.8))
+    fig, ax = plt.subplots(figsize=(12.2, 5.8))
     x = np.arange(len(task_ids))
     bottom = np.zeros(len(task_ids))
     for key in keys:
@@ -129,7 +133,7 @@ def build_objective_weights_chart() -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel("Weight")
-    ax.set_title("Objective Weights for Hard Tasks")
+    ax.set_title("Task Scoring Weights Across the Benchmark")
     ax.grid(axis="y", alpha=0.18)
     ax.legend(frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
     fig.tight_layout()

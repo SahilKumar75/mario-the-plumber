@@ -68,6 +68,7 @@ def build_benchmark_demo(
             lines.append(f"**Task {task_id}**")
             lines.append(f"- train: {', '.join(payload[task_id]['train'])}")
             lines.append(f"- eval: {', '.join(payload[task_id]['eval'])}")
+            lines.append("")
         return "\n".join(lines)
 
     def benchmark_summary_markdown() -> str:
@@ -137,7 +138,10 @@ def build_benchmark_demo(
                 with gr.Row():
                     _image_component("benchmark_overview.png", "Benchmark ladder")
                     _image_component("difficulty_gap.png", "Difficulty gap")
-                    _image_component("objective_weights.png", "Objective weights")
+                    _image_component("objective_weights.png", "Task scoring weights")
+                gr.Markdown(
+                    "Tasks 1-2 show the single-table score mix. Tasks 3-5 show the higher-level benchmark objectives used by the hard recovery tasks."
+                )
 
             with gr.Tab("Episode Inspector"):
                 gr.Markdown(
@@ -195,6 +199,7 @@ def build_benchmark_demo(
                             "- **Observation signals:** data quality, dependency consistency, freshness, backlog, resource pressure, and reward-machine state.",
                             "- **Action space:** discrete repair plus orchestration actions under a stable 0-19 contract.",
                             "- **Scoring:** per-task deterministic grader with explicit objective-weight reporting for the hard tasks.",
+                            "- **Scoring weights:** Tasks 1-2 expose the single-table score mix; Tasks 3-5 expose multi-objective pipeline weights.",
                             "- **Runtime modes:** benchmark, incident, and hybrid. These change the framing/reporting surface, not the underlying benchmark contract.",
                         ]
                     )

@@ -194,6 +194,18 @@
       "Profiles intentionally vary failure combinations so agents cannot rely on a single fixed script."
     ],
     "objective_weights": {
+      "1": {
+        "completeness": 0.2,
+        "validity": 0.2,
+        "consistency": 0.3,
+        "accuracy": 0.3
+      },
+      "2": {
+        "completeness": 0.2,
+        "validity": 0.2,
+        "consistency": 0.3,
+        "accuracy": 0.3
+      },
       "3": {
         "data_quality": 0.55,
         "dependency_consistency": 0.45

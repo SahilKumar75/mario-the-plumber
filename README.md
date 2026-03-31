@@ -143,7 +143,10 @@ The Hugging Face Space serves the standard OpenEnv API and, when the web interfa
 
 ![Objective weights](docs/assets/objective_weights.png)
 
-Mario returns a scalar OpenEnv reward, but Tasks 3-5 also expose structured evaluation signals:
+Mario returns a scalar OpenEnv reward, but the benchmark now exposes its scoring structure more clearly:
+
+- Tasks 1-2 use the single-table mix: completeness, validity, consistency, accuracy
+- Tasks 3-5 expose higher-level pipeline objective weights alongside the scalar score
 
 - `reward_breakdown`
 - `objective_breakdown`
@@ -164,6 +167,7 @@ python3 scripts/benchmark_models.py --policies random heuristic --splits train e
 python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 5 6
 python3 scripts/export_benchmark_metadata.py --seeds 1 2 3 4 5 6 --output docs/assets/benchmark_metadata.json
 python3 scripts/generate_visuals.py
+./scripts/validate-live-space.sh https://sahilksingh-mario-the-plumber.hf.space
 ```
 
 ## Baseline Modes

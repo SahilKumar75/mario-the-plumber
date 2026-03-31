@@ -118,6 +118,18 @@ PROFILE_PATTERNS = {
 }
 
 TASK_OBJECTIVE_WEIGHTS: dict[int, dict[str, float]] = {
+    1: {
+        "completeness": 0.20,
+        "validity": 0.20,
+        "consistency": 0.30,
+        "accuracy": 0.30,
+    },
+    2: {
+        "completeness": 0.20,
+        "validity": 0.20,
+        "consistency": 0.30,
+        "accuracy": 0.30,
+    },
     3: {"data_quality": 0.55, "dependency_consistency": 0.45},
     4: {
         "data_quality": 0.45,
