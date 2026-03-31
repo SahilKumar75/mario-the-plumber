@@ -96,6 +96,78 @@ def score_task3(
     }
 
 
+def score_task4(
+    fixed_tables: dict[str, pd.DataFrame],
+    ground_truth_tables: dict[str, pd.DataFrame],
+    expected_types: dict[str, dict[str, str]],
+    *,
+    backlog_rows: int,
+    freshness_lag_minutes: int,
+    resource_level: int,
+    required_resource_level: int,
+    downstream_stale: bool,
+) -> tuple[float, dict[str, dict[str, float]]]:
+    """Weighted score for incremental ETL recovery with orchestration signals."""
+
+    orders_score, orders_breakdown = score_single_table(
+        fixed_tables["orders"],
+        ground_truth_tables["orders"],
+        expected_types["orders"],
+    )
+    products_score, products_breakdown = score_single_table(
+        fixed_tables["products"],
+        ground_truth_tables["products"],
+        expected_types["products"],
+    )
+    summary_score, summary_breakdown = score_single_table(
+        fixed_tables["daily_summary"],
+        ground_truth_tables["daily_summary"],
+        expected_types["daily_summary"],
+    )
+
+    base_score = (
+        (0.40 * orders_score)
+        + (0.20 * products_score)
+        + (0.20 * summary_score)
+    )
+    batch_score = task4_batch_completeness_score(
+        fixed_tables["orders"], ground_truth_tables["orders"], backlog_rows
+    )
+    freshness_score = max(0.0, 1.0 - (freshness_lag_minutes / 180.0))
+    summary_consistency = task4_summary_consistency_score(
+        fixed_tables["orders"],
+        fixed_tables["products"],
+        fixed_tables["daily_summary"],
+    )
+    if backlog_rows > 0 and resource_level < required_resource_level:
+        resource_efficiency = 0.2
+    else:
+        overscale = max(resource_level - required_resource_level, 0)
+        resource_efficiency = max(0.6, 1.0 - (0.15 * overscale))
+    if downstream_stale:
+        freshness_score *= 0.5
+
+    orchestration_score = (
+        0.15
+        + (0.35 * batch_score)
+        + (0.25 * freshness_score)
+        + (0.15 * summary_consistency)
+        + (0.10 * resource_efficiency)
+    )
+    score = round(base_score * orchestration_score, 4)
+    return score, {
+        "orders": orders_breakdown,
+        "products": products_breakdown,
+        "daily_summary": summary_breakdown,
+        "pipeline": {
+            "batch_completeness": round(batch_score, 4),
+            "freshness": round(freshness_score, 4),
+            "summary_consistency": round(summary_consistency, 4),
+            "resource_efficiency": round(resource_efficiency, 4),
+        },
+    }
+
+
 def compute_reward(
     score_before: float,
     score_after: float,
@@ -154,6 +226,89 @@ def task3_dependency_score(
     total_rows = max(len(orders_df), 1)
     mismatch_count = calculation_mismatch_count(orders_df, products_df)
     return max(0.0, 1.0 - (mismatch_count / total_rows))
+
+
+def task4_batch_completeness_score(
+    orders_df: pd.DataFrame,
+    truth_orders_df: pd.DataFrame,
+    backlog_rows: int,
+) -> float:
+    """Measure whether the latest incremental batch has been ingested."""
+
+    if backlog_rows == 0 and len(orders_df) == len(truth_orders_df):
+        return 1.0
+    if "order_id" not in orders_df.columns or "order_id" not in truth_orders_df.columns:
+        return 0.0
+    fixed_ids = set(pd.to_numeric(orders_df["order_id"], errors="coerce").dropna().astype(int))
+    truth_ids = set(pd.to_numeric(truth_orders_df["order_id"], errors="coerce").dropna().astype(int))
+    if not truth_ids:
+        return 1.0
+    return len(fixed_ids.intersection(truth_ids)) / len(truth_ids)
+
+
+def task4_summary_consistency_score(
+    orders_df: pd.DataFrame,
+    products_df: pd.DataFrame,
+    summary_df: pd.DataFrame,
+) -> float:
+    """Score whether downstream daily summary matches current upstream tables."""
+
+    if not {"product_id", "quantity", "event_ts"}.issubset(orders_df.columns):
+        return 0.0
+    if not {"product_id", "unit_price"}.issubset(products_df.columns):
+        return 0.0
+    if not {"event_date", "order_count", "total_revenue"}.issubset(summary_df.columns):
+        return 0.0
+
+    orders = orders_df.copy()
+    products = products_df.copy()
+    orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
+    products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
+    orders["quantity"] = pd.to_numeric(orders["quantity"], errors="coerce")
+    products["unit_price"] = pd.to_numeric(products["unit_price"], errors="coerce")
+    orders["event_date"] = orders["event_ts"].map(_canonical_event_date)
+    merged = orders.merge(products[["product_id", "unit_price"]], on="product_id", how="left")
+    merged["revenue"] = merged["quantity"] * merged["unit_price"]
+    expected_summary = (
+        merged.groupby("event_date", as_index=False)
+        .agg(order_count=("order_id", "count"), total_revenue=("revenue", "sum"))
+        .sort_values("event_date")
+        .reset_index(drop=True)
+    )
+    observed_summary = summary_df.copy().sort_values("event_date").reset_index(drop=True)
+    if list(observed_summary.columns) != list(expected_summary.columns):
+        return 0.0
+    if len(observed_summary) != len(expected_summary):
+        return 0.0
+    observed_summary["total_revenue"] = pd.to_numeric(
+        observed_summary["total_revenue"], errors="coerce"
+    ).round(2)
+    expected_summary["total_revenue"] = pd.to_numeric(
+        expected_summary["total_revenue"], errors="coerce"
+    ).round(2)
+    matches = (observed_summary == expected_summary).all(axis=1)
+    return float(matches.mean()) if len(matches) else 1.0
+
+
+def _canonical_event_date(value: object) -> str | None:
+    if pd.isna(value):
+        return None
+    text = str(value).strip()
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%d/%m/%Y %H:%M",
+        "%m-%d-%Y %H:%M",
+        "%Y-%m-%d",
+    ):
+        try:
+            parsed = pd.to_datetime(text, format=fmt, utc=True)
+            return parsed.strftime("%Y-%m-%d")
+        except Exception:
+            continue
+    parsed = pd.to_datetime(text, errors="coerce", utc=True)
+    if pd.notna(parsed):
+        return parsed.strftime("%Y-%m-%d")
+    return None
 
 
 def _accuracy(fixed_df: pd.DataFrame, ground_truth_df: pd.DataFrame) -> float:

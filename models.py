@@ -15,7 +15,7 @@ from pydantic import Field
 class MarioThePlumberAction(Action):
     """Discrete pipeline repair action with optional parameters."""
 
-    action_id: int = Field(..., ge=0, le=15, description="Discrete action id.")
+    action_id: int = Field(..., ge=0, le=19, description="Discrete action id.")
     target_column: str | None = Field(
         default=None,
         description=(
@@ -50,12 +50,21 @@ class MarioThePlumberObservation(Observation):
     dependency_alerts: list[str] = Field(default_factory=list)
     commit_ready: bool = False
     scenario_split: str = Field(default="train")
+    schema_drift_count: int = Field(default=0, ge=0)
+    backlog_rows: int = Field(default=0, ge=0)
+    freshness_lag_minutes: int = Field(default=0, ge=0)
+    resource_level: int = Field(default=1, ge=1)
+    required_resource_level: int = Field(default=1, ge=1)
+    workload_pressure: float = Field(default=0.0, ge=0.0, le=1.0)
+    pending_batches: int = Field(default=0, ge=0)
+    downstream_stale: bool = False
+    orchestration_alerts: list[str] = Field(default_factory=list)
 
 
 class MarioThePlumberState(State):
     """Internal episode metadata surfaced via the OpenEnv state endpoint."""
 
-    task_id: int = Field(default=1, ge=1, le=3)
+    task_id: int = Field(default=1, ge=1, le=4)
     seed: int | None = None
     max_steps: int = Field(default=10, ge=1)
     current_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -65,6 +74,11 @@ class MarioThePlumberState(State):
     success: bool | None = None
     active_table: str = Field(default="single")
     scenario_split: str = Field(default="train")
+    backlog_rows: int = Field(default=0, ge=0)
+    freshness_lag_minutes: int = Field(default=0, ge=0)
+    resource_level: int = Field(default=1, ge=1)
+    required_resource_level: int = Field(default=1, ge=1)
+    pending_batches: int = Field(default=0, ge=0)
     started_at: str = Field(default="")
 
 

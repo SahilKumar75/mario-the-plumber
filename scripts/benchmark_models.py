@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
 
 from inference import run_baseline
 from models import PipelineDoctorAction
-from server.data_generator import MAX_STEPS
+from server.data_generator import MAX_STEPS, TASK_THRESHOLDS
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
 
@@ -25,7 +25,7 @@ def run_random_baseline(seed: int, *, split: str = "train") -> dict[str, Any]:
     rng = random.Random(seed)
     results: list[dict[str, Any]] = []
 
-    for task_id in (1, 2, 3):
+    for task_id in sorted(TASK_THRESHOLDS):
         env = PipelineDoctorEnvironment()
         observation = env.reset(seed=seed, task_id=task_id, split=split)
 
@@ -63,13 +63,18 @@ def _random_action(
     observation: Any,
     rng: random.Random,
 ) -> PipelineDoctorAction:
-    action_id = rng.randint(0, 15)
+    action_id = rng.randint(0, 19)
     current_columns = list(env._current_frame().columns)  # noqa: SLF001
 
     if action_id in {3, 4, 5, 6, 7, 8, 9, 11, 12} and current_columns:
         target_column = rng.choice(current_columns)
-    elif action_id == 0 and env.state.active_table in {"orders", "customers"}:
-        target_column = "customers" if env.state.active_table == "orders" else "products"
+    elif action_id == 0:
+        if env.state.task_id == 3 and env.state.active_table in {"orders", "customers"}:
+            target_column = "customers" if env.state.active_table == "orders" else "products"
+        elif env.state.task_id == 4 and env.state.active_table in {"orders", "products"}:
+            target_column = "products" if env.state.active_table == "orders" else "daily_summary"
+        else:
+            target_column = None
     else:
         target_column = None
 
@@ -95,7 +100,7 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "average_score_mean": round(mean(run["average_score"] for run in runs), 4),
         "task_means": {},
     }
-    for task_id in (1, 2, 3):
+    for task_id in sorted(TASK_THRESHOLDS):
         scores = [
             next(item["score"] for item in run["results"] if item["task_id"] == task_id)
             for run in runs
@@ -106,13 +111,13 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
 
 def to_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "| Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in report["rows"]:
         lines.append(
             f"| {row['policy']} | {row['split']} | {row['average_score_mean']:.4f} | "
-            f"{row['task_1']:.4f} | {row['task_2']:.4f} | {row['task_3']:.4f} |"
+            f"{row['task_1']:.4f} | {row['task_2']:.4f} | {row['task_3']:.4f} | {row['task_4']:.4f} |"
         )
     return "\n".join(lines)
 
@@ -157,6 +162,7 @@ def main() -> None:
                     "task_1": summary["task_means"]["task_1"],
                     "task_2": summary["task_means"]["task_2"],
                     "task_3": summary["task_means"]["task_3"],
+                    "task_4": summary["task_means"]["task_4"],
                 }
             )
             raw_runs[f"{policy}:{split}"] = runs

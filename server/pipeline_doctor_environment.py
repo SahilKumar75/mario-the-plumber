@@ -26,6 +26,7 @@ try:
         duplicate_row_count,
         score_single_table,
         score_task3,
+        score_task4,
     )
 except ImportError:
     from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
@@ -36,6 +37,7 @@ except ImportError:
         duplicate_row_count,
         score_single_table,
         score_task3,
+        score_task4,
     )
 
 ACTION_NAMES = {
@@ -55,6 +57,10 @@ ACTION_NAMES = {
     13: "reorder_columns",
     14: "validate_schema",
     15: "commit_changes",
+    16: "scale_resources_up",
+    17: "scale_resources_down",
+    18: "prioritize_incremental_batch",
+    19: "refresh_downstream_summary",
 }
 PARAMETER_ACTIONS = {3, 4, 5, 6, 7, 8, 9, 11, 12}
 EPISODE_SUMMARIES: dict[str, dict[str, object]] = {}
@@ -71,6 +77,7 @@ class PipelineDoctorEnvironment(
         self._tables: dict[str, pd.DataFrame] = {}
         self._ground_truth: dict[str, pd.DataFrame] = {}
         self._expected_types: dict[str, dict[str, str]] = {}
+        self._scenario_meta: dict[str, object] = {}
         self._task_id = 1
         self._seed: int | None = None
         self._split = "train"
@@ -87,6 +94,11 @@ class PipelineDoctorEnvironment(
             success=None,
             active_table="single",
             scenario_split="train",
+            backlog_rows=0,
+            freshness_lag_minutes=0,
+            resource_level=1,
+            required_resource_level=1,
+            pending_batches=0,
             started_at=datetime.now(UTC).isoformat(),
         )
 
@@ -108,6 +120,10 @@ class PipelineDoctorEnvironment(
             name: frame.copy(deep=True) for name, frame in scenario.ground_truth_tables.items()
         }
         self._expected_types = dict(scenario.expected_types)
+        self._scenario_meta = {
+            key: value.copy(deep=True) if isinstance(value, pd.DataFrame) else value
+            for key, value in scenario.metadata.items()
+        }
         self._task_id = task_id
         self._seed = seed
         self._split = scenario.split
@@ -127,6 +143,11 @@ class PipelineDoctorEnvironment(
             success=None,
             active_table=scenario.active_table,
             scenario_split=scenario.split,
+            backlog_rows=int(self._scenario_meta.get("backlog_rows", 0)),
+            freshness_lag_minutes=int(self._scenario_meta.get("freshness_lag_minutes", 0)),
+            resource_level=int(self._scenario_meta.get("resource_level", 1)),
+            required_resource_level=int(self._scenario_meta.get("required_resource_level", 1)),
+            pending_batches=int(self._scenario_meta.get("pending_batches", 0)),
             started_at=datetime.now(UTC).isoformat(),
         )
         self._refresh_errors()
@@ -260,6 +281,14 @@ class PipelineDoctorEnvironment(
             return "\n".join(self._recent_errors) if self._recent_errors else "Schema validation passed."
         elif action.action_id == 15:
             return "Changes committed."
+        elif action.action_id == 16:
+            return self._scale_resources(up=True)
+        elif action.action_id == 17:
+            return self._scale_resources(up=False)
+        elif action.action_id == 18:
+            return self._prioritize_incremental_batch()
+        elif action.action_id == 19:
+            return self._refresh_downstream_summary()
 
         return ""
 
@@ -307,6 +336,9 @@ class PipelineDoctorEnvironment(
         if pd.isna(value):
             return value
         text = str(value).strip()
+        cents_match = re.fullmatch(r"(?i)\$?\s*(\d+(?:\.\d+)?)\s*cents?", text)
+        if cents_match:
+            return str(float(cents_match.group(1)) / 100.0)
         text = text.replace(",", "")
         text = re.sub(r"(?i)\b(?:usd|inr|units?)\b", "", text).strip()
         text = text.replace("$", "").replace("₹", "")
@@ -323,7 +355,7 @@ class PipelineDoctorEnvironment(
                 pass
         text = text.strip()
         column_name = (column or "").lower()
-        if "date" in column_name:
+        if self._is_datetime_like_column(column_name):
             parsed_text = self._normalize_date_string(text)
             if parsed_text:
                 return parsed_text
@@ -333,8 +365,16 @@ class PipelineDoctorEnvironment(
 
     def _normalize_date_string(self, text: str) -> str | None:
         stripped = text.strip()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}t\d{2}:\d{2}:\d{2}z", stripped.lower()):
+            return stripped.replace("t", "T").replace("z", "Z")
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", stripped):
             return stripped
+        for fmt in ("%d/%m/%Y %H:%M", "%m-%d-%Y %H:%M"):
+            try:
+                parsed = datetime.strptime(stripped, fmt)
+                return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+            except ValueError:
+                continue
         for fmt in ("%d/%m/%Y", "%m-%d-%Y", "%m/%d/%Y", "%d-%m-%Y"):
             try:
                 parsed = datetime.strptime(stripped, fmt)
@@ -343,8 +383,16 @@ class PipelineDoctorEnvironment(
                 continue
         parsed = pd.to_datetime(stripped, errors="coerce")
         if pd.notna(parsed):
+            if self._looks_timestamp_string(stripped):
+                return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
             return parsed.strftime("%Y-%m-%d")
         return None
+
+    def _is_datetime_like_column(self, column_name: str) -> bool:
+        return "date" in column_name or column_name.endswith("_ts") or column_name.endswith("_time")
+
+    def _looks_timestamp_string(self, text: str) -> bool:
+        return bool(re.search(r"\d{2}:\d{2}", text))
 
     def _drop_outliers(self, column: str | None) -> None:
         if column not in self._current_frame().columns:
@@ -363,6 +411,8 @@ class PipelineDoctorEnvironment(
         self._tables[self._state.active_table] = self._current_frame()[mask].reset_index(drop=True)
 
     def _commit_changes(self) -> None:
+        if self._task_id == 4:
+            return
         if self._task_id != 3:
             return
         if not self._task3_commit_ready():
@@ -390,6 +440,83 @@ class PipelineDoctorEnvironment(
         if self._table_has_structural_issues("orders"):
             return False
         return True
+
+    def _task4_commit_ready(self) -> bool:
+        if self._task_id != 4:
+            return True
+        for table_name in ("orders", "products", "daily_summary"):
+            if self._table_has_structural_issues(table_name):
+                return False
+        if self._state.backlog_rows > 0 or self._state.pending_batches > 0:
+            return False
+        if self._state.freshness_lag_minutes > 0:
+            return False
+        if bool(self._scenario_meta.get("downstream_stale", False)):
+            return False
+        return True
+
+    def _scale_resources(self, *, up: bool) -> str:
+        if self._task_id != 4:
+            raise ValueError("resource scaling is only available in task 4")
+        current = self._state.resource_level
+        if up:
+            self._state.resource_level = min(current + 1, 3)
+        else:
+            self._state.resource_level = max(current - 1, 1)
+        self._scenario_meta["resource_level"] = self._state.resource_level
+        pressure = self._workload_pressure()
+        direction = "up" if up else "down"
+        return f"resources_scaled_{direction}: level={self._state.resource_level}, pressure={pressure:.2f}"
+
+    def _prioritize_incremental_batch(self) -> str:
+        if self._task_id != 4:
+            raise ValueError("incremental batch prioritization is only available in task 4")
+        pending_orders = self._scenario_meta.get("pending_orders")
+        if not isinstance(pending_orders, pd.DataFrame) or pending_orders.empty:
+            return "No pending incremental batch detected."
+        if self._state.resource_level < self._state.required_resource_level:
+            raise ValueError("resource level is too low for incremental batch recovery")
+        self._tables["orders"] = pd.concat(
+            [self._tables["orders"], pending_orders.copy(deep=True)],
+            ignore_index=True,
+        )
+        self._scenario_meta["pending_orders"] = pending_orders.iloc[0:0].copy(deep=True)
+        self._state.backlog_rows = 0
+        self._state.pending_batches = 0
+        self._scenario_meta["backlog_rows"] = 0
+        self._scenario_meta["pending_batches"] = 0
+        self._state.freshness_lag_minutes = max(0, self._state.freshness_lag_minutes - 90)
+        self._scenario_meta["freshness_lag_minutes"] = self._state.freshness_lag_minutes
+        return "Incremental batch prioritized and loaded into the live orders table."
+
+    def _refresh_downstream_summary(self) -> str:
+        if self._task_id != 4:
+            raise ValueError("downstream refresh is only available in task 4")
+        orders = self._tables["orders"].copy()
+        products = self._tables["products"].copy()
+        if not {"product_id", "quantity", "event_ts"}.issubset(orders.columns):
+            raise ValueError("orders table is missing required columns for downstream refresh")
+        if not {"product_id", "unit_price"}.issubset(products.columns):
+            raise ValueError("products table is missing required columns for downstream refresh")
+        orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
+        products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
+        orders["quantity"] = pd.to_numeric(orders["quantity"], errors="coerce")
+        products["unit_price"] = pd.to_numeric(
+            products["unit_price"].map(self._normalize_numeric_value),
+            errors="coerce",
+        )
+        orders["event_date"] = pd.to_datetime(orders["event_ts"], errors="coerce").dt.strftime("%Y-%m-%d")
+        merged = orders.merge(products[["product_id", "unit_price"]], on="product_id", how="left")
+        merged["total_revenue"] = merged["quantity"] * merged["unit_price"]
+        summary = (
+            merged.groupby("event_date", as_index=False)
+            .agg(order_count=("order_id", "count"), total_revenue=("total_revenue", "sum"))
+        )
+        self._tables["daily_summary"] = summary
+        self._state.freshness_lag_minutes = 0 if self._state.backlog_rows == 0 else max(15, self._state.freshness_lag_minutes)
+        self._scenario_meta["freshness_lag_minutes"] = self._state.freshness_lag_minutes
+        self._scenario_meta["downstream_stale"] = self._state.backlog_rows > 0
+        return "Downstream daily summary refreshed from the current upstream tables."
 
     def _table_has_structural_issues(self, table_name: str) -> bool:
         frame = self._tables[table_name]
@@ -430,12 +557,21 @@ class PipelineDoctorEnvironment(
             current_score=self._state.current_score,
             steps_taken=self._state.step_count,
             stage=self._state.active_table,
-            available_actions=list(range(16)),
+            available_actions=list(range(20)),
             action_result=action_result,
             table_health=self._table_health(),
             dependency_alerts=self._dependency_alerts(),
-            commit_ready=self._task3_commit_ready(),
+            commit_ready=self._task3_commit_ready() if self._task_id == 3 else self._task4_commit_ready(),
             scenario_split=self._split,
+            schema_drift_count=len(schema_report) + self._format_issue_count(),
+            backlog_rows=self._state.backlog_rows,
+            freshness_lag_minutes=self._state.freshness_lag_minutes,
+            resource_level=self._state.resource_level,
+            required_resource_level=self._state.required_resource_level,
+            workload_pressure=self._workload_pressure(),
+            pending_batches=self._state.pending_batches,
+            downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
+            orchestration_alerts=self._orchestration_alerts(),
             reward=reward,
             done=done,
             metadata=metadata or {},
@@ -511,8 +647,11 @@ class PipelineDoctorEnvironment(
             for value in series.dropna():
                 text = str(value)
                 normalized = self._normalize_string_value(value, column)
-                if "date" in column_name:
+                if self._is_datetime_like_column(column_name):
                     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(text).strip()):
+                        if column_name.endswith("_ts") or column_name.endswith("_time"):
+                            if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(text).strip()):
+                                continue
                         issue_count += 1
                         continue
                 elif column_name in {"email", "category", "status"} and text != str(normalized):
@@ -525,6 +664,15 @@ class PipelineDoctorEnvironment(
         return sum(self._format_issue_details().values())
 
     def _dependency_alerts(self) -> list[str]:
+        if self._task_id == 4:
+            alerts: list[str] = []
+            if self._state.backlog_rows > 0:
+                alerts.append("latest incremental batch is still pending in the orders stream")
+            if bool(self._scenario_meta.get("downstream_stale", False)):
+                alerts.append("daily_summary is stale relative to upstream orders/products")
+            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
+                alerts.append("resource level is too low for backlog recovery")
+            return alerts[:3]
         if self._task_id != 3:
             return []
         alerts: list[str] = []
@@ -542,6 +690,18 @@ class PipelineDoctorEnvironment(
         return alerts[:3]
 
     def _table_health(self) -> dict[str, float]:
+        if self._task_id == 4:
+            return {
+                table_name: round(
+                    score_single_table(
+                        self._tables[table_name],
+                        self._ground_truth[table_name],
+                        self._expected_types[table_name],
+                    )[0],
+                    4,
+                )
+                for table_name in ("orders", "products", "daily_summary")
+            }
         if self._task_id != 3:
             return {"single": round(self._state.current_score, 4)}
         return {
@@ -580,12 +740,36 @@ class PipelineDoctorEnvironment(
             )
             if mismatch_count > 0:
                 errors.append(f"total_price: {mismatch_count} rows have calculation mismatch")
+        if self._task_id == 4:
+            if self._state.backlog_rows > 0:
+                errors.append(f"backlog: {self._state.backlog_rows} pending rows still need ingestion")
+            if self._state.pending_batches > 0:
+                errors.append(f"pending_batches: {self._state.pending_batches} incremental batch remains unprocessed")
+            if bool(self._scenario_meta.get("downstream_stale", False)):
+                errors.append("daily_summary: downstream aggregate is stale")
+            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
+                errors.append(
+                    f"resources: level {self._state.resource_level} below required {self._state.required_resource_level}"
+                )
         errors.extend(self._dependency_alerts())
+        errors.extend(self._orchestration_alerts())
         self._recent_errors = errors[:6]
 
     def _score(self) -> float:
         if self._task_id == 3:
             score, _ = score_task3(self._tables, self._ground_truth, self._expected_types)
+            return score
+        if self._task_id == 4:
+            score, _ = score_task4(
+                self._tables,
+                self._ground_truth,
+                self._expected_types,
+                backlog_rows=self._state.backlog_rows,
+                freshness_lag_minutes=self._state.freshness_lag_minutes,
+                resource_level=self._state.resource_level,
+                required_resource_level=self._state.required_resource_level,
+                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
+            )
             return score
         score, _ = score_single_table(
             self._tables["single"],
@@ -617,9 +801,44 @@ class PipelineDoctorEnvironment(
         if self._task_id == 3:
             _, breakdown = score_task3(self._tables, self._ground_truth, self._expected_types)
             return breakdown
+        if self._task_id == 4:
+            _, breakdown = score_task4(
+                self._tables,
+                self._ground_truth,
+                self._expected_types,
+                backlog_rows=self._state.backlog_rows,
+                freshness_lag_minutes=self._state.freshness_lag_minutes,
+                resource_level=self._state.resource_level,
+                required_resource_level=self._state.required_resource_level,
+                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
+            )
+            return breakdown
         _, breakdown = score_single_table(
             self._tables["single"],
             self._ground_truth["single"],
             self._expected_types["single"],
         )
         return breakdown
+
+    def _workload_pressure(self) -> float:
+        base_pressure = float(self._scenario_meta.get("workload_pressure", 0.0))
+        if self._task_id != 4:
+            return round(base_pressure, 4)
+        backlog_bonus = min(self._state.backlog_rows / 10.0, 0.4)
+        resource_relief = 0.15 * max(self._state.resource_level - 1, 0)
+        pressure = max(0.0, min(1.0, base_pressure + backlog_bonus - resource_relief))
+        return round(pressure, 4)
+
+    def _orchestration_alerts(self) -> list[str]:
+        if self._task_id != 4:
+            return []
+        alerts: list[str] = []
+        if self._state.backlog_rows > 0 and self._state.resource_level < self._state.required_resource_level:
+            alerts.append("scale resources up before prioritizing the delayed batch")
+        if self._state.backlog_rows == 0 and bool(self._scenario_meta.get("downstream_stale", False)):
+            alerts.append("refresh daily_summary before committing the recovery")
+        if self._state.freshness_lag_minutes > 0:
+            alerts.append(
+                f"freshness lag is still {self._state.freshness_lag_minutes} minutes"
+            )
+        return alerts[:3]

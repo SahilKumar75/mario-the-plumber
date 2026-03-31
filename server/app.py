@@ -63,16 +63,22 @@ def get_tasks() -> dict[str, object]:
                 "success_threshold": TASK_THRESHOLDS[task_id],
                 "max_steps": MAX_STEPS[task_id],
             }
-            for task_id in (1, 2, 3)
+            for task_id in sorted(TASK_NAMES)
         ],
         "action_schema": {
-            "action_id": "int (0-15, required)",
+            "action_id": "int (0-19, required)",
             "target_column": (
                 "str (optional; required for actions 3-9, 11, 12; optional for "
-                "action 0 when switching tables in task 3)"
+                "action 0 when switching tables in task 3 or task 4)"
             ),
             "new_name": "str (optional, required for action 12 only)",
             "column_order": "list[str] (optional, required for action 13 only)",
+            "orchestration_actions": {
+                "16": "scale_resources_up",
+                "17": "scale_resources_down",
+                "18": "prioritize_incremental_batch",
+                "19": "refresh_downstream_summary",
+            },
         },
     }
 
