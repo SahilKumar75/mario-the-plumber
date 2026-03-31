@@ -156,6 +156,7 @@ Task 3 hardening checks now show a meaningful difficulty gap:
 
 - `openenv validate`
 - [`scripts/validate-submission.sh`](scripts/validate-submission.sh)
+- Research-grounded benchmark review: [`docs/RL_BENCHMARK_REVIEW.md`](docs/RL_BENCHMARK_REVIEW.md)
 
 ## Evaluation Snapshot
 
