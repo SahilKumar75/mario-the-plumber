@@ -3,17 +3,17 @@
     {
       "policy": "random",
       "split": "train",
-      "average_score_mean": 0.4351,
-      "average_score_std": 0.0208,
+      "average_score_mean": 0.4239,
+      "average_score_std": 0.024,
       "task_1": 0.6512,
       "task_1_std": 0.0312,
       "task_2": 0.5425,
       "task_2_std": 0.0025,
       "task_3": 0.19,
       "task_3_std": 0.0037,
-      "task_4": 0.3915,
-      "task_4_std": 0.1719,
-      "task_5": 0.4003,
+      "task_4": 0.3755,
+      "task_4_std": 0.1878,
+      "task_5": 0.3603,
       "task_5_std": 0.0305
     },
     {
@@ -35,18 +35,18 @@
     {
       "policy": "random",
       "split": "eval",
-      "average_score_mean": 0.4165,
-      "average_score_std": 0.0068,
+      "average_score_mean": 0.4053,
+      "average_score_std": 0.0035,
       "task_1": 0.6659,
       "task_1_std": 0.0516,
       "task_2": 0.5425,
       "task_2_std": 0.0025,
       "task_3": 0.1931,
       "task_3_std": 0.0036,
-      "task_4": 0.3012,
-      "task_4_std": 0.1019,
-      "task_5": 0.38,
-      "task_5_std": 0.0778
+      "task_4": 0.2853,
+      "task_4_std": 0.1179,
+      "task_5": 0.34,
+      "task_5_std": 0.0779
     },
     {
       "policy": "heuristic",
@@ -92,18 +92,18 @@
           },
           {
             "task_id": 4,
-            "score": 0.2196,
+            "score": 0.1877,
             "steps": 17,
             "success": false
           },
           {
             "task_id": 5,
-            "score": 0.4308,
+            "score": 0.3908,
             "steps": 13,
             "success": false
           }
         ],
-        "average_score": 0.4143
+        "average_score": 0.3999
       },
       {
         "status": "complete",
@@ -136,12 +136,12 @@
           },
           {
             "task_id": 5,
-            "score": 0.3698,
+            "score": 0.3298,
             "steps": 11,
             "success": false
           }
         ],
-        "average_score": 0.4559
+        "average_score": 0.4479
       }
     ],
     "heuristic:train": [
@@ -182,11 +182,11 @@
           {
             "task_id": 4,
             "score": 0.8,
-            "steps": 16,
+            "steps": 15,
             "success": true,
             "action_sources": {
-              "heuristic": 15,
-              "auto_table_switch": 1
+              "heuristic": 13,
+              "auto_table_switch": 2
             }
           },
           {
@@ -195,16 +195,17 @@
             "steps": 17,
             "success": true,
             "action_sources": {
-              "heuristic": 17
+              "heuristic": 15,
+              "auto_table_switch": 2
             }
           }
         ],
         "average_score": 0.9222,
         "action_source_totals": {
-          "heuristic": 52,
-          "auto_table_switch": 3
+          "heuristic": 48,
+          "auto_table_switch": 6
         },
-        "runtime_seconds": 1.04
+        "runtime_seconds": 2.24
       },
       {
         "status": "complete",
@@ -243,11 +244,11 @@
           {
             "task_id": 4,
             "score": 0.8,
-            "steps": 15,
+            "steps": 14,
             "success": true,
             "action_sources": {
-              "heuristic": 14,
-              "auto_table_switch": 1
+              "heuristic": 12,
+              "auto_table_switch": 2
             }
           },
           {
@@ -256,16 +257,17 @@
             "steps": 15,
             "success": true,
             "action_sources": {
-              "heuristic": 15
+              "heuristic": 13,
+              "auto_table_switch": 2
             }
           }
         ],
         "average_score": 0.9116,
         "action_source_totals": {
-          "heuristic": 49,
-          "auto_table_switch": 3
+          "heuristic": 45,
+          "auto_table_switch": 6
         },
-        "runtime_seconds": 0.8
+        "runtime_seconds": 1.94
       }
     ],
     "random:eval": [
@@ -294,18 +296,18 @@
           },
           {
             "task_id": 4,
-            "score": 0.1993,
+            "score": 0.1674,
             "steps": 17,
             "success": false
           },
           {
             "task_id": 5,
-            "score": 0.4579,
+            "score": 0.4179,
             "steps": 13,
             "success": false
           }
         ],
-        "average_score": 0.4233
+        "average_score": 0.4089
       },
       {
         "status": "complete",
@@ -338,12 +340,12 @@
           },
           {
             "task_id": 5,
-            "score": 0.3022,
+            "score": 0.2622,
             "steps": 11,
             "success": false
           }
         ],
-        "average_score": 0.4098
+        "average_score": 0.4018
       }
     ],
     "heuristic:eval": [
@@ -384,11 +386,11 @@
           {
             "task_id": 4,
             "score": 0.8,
-            "steps": 16,
+            "steps": 15,
             "success": true,
             "action_sources": {
-              "heuristic": 15,
-              "auto_table_switch": 1
+              "heuristic": 13,
+              "auto_table_switch": 2
             }
           },
           {
@@ -397,16 +399,17 @@
             "steps": 15,
             "success": true,
             "action_sources": {
-              "heuristic": 15
+              "heuristic": 13,
+              "auto_table_switch": 2
             }
           }
         ],
         "average_score": 0.9147,
         "action_source_totals": {
-          "heuristic": 52,
-          "auto_table_switch": 3
+          "heuristic": 48,
+          "auto_table_switch": 6
         },
-        "runtime_seconds": 1.05
+        "runtime_seconds": 2.09
       },
       {
         "status": "complete",
@@ -445,11 +448,11 @@
           {
             "task_id": 4,
             "score": 0.785,
-            "steps": 17,
+            "steps": 16,
             "success": true,
             "action_sources": {
-              "heuristic": 16,
-              "auto_table_switch": 1
+              "heuristic": 14,
+              "auto_table_switch": 2
             }
           },
           {
@@ -458,17 +461,40 @@
             "steps": 18,
             "success": true,
             "action_sources": {
-              "heuristic": 18
+              "heuristic": 16,
+              "auto_table_switch": 2
             }
           }
         ],
         "average_score": 0.9032,
         "action_source_totals": {
-          "heuristic": 57,
-          "auto_table_switch": 3
+          "heuristic": 53,
+          "auto_table_switch": 6
         },
-        "runtime_seconds": 1.05
+        "runtime_seconds": 1.92
       }
     ]
+  },
+  "runtime": {
+    "benchmark_version": "2.0",
+    "runtime_mode": "benchmark",
+    "runtime_mode_card": {
+      "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+      "use_case": "Scoring, automated evaluation, and baseline comparison."
+    },
+    "available_runtime_modes": {
+      "benchmark": {
+        "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+        "use_case": "Scoring, automated evaluation, and baseline comparison."
+      },
+      "incident": {
+        "summary": "Same benchmark tasks framed as ETL incident-response sessions.",
+        "use_case": "Human debugging, manual inspection, and benchmark demos."
+      },
+      "hybrid": {
+        "summary": "Benchmark mode plus richer reporting and profile inspection.",
+        "use_case": "Live Space demo, review, and benchmark visualization."
+      }
+    }
   }
 }

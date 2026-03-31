@@ -1,4 +1,26 @@
 {
+  "runtime": {
+    "benchmark_version": "2.0",
+    "runtime_mode": "benchmark",
+    "runtime_mode_card": {
+      "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+      "use_case": "Scoring, automated evaluation, and baseline comparison."
+    },
+    "available_runtime_modes": {
+      "benchmark": {
+        "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+        "use_case": "Scoring, automated evaluation, and baseline comparison."
+      },
+      "incident": {
+        "summary": "Same benchmark tasks framed as ETL incident-response sessions.",
+        "use_case": "Human debugging, manual inspection, and benchmark demos."
+      },
+      "hybrid": {
+        "summary": "Benchmark mode plus richer reporting and profile inspection.",
+        "use_case": "Live Space demo, review, and benchmark visualization."
+      }
+    }
+  },
   "policy_mode": "heuristic",
   "seeds": [
     1,

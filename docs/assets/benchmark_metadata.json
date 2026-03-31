@@ -1,5 +1,28 @@
 {
+  "runtime": {
+    "benchmark_version": "2.0",
+    "runtime_mode": "benchmark",
+    "runtime_mode_card": {
+      "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+      "use_case": "Scoring, automated evaluation, and baseline comparison."
+    },
+    "available_runtime_modes": {
+      "benchmark": {
+        "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+        "use_case": "Scoring, automated evaluation, and baseline comparison."
+      },
+      "incident": {
+        "summary": "Same benchmark tasks framed as ETL incident-response sessions.",
+        "use_case": "Human debugging, manual inspection, and benchmark demos."
+      },
+      "hybrid": {
+        "summary": "Benchmark mode plus richer reporting and profile inspection.",
+        "use_case": "Live Space demo, review, and benchmark visualization."
+      }
+    }
+  },
   "benchmark_metadata": {
+    "benchmark_version": "2.0",
     "task_names": {
       "1": "Single Table Missing Values",
       "2": "Single Table Duplicates and Types",
@@ -20,6 +43,91 @@
       "3": 25,
       "4": 30,
       "5": 35
+    },
+    "task_cards": {
+      "1": {
+        "objective": "Repair a single customer table with nulls and lightweight format drift.",
+        "broken_state": "Missing numeric values, optional currency formatting, optional signup-date drift.",
+        "success_threshold": 0.85,
+        "failure_conditions": [
+          "commit below threshold",
+          "quality collapse",
+          "step budget exhausted"
+        ],
+        "key_subgoals": [
+          "fill missing values",
+          "normalize lightweight drift",
+          "commit clean table"
+        ]
+      },
+      "2": {
+        "objective": "Resolve duplicates, dtype drift, and light outlier/format issues in a transaction table.",
+        "broken_state": "Duplicate rows, wrong numeric dtypes, optional event-date drift or outliers.",
+        "success_threshold": 0.8,
+        "failure_conditions": [
+          "commit below threshold",
+          "quality collapse",
+          "step budget exhausted"
+        ],
+        "key_subgoals": [
+          "deduplicate",
+          "repair dtypes",
+          "normalize date/format drift",
+          "commit"
+        ]
+      },
+      "3": {
+        "objective": "Repair cascading multi-table corruption across customers, products, and orders.",
+        "broken_state": "Cross-table dependency errors, alias drift, encoding drift, currency/date drift, sentinel nulls.",
+        "success_threshold": 0.75,
+        "failure_conditions": [
+          "commit before dependency consistency",
+          "quality collapse",
+          "step budget exhausted"
+        ],
+        "key_subgoals": [
+          "repair_customers",
+          "repair_products",
+          "repair_orders",
+          "restore_dependency_consistency",
+          "commit_pipeline"
+        ]
+      },
+      "4": {
+        "objective": "Recover an incremental ETL pipeline under backlog, freshness, and resource pressure.",
+        "broken_state": "Pending batches, stale summary, insufficient resources, alias/unit drift, workload burst.",
+        "success_threshold": 0.78,
+        "failure_conditions": [
+          "commit before backlog/freshness recovery",
+          "quality collapse",
+          "step budget exhausted"
+        ],
+        "key_subgoals": [
+          "normalize_orders_stream",
+          "scale_resources_if_needed",
+          "load_incremental_backlog",
+          "refresh_daily_summary",
+          "commit_recovery"
+        ]
+      },
+      "5": {
+        "objective": "Restore a temporal ETL pipeline with schema evolution, backfill, and rollup consistency constraints.",
+        "broken_state": "Schema evolution, late corrections, held-out temporal profiles, stale hourly rollup, backlog pressure.",
+        "success_threshold": 0.82,
+        "failure_conditions": [
+          "commit before SLA/rollup recovery",
+          "quality collapse",
+          "step budget exhausted"
+        ],
+        "key_subgoals": [
+          "reconcile_schema_aliases",
+          "repair_catalog_and_source_quality",
+          "replay_late_batches",
+          "refresh_temporal_rollup",
+          "meet_freshness_sla",
+          "commit_temporal_pipeline"
+        ]
+      }
     },
     "scenario_profiles": {
       "1": {
@@ -138,7 +246,26 @@
         ],
         "ltl_hint": "G(commit -> schema_aligned & backlog_cleared & rollup_consistent & freshness_sla_met)"
       }
-    }
+    },
+    "runtime_modes": {
+      "benchmark": {
+        "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+        "use_case": "Scoring, automated evaluation, and baseline comparison."
+      },
+      "incident": {
+        "summary": "Same benchmark tasks framed as ETL incident-response sessions.",
+        "use_case": "Human debugging, manual inspection, and benchmark demos."
+      },
+      "hybrid": {
+        "summary": "Benchmark mode plus richer reporting and profile inspection.",
+        "use_case": "Live Space demo, review, and benchmark visualization."
+      }
+    },
+    "known_limitations": [
+      "Row deletion via drop_nulls is intentionally penalized by row-count-sensitive accuracy, so agents should prefer repair over deletion.",
+      "The provided inference baseline is a benchmark policy family, not a learned RL training pipeline.",
+      "Synthetic tables optimize for benchmark utility and policy separation, not enterprise-scale realism."
+    ]
   },
   "initial_score_stats": {
     "train": {
@@ -176,9 +303,9 @@
       "task_4": {
         "name": "Incremental Pipeline Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.245,
-        "initial_score_min": 0.2256,
-        "initial_score_max": 0.2969,
+        "initial_score_mean": 0.2275,
+        "initial_score_min": 0.1928,
+        "initial_score_max": 0.3625,
         "profiles_seen": {
           "schema_alias_and_units": 2,
           "stale_summary_recovery": 4
@@ -187,9 +314,9 @@
       "task_5": {
         "name": "Temporal ETL Recovery with Reward Machine Structure",
         "threshold": 0.82,
-        "initial_score_mean": 0.3829,
-        "initial_score_min": 0.3508,
-        "initial_score_max": 0.3966,
+        "initial_score_mean": 0.3446,
+        "initial_score_min": 0.3108,
+        "initial_score_max": 0.3566,
         "profiles_seen": {
           "schema_evolution_and_backfill": 2,
           "late_correction_backpressure": 4
@@ -234,9 +361,9 @@
       "task_4": {
         "name": "Incremental Pipeline Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.2182,
-        "initial_score_min": 0.1892,
-        "initial_score_max": 0.2969,
+        "initial_score_mean": 0.2016,
+        "initial_score_min": 0.1573,
+        "initial_score_max": 0.3625,
         "profiles_seen": {
           "schema_alias_and_units": 2,
           "mixed_operational_open_world": 2,
@@ -246,9 +373,9 @@
       "task_5": {
         "name": "Temporal ETL Recovery with Reward Machine Structure",
         "threshold": 0.82,
-        "initial_score_mean": 0.3559,
-        "initial_score_min": 0.3291,
-        "initial_score_max": 0.3872,
+        "initial_score_mean": 0.3175,
+        "initial_score_min": 0.2891,
+        "initial_score_max": 0.3572,
         "profiles_seen": {
           "late_correction_backpressure": 2,
           "heldout_temporal_profile_family": 2,

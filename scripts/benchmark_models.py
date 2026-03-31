@@ -16,9 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from benchmark.runtime import runtime_summary  # noqa: E402
 from inference import run_baseline  # noqa: E402
+from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS  # noqa: E402
 from models import PipelineDoctorAction  # noqa: E402
-from server.data_generator import MAX_STEPS, TASK_THRESHOLDS  # noqa: E402
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment  # noqa: E402
 
 
@@ -160,6 +161,7 @@ def main() -> None:
 
     rows: list[dict[str, Any]] = []
     raw_runs: dict[str, Any] = {}
+    runtime_meta = runtime_summary()
 
     for split in args.splits:
         for policy in args.policies:
@@ -195,6 +197,7 @@ def main() -> None:
             raw_runs[f"{policy}:{split}"] = runs
 
     report = {"rows": rows, "runs": raw_runs}
+    report["runtime"] = runtime_meta
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(report, indent=2), encoding="utf-8")
     if args.csv_out:

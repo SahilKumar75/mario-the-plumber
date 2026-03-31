@@ -16,26 +16,44 @@ except Exception as exc:  # pragma: no cover
     raise ImportError("openenv-core is required to run the Mario the Plumber server.") from exc
 
 try:
+    from ..benchmark.catalog import (
+        MAX_STEPS,
+        TASK_DIFFICULTY,
+        TASK_CARDS,
+        TASK_NAMES,
+        TASK_THRESHOLDS,
+        benchmark_metadata,
+    )
+    from ..benchmark.runtime import (
+        adaptation_payload,
+        benchmark_profiles_payload,
+        benchmark_runs_payload,
+        benchmark_tasks_payload,
+        runtime_summary,
+    )
     from ..models import PipelineDoctorAction, PipelineDoctorObservation
     from ..inference import run_baseline
-    from .data_generator import (
-        MAX_STEPS,
-        TASK_DIFFICULTY,
-        TASK_NAMES,
-        TASK_THRESHOLDS,
-        benchmark_metadata,
-    )
+    from .benchmark_demo import build_benchmark_demo
     from .pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 except ImportError:
-    from inference import run_baseline
-    from models import PipelineDoctorAction, PipelineDoctorObservation
-    from server.data_generator import (
+    from benchmark.catalog import (
         MAX_STEPS,
         TASK_DIFFICULTY,
+        TASK_CARDS,
         TASK_NAMES,
         TASK_THRESHOLDS,
         benchmark_metadata,
     )
+    from benchmark.runtime import (
+        adaptation_payload,
+        benchmark_profiles_payload,
+        benchmark_runs_payload,
+        benchmark_tasks_payload,
+        runtime_summary,
+    )
+    from inference import run_baseline
+    from models import PipelineDoctorAction, PipelineDoctorObservation
+    from server.benchmark_demo import build_benchmark_demo
     from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 
 
@@ -52,6 +70,7 @@ app = create_app(
     PipelineDoctorObservation,
     env_name="mario_the_plumber",
     max_concurrent_envs=4,
+    gradio_builder=build_benchmark_demo,
 )
 
 
@@ -59,7 +78,7 @@ app = create_app(
 def health() -> dict[str, str]:
     """Lightweight health endpoint for container readiness checks."""
 
-    return {"status": "ok"}
+    return {"status": "healthy"}
 
 
 @app.get("/tasks")
@@ -74,6 +93,7 @@ def get_tasks() -> dict[str, object]:
                 "difficulty": TASK_DIFFICULTY[task_id],
                 "success_threshold": TASK_THRESHOLDS[task_id],
                 "max_steps": MAX_STEPS[task_id],
+                "task_card": TASK_CARDS[task_id],
             }
             for task_id in sorted(TASK_NAMES)
         ],
@@ -107,7 +127,45 @@ def get_tasks() -> dict[str, object]:
 def get_benchmark_metadata() -> dict[str, object]:
     """Expose benchmark profiles, utility notes, and task metadata."""
 
-    return benchmark_metadata()
+    return {
+        **benchmark_metadata(),
+        **runtime_summary(),
+    }
+
+
+@app.get("/benchmark/metadata")
+def get_runtime_metadata() -> dict[str, object]:
+    """Expose benchmark metadata under the dedicated benchmark route namespace."""
+
+    return get_benchmark_metadata()
+
+
+@app.get("/benchmark/tasks")
+def get_benchmark_tasks() -> dict[str, object]:
+    """Expose task cards, objective weights, and formal task specs."""
+
+    return benchmark_tasks_payload()
+
+
+@app.get("/benchmark/profiles")
+def get_benchmark_profiles() -> dict[str, object]:
+    """Expose train/eval profile families and synthetic-data notes."""
+
+    return benchmark_profiles_payload()
+
+
+@app.get("/benchmark/runs")
+def get_benchmark_runs() -> dict[str, object]:
+    """Expose the latest benchmark ladder artifact, if available."""
+
+    return benchmark_runs_payload()
+
+
+@app.get("/benchmark/adaptation")
+def get_benchmark_adaptation() -> dict[str, object]:
+    """Expose the latest adaptation artifact, if available."""
+
+    return adaptation_payload()
 
 
 @app.post("/grader")

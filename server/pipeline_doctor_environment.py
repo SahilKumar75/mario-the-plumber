@@ -18,34 +18,44 @@ import pandas as pd
 from openenv.core.env_server.interfaces import Environment
 
 try:
+    from ..benchmark.action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
+    from ..benchmark.catalog import (
+        FORMAL_TASK_SPECS,
+        MAX_STEPS,
+        TASK_OBJECTIVE_WEIGHTS,
+        TASK_THRESHOLDS,
+    )
+    from ..benchmark.grading import (
+        calculation_mismatch_count,
+        compute_reward,
+        compute_reward_breakdown,
+        duplicate_row_count,
+        score_single_table,
+        score_task3,
+        score_task4,
+        score_task5,
+    )
+    from ..benchmark.observation_support import (
+        column_alias_hints,
+        dependency_alerts,
+        format_issue_details_for_frame,
+        missing_expected_columns,
+        orchestration_alerts,
+        outlier_details_for_frame,
+        table_health,
+        workload_pressure,
+    )
     from ..models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-    from .data_generator import (
-        FORMAL_TASK_SPECS,
-        MAX_STEPS,
-        TASK_OBJECTIVE_WEIGHTS,
-        TASK_THRESHOLDS,
-        generate_scenario,
-    )
-    from .grader import (
-        calculation_mismatch_count,
-        compute_reward,
-        compute_reward_breakdown,
-        duplicate_row_count,
-        score_single_table,
-        score_task3,
-        score_task4,
-        score_task5,
-    )
+    from .data_generator import generate_scenario
 except ImportError:
-    from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-    from server.data_generator import (
+    from benchmark.action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
+    from benchmark.catalog import (
         FORMAL_TASK_SPECS,
         MAX_STEPS,
         TASK_OBJECTIVE_WEIGHTS,
         TASK_THRESHOLDS,
-        generate_scenario,
     )
-    from server.grader import (
+    from benchmark.grading import (
         calculation_mismatch_count,
         compute_reward,
         compute_reward_breakdown,
@@ -55,30 +65,19 @@ except ImportError:
         score_task4,
         score_task5,
     )
+    from benchmark.observation_support import (
+        column_alias_hints,
+        dependency_alerts,
+        format_issue_details_for_frame,
+        missing_expected_columns,
+        orchestration_alerts,
+        outlier_details_for_frame,
+        table_health,
+        workload_pressure,
+    )
+    from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
+    from server.data_generator import generate_scenario
 
-ACTION_NAMES = {
-    0: "inspect_schema",
-    1: "view_error_log",
-    2: "sample_data",
-    3: "fill_mean",
-    4: "fill_median",
-    5: "fill_forward",
-    6: "drop_nulls",
-    7: "cast_to_int",
-    8: "cast_to_float",
-    9: "cast_to_string",
-    10: "remove_duplicates",
-    11: "drop_outliers",
-    12: "rename_column",
-    13: "reorder_columns",
-    14: "validate_schema",
-    15: "commit_changes",
-    16: "scale_resources_up",
-    17: "scale_resources_down",
-    18: "prioritize_incremental_batch",
-    19: "refresh_downstream_summary",
-}
-PARAMETER_ACTIONS = {3, 4, 5, 6, 7, 8, 9, 11, 12}
 EPISODE_SUMMARIES: dict[str, dict[str, object]] = {}
 
 
@@ -759,46 +758,16 @@ class PipelineDoctorEnvironment(
         return report
 
     def _missing_expected_columns(self, table_name: str) -> list[str]:
-        current = self._tables[table_name]
-        expected = self._expected_types[table_name]
-        return [column for column in expected if column not in current.columns]
+        return missing_expected_columns(self, table_name)
 
     def _column_alias_hints(self) -> dict[str, str]:
-        current_columns = set(self._current_frame().columns)
-        aliases = {
-            "product_category": "category",
-            "product_segment": "category",
-            "event_time": "event_ts",
-            "business_date": "event_date",
-            "observed_at": "event_ts",
-            "window_start": "hour_bucket",
-        }
-        hints: dict[str, str] = {}
-        for drifted_name, expected_name in aliases.items():
-            if drifted_name in current_columns and expected_name not in current_columns:
-                hints[drifted_name] = expected_name
-        return hints
+        return column_alias_hints(self)
 
     def _outlier_details(self) -> dict[str, int]:
         return self._outlier_details_for_frame(self._current_frame())
 
     def _outlier_details_for_frame(self, current: pd.DataFrame) -> dict[str, int]:
-        details: dict[str, int] = {}
-        for column in current.columns:
-            selected = current[column]
-            if not isinstance(selected, pd.Series):
-                continue
-            numeric = pd.to_numeric(selected, errors="coerce")
-            if numeric.isna().all():
-                continue
-            std = float(numeric.std(skipna=True))
-            if pd.isna(std) or std == 0:
-                continue
-            mean = float(numeric.mean(skipna=True))
-            outlier_count = int(((numeric - mean).abs() > 3 * std).fillna(False).sum())
-            if outlier_count > 0:
-                details[column] = outlier_count
-        return details
+        return outlier_details_for_frame(self, current)
 
     def _outlier_count(self) -> int:
         count = 0
@@ -810,107 +779,16 @@ class PipelineDoctorEnvironment(
         return self._format_issue_details_for_frame(self._current_frame())
 
     def _format_issue_details_for_frame(self, current: pd.DataFrame) -> dict[str, int]:
-        details: dict[str, int] = {}
-        for column in current.columns:
-            series = current[column]
-            if not isinstance(series, pd.Series):
-                continue
-            issue_count = 0
-            column_name = column.lower()
-            for value in series.dropna():
-                text = str(value)
-                normalized = self._normalize_string_value(value, column)
-                if self._is_datetime_like_column(column_name):
-                    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(text).strip()):
-                        if column_name.endswith("_ts") or column_name.endswith("_time"):
-                            if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(text).strip()):
-                                continue
-                        issue_count += 1
-                        continue
-                elif column_name in {"email", "category", "status"} and text != str(normalized):
-                    issue_count += 1
-            if issue_count > 0:
-                details[column] = issue_count
-        return details
+        return format_issue_details_for_frame(self, current)
 
     def _format_issue_count(self) -> int:
         return sum(self._format_issue_details().values())
 
     def _dependency_alerts(self) -> list[str]:
-        if self._task_id == 5:
-            alerts: list[str] = []
-            if self._state.backlog_rows > 0:
-                alerts.append("late source batches still need replay into source_orders")
-            if bool(self._scenario_meta.get("downstream_stale", False)):
-                alerts.append("hourly_rollup is stale relative to source_orders and catalog")
-            if self._state.freshness_lag_minutes > 30:
-                alerts.append("freshness SLA is still violated for the temporal pipeline")
-            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
-                alerts.append("resource level is too low for late-batch replay")
-            return alerts[:4]
-        if self._task_id == 4:
-            alerts: list[str] = []
-            if self._state.backlog_rows > 0:
-                alerts.append("latest incremental batch is still pending in the orders stream")
-            if bool(self._scenario_meta.get("downstream_stale", False)):
-                alerts.append("daily_summary is stale relative to upstream orders/products")
-            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
-                alerts.append("resource level is too low for backlog recovery")
-            return alerts[:3]
-        if self._task_id != 3:
-            return []
-        alerts: list[str] = []
-        mismatch_count = calculation_mismatch_count(
-            self._tables["orders"], self._tables["products"]
-        )
-        if mismatch_count > 0:
-            alerts.append(
-                "orders.total_price depends on products.unit_price and is still inconsistent"
-            )
-        if self._table_has_structural_issues("products"):
-            alerts.append("products still blocks a safe task 3 commit")
-        if self._table_has_structural_issues("orders"):
-            alerts.append("orders still contains structural issues")
-        return alerts[:3]
+        return dependency_alerts(self)
 
     def _table_health(self) -> dict[str, float]:
-        if self._task_id == 5:
-            return {
-                table_name: round(
-                    score_single_table(
-                        self._tables[table_name],
-                        self._ground_truth[table_name],
-                        self._expected_types[table_name],
-                    )[0],
-                    4,
-                )
-                for table_name in ("source_orders", "catalog", "hourly_rollup")
-            }
-        if self._task_id == 4:
-            return {
-                table_name: round(
-                    score_single_table(
-                        self._tables[table_name],
-                        self._ground_truth[table_name],
-                        self._expected_types[table_name],
-                    )[0],
-                    4,
-                )
-                for table_name in ("orders", "products", "daily_summary")
-            }
-        if self._task_id != 3:
-            return {"single": round(self._state.current_score, 4)}
-        return {
-            table_name: round(
-                score_single_table(
-                    self._tables[table_name],
-                    self._ground_truth[table_name],
-                    self._expected_types[table_name],
-                )[0],
-                4,
-            )
-            for table_name in ("orders", "customers", "products")
-        }
+        return table_health(self)
 
     def _refresh_errors(self) -> None:
         current = self._current_frame()
@@ -1059,36 +937,10 @@ class PipelineDoctorEnvironment(
         return breakdown
 
     def _workload_pressure(self) -> float:
-        base_pressure = float(self._scenario_meta.get("workload_pressure", 0.0))
-        if self._task_id not in {4, 5}:
-            return round(base_pressure, 4)
-        backlog_bonus = min(self._state.backlog_rows / 10.0, 0.4 if self._task_id == 4 else 0.5)
-        resource_relief = 0.15 * max(self._state.resource_level - 1, 0)
-        pressure = max(0.0, min(1.0, base_pressure + backlog_bonus - resource_relief))
-        return round(pressure, 4)
+        return workload_pressure(self)
 
     def _orchestration_alerts(self) -> list[str]:
-        if self._task_id == 5:
-            alerts: list[str] = []
-            if self._state.backlog_rows > 0 and self._state.resource_level < self._state.required_resource_level:
-                alerts.append("scale resources before replaying the held-out temporal batches")
-            if self._state.backlog_rows == 0 and bool(self._scenario_meta.get("downstream_stale", False)):
-                alerts.append("refresh hourly_rollup after replay to close the temporal task")
-            if self._state.freshness_lag_minutes > 30:
-                alerts.append("bring freshness lag below the 30-minute SLA before committing")
-            return alerts[:3]
-        if self._task_id != 4:
-            return []
-        alerts: list[str] = []
-        if self._state.backlog_rows > 0 and self._state.resource_level < self._state.required_resource_level:
-            alerts.append("scale resources up before prioritizing the delayed batch")
-        if self._state.backlog_rows == 0 and bool(self._scenario_meta.get("downstream_stale", False)):
-            alerts.append("refresh daily_summary before committing the recovery")
-        if self._state.freshness_lag_minutes > 0:
-            alerts.append(
-                f"freshness lag is still {self._state.freshness_lag_minutes} minutes"
-            )
-        return alerts[:3]
+        return orchestration_alerts(self)
 
     def _commit_ready(self) -> bool:
         if self._task_id == 3:

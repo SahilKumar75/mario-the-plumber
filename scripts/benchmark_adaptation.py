@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from benchmark.runtime import runtime_summary  # noqa: E402
 from inference import run_baseline  # noqa: E402
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment  # noqa: E402
 
@@ -64,6 +65,7 @@ def main() -> None:
             heldout_scores.append(float(eval_task5["score"]))
 
     payload: dict[str, Any] = {
+        "runtime": runtime_summary(),
         "policy_mode": args.policy_mode,
         "seeds": args.seeds,
         "heldout_task5_seeds": heldout_seeds,

@@ -25,6 +25,7 @@ Mario the Plumber is an OpenEnv benchmark for **ETL repair, online recovery, and
 | Tasks | `5` |
 | Actions | `20` discrete actions |
 | Splits | `train`, `eval` |
+| Runtime framings | `benchmark`, `incident`, `hybrid` |
 | Hard tasks | Task 3, Task 4, Task 5 |
 | Structured signals | reward breakdown, tradeoff weights, subgoal progress, reward-machine state |
 | Live Space | [sahilksingh/mario-the-plumber](https://huggingface.co/spaces/sahilksingh/mario-the-plumber) |
@@ -47,7 +48,7 @@ flowchart LR
 
 ![Benchmark overview](docs/assets/benchmark_overview.png)
 
-The benchmark separates weak and structured policies clearly. On the current local sweep over seeds `1 2`, heuristic policies stay around `0.91`, while random policies stay around `0.42`.
+The benchmark separates weak and structured policies clearly. On the current local sweep over seeds `1 2`, heuristic policies stay around `0.91`, while random policies stay around `0.41`.
 
 ## Difficulty Structure
 
@@ -161,9 +162,9 @@ Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4351` | `0.6512` | `0.5425` | `0.1900` | `0.3915` | `0.4003` |
+| random | train | `0.4239` | `0.6512` | `0.5425` | `0.1900` | `0.3755` | `0.3603` |
 | heuristic | train | `0.9169` | `0.9250` | `0.9750` | `0.9055` | `0.8000` | `0.9789` |
-| random | eval | `0.4165` | `0.6659` | `0.5425` | `0.1931` | `0.3012` | `0.3800` |
+| random | eval | `0.4053` | `0.6659` | `0.5425` | `0.1931` | `0.2853` | `0.3400` |
 | heuristic | eval | `0.9089` | `0.9062` | `0.9750` | `0.8920` | `0.7925` | `0.9789` |
 
 Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
@@ -171,6 +172,16 @@ Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchm
 - train mean: `0.9774`
 - eval mean: `0.9774`
 - held-out profile family mean: `0.9767`
+
+## Space Demo
+
+The Hugging Face Space serves the standard OpenEnv API and, when the web interface is enabled, a benchmark-specific visualization tab at `/web`:
+
+- benchmark overview
+- task explorer
+- live episode inspector
+- benchmark results and adaptation artifacts
+- architecture notes for reviewers
 
 ## Running Locally
 
@@ -231,6 +242,8 @@ Key submission files:
 
 ## Additional Docs
 
+- [Benchmark architecture](docs/BENCHMARK_ARCHITECTURE.md)
+- [Reference-env comparison](docs/REFERENCE_ENV_COMPARISON.md)
 - [Reward structure and adaptation notes](docs/REWARD_STRUCTURE_AND_ADAPTATION.md)
 - [Open-world benchmark notes](docs/OPEN_WORLD_BENCHMARK_NOTES.md)
 - [Adaptive ETL upgrade notes](docs/ADAPTIVE_ETL_UPGRADE.md)
