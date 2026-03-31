@@ -8,32 +8,59 @@
 
 from __future__ import annotations
 
-from collections import Counter
-import json
 from datetime import UTC, datetime
-import re
 from uuid import uuid4
 
 import pandas as pd
 from openenv.core.env_server.interfaces import Environment
 
 try:
-    from ..benchmark.action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
+    from ..benchmark.action_metadata import ACTION_NAMES
     from ..benchmark.catalog import (
-        FORMAL_TASK_SPECS,
         MAX_STEPS,
-        TASK_OBJECTIVE_WEIGHTS,
         TASK_THRESHOLDS,
     )
+    from ..benchmark.env_actions import (
+        apply_action,
+        cast_column,
+        commit_changes,
+        deduplicate_current_table,
+        drop_outliers,
+        fill_with_statistic,
+        handle_inspect_schema,
+        normalize_date_string,
+        normalize_numeric_value,
+        normalize_string_value,
+        numeric_series,
+        prioritize_incremental_batch,
+        refresh_hourly_rollup,
+        refresh_downstream_summary,
+        scale_resources,
+        table_has_structural_issues,
+        task3_commit_ready,
+        task4_commit_ready,
+        task5_commit_ready,
+    )
+    from ..benchmark.env_reporting import (
+        breakdown_payload,
+        build_observation,
+        format_issue_count,
+        format_issue_details,
+        objective_breakdown,
+        outlier_count,
+        outlier_details,
+        refresh_errors,
+        schema_report,
+        schema_report_for_table,
+        score,
+        store_episode_summary,
+        subgoal_progress_map,
+        task_progress_bundle,
+        update_task_progress_state,
+    )
     from ..benchmark.grading import (
-        calculation_mismatch_count,
         compute_reward,
         compute_reward_breakdown,
-        duplicate_row_count,
-        score_single_table,
-        score_task3,
-        score_task4,
-        score_task5,
     )
     from ..benchmark.observation_support import (
         column_alias_hints,
@@ -48,22 +75,52 @@ try:
     from ..models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
     from .data_generator import generate_scenario
 except ImportError:
-    from benchmark.action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
+    from benchmark.action_metadata import ACTION_NAMES
     from benchmark.catalog import (
-        FORMAL_TASK_SPECS,
         MAX_STEPS,
-        TASK_OBJECTIVE_WEIGHTS,
         TASK_THRESHOLDS,
     )
+    from benchmark.env_actions import (
+        apply_action,
+        cast_column,
+        commit_changes,
+        deduplicate_current_table,
+        drop_outliers,
+        fill_with_statistic,
+        handle_inspect_schema,
+        normalize_date_string,
+        normalize_numeric_value,
+        normalize_string_value,
+        numeric_series,
+        prioritize_incremental_batch,
+        refresh_hourly_rollup,
+        refresh_downstream_summary,
+        scale_resources,
+        table_has_structural_issues,
+        task3_commit_ready,
+        task4_commit_ready,
+        task5_commit_ready,
+    )
+    from benchmark.env_reporting import (
+        breakdown_payload,
+        build_observation,
+        format_issue_count,
+        format_issue_details,
+        objective_breakdown,
+        outlier_count,
+        outlier_details,
+        refresh_errors,
+        schema_report,
+        schema_report_for_table,
+        score,
+        store_episode_summary,
+        subgoal_progress_map,
+        task_progress_bundle,
+        update_task_progress_state,
+    )
     from benchmark.grading import (
-        calculation_mismatch_count,
         compute_reward,
         compute_reward_breakdown,
-        duplicate_row_count,
-        score_single_table,
-        score_task3,
-        score_task4,
-        score_task5,
     )
     from benchmark.observation_support import (
         column_alias_hints,
@@ -276,388 +333,64 @@ class PipelineDoctorEnvironment(
         return self._state
 
     def _apply_action(self, action: PipelineDoctorAction) -> str:
-        if action.action_id not in ACTION_NAMES:
-            raise ValueError("unknown action_id")
-
-        if action.action_id == 0:
-            return self._handle_inspect_schema(action)
-        if action.action_id == 1:
-            return "\n".join(self._recent_errors) if self._recent_errors else "No errors detected."
-        if action.action_id == 2:
-            rows = self._current_table().head(5).to_dict(orient="records")
-            return json.dumps(rows, default=str)
-        if action.action_id in PARAMETER_ACTIONS and not action.target_column:
-            raise ValueError("missing required parameter target_column")
-        if action.action_id == 12 and not action.new_name:
-            raise ValueError("missing required parameter new_name")
-        if action.action_id == 13 and not action.column_order:
-            raise ValueError("missing required parameter column_order")
-
-        if action.action_id == 3:
-            self._fill_with_statistic(action.target_column, "mean")
-        elif action.action_id == 4:
-            self._fill_with_statistic(action.target_column, "median")
-        elif action.action_id == 5:
-            self._current_frame()[action.target_column] = (
-                self._current_frame()[action.target_column].ffill().bfill()
-            )
-        elif action.action_id == 6:
-            current = self._current_frame()
-            self._tables[self._state.active_table] = current[current[action.target_column].notna()].reset_index(drop=True)
-        elif action.action_id == 7:
-            self._cast_column(action.target_column, "int64")
-        elif action.action_id == 8:
-            self._cast_column(action.target_column, "float64")
-        elif action.action_id == 9:
-            self._current_frame()[action.target_column] = self._current_frame()[
-                action.target_column
-            ].map(lambda value: self._normalize_string_value(value, action.target_column))
-        elif action.action_id == 10:
-            self._tables[self._state.active_table] = self._deduplicate_current_table()
-        elif action.action_id == 11:
-            self._drop_outliers(action.target_column)
-        elif action.action_id == 12:
-            if action.target_column not in self._current_frame().columns:
-                raise ValueError("target_column not found")
-            if (
-                action.new_name != action.target_column
-                and action.new_name in self._current_frame().columns
-            ):
-                raise ValueError("new_name must not duplicate an existing column")
-            self._tables[self._state.active_table] = self._current_frame().rename(
-                columns={action.target_column: action.new_name}
-            )
-        elif action.action_id == 13:
-            current_columns = list(self._current_frame().columns)
-            if Counter(action.column_order) != Counter(current_columns):
-                raise ValueError("column_order must match current table columns exactly")
-            self._tables[self._state.active_table] = self._current_frame()[action.column_order].copy()
-        elif action.action_id == 14:
-            return "\n".join(self._recent_errors) if self._recent_errors else "Schema validation passed."
-        elif action.action_id == 15:
-            return "Changes committed."
-        elif action.action_id == 16:
-            return self._scale_resources(up=True)
-        elif action.action_id == 17:
-            return self._scale_resources(up=False)
-        elif action.action_id == 18:
-            return self._prioritize_incremental_batch()
-        elif action.action_id == 19:
-            return self._refresh_downstream_summary()
-
-        return ""
+        return apply_action(self, action)
 
     def _handle_inspect_schema(self, action: PipelineDoctorAction) -> str:
-        if action.target_column and action.target_column in self._tables:
-            self._state.active_table = action.target_column
-        current = self._current_frame()
-        expected = self._expected_types[self._state.active_table]
-        lines = [f"table={self._state.active_table}"]
-        for column in current.columns:
-            lines.append(
-                f"{column}: actual={current[column].dtype}, expected={expected.get(column, 'unknown')}"
-            )
-        return "\n".join(lines)
+        return handle_inspect_schema(self, action)
 
     def _fill_with_statistic(self, column: str | None, statistic: str) -> None:
-        if column not in self._current_frame().columns:
-            raise ValueError("target_column not found")
-        numeric = self._numeric_series(column)
-        if numeric.dropna().empty:
-            raise ValueError("target_column has no numeric values for statistic fill")
-        if statistic == "mean":
-            value = numeric.mean()
-        else:
-            value = numeric.median()
-        self._current_frame()[column] = numeric.fillna(value)
+        fill_with_statistic(self, column, statistic)
 
     def _cast_column(self, column: str | None, dtype: str) -> None:
-        if column not in self._current_frame().columns:
-            raise ValueError("target_column not found")
-        numeric = self._numeric_series(column)
-        if dtype == "int64":
-            if numeric.isna().any():
-                raise ValueError("cannot cast to int while nulls remain")
-            self._current_frame()[column] = numeric.astype("int64")
-        else:
-            self._current_frame()[column] = numeric.astype("float64")
+        cast_column(self, column, dtype)
 
     def _numeric_series(self, column: str) -> pd.Series:
-        raw_series = self._current_frame()[column]
-        normalized = raw_series.map(self._normalize_numeric_value)
-        return pd.to_numeric(normalized, errors="coerce")
+        return numeric_series(self, column)
 
     def _normalize_numeric_value(self, value: object) -> object:
-        if pd.isna(value):
-            return value
-        text = str(value).strip()
-        cents_match = re.fullmatch(r"(?i)\$?\s*(\d+(?:\.\d+)?)\s*cents?", text)
-        if cents_match:
-            return str(float(cents_match.group(1)) / 100.0)
-        text = text.replace(",", "")
-        text = re.sub(r"(?i)\b(?:usd|inr|units?)\b", "", text).strip()
-        text = text.replace("$", "").replace("₹", "")
-        return text
+        return normalize_numeric_value(value)
 
     def _normalize_string_value(self, value: object, column: str | None) -> object:
-        if pd.isna(value):
-            return value
-        text = str(value)
-        if "Ã" in text or "Â" in text:
-            try:
-                text = text.encode("latin1").decode("utf-8")
-            except Exception:
-                pass
-        text = text.strip()
-        column_name = (column or "").lower()
-        if self._is_datetime_like_column(column_name):
-            parsed_text = self._normalize_date_string(
-                text,
-                preserve_time=column_name.endswith("_ts") or column_name.endswith("_time"),
-            )
-            if parsed_text:
-                return parsed_text
-        if column_name in {"email", "category", "status"}:
-            return text.lower()
-        return text
+        return normalize_string_value(self, value, column)
 
     def _normalize_date_string(self, text: str, *, preserve_time: bool = False) -> str | None:
-        stripped = text.strip()
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}t\d{2}:\d{2}:\d{2}z", stripped.lower()):
-            normalized = stripped.replace("t", "T").replace("z", "Z")
-            return normalized if preserve_time else normalized[:10]
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", stripped):
-            return stripped
-        for fmt in ("%d/%m/%Y %H:%M", "%m-%d-%Y %H:%M"):
-            try:
-                parsed = datetime.strptime(stripped, fmt)
-                return (
-                    parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    if preserve_time
-                    else parsed.strftime("%Y-%m-%d")
-                )
-            except ValueError:
-                continue
-        for fmt in ("%d/%m/%Y", "%m-%d-%Y", "%m/%d/%Y", "%d-%m-%Y"):
-            try:
-                parsed = datetime.strptime(stripped, fmt)
-                return parsed.strftime("%Y-%m-%d")
-            except ValueError:
-                continue
-        parsed = pd.to_datetime(stripped, errors="coerce")
-        if pd.notna(parsed):
-            if self._looks_timestamp_string(stripped):
-                parsed = pd.to_datetime(stripped, errors="coerce", utc=True)
-                return (
-                    parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    if preserve_time
-                    else parsed.strftime("%Y-%m-%d")
-                )
-            return parsed.strftime("%Y-%m-%d")
-        return None
+        return normalize_date_string(text, preserve_time=preserve_time)
 
     def _is_datetime_like_column(self, column_name: str) -> bool:
         return "date" in column_name or column_name.endswith("_ts") or column_name.endswith("_time")
 
     def _looks_timestamp_string(self, text: str) -> bool:
-        return bool(re.search(r"\d{2}:\d{2}", text))
+        return ":" in text
 
     def _drop_outliers(self, column: str | None) -> None:
-        if column not in self._current_frame().columns:
-            raise ValueError("target_column not found")
-        selected = self._current_frame()[column]
-        if not isinstance(selected, pd.Series):
-            raise ValueError("target_column must resolve to a single column")
-        numeric = selected.map(self._normalize_numeric_value)
-        numeric = pd.to_numeric(numeric, errors="coerce")
-        std = float(numeric.std(skipna=True))
-        if pd.isna(std) or std == 0:
-            return
-        mean = float(numeric.mean(skipna=True))
-        mask = (numeric - mean).abs() <= 3 * std
-        mask = mask.fillna(False)
-        self._tables[self._state.active_table] = self._current_frame()[mask].reset_index(drop=True)
+        drop_outliers(self, column)
 
     def _commit_changes(self) -> None:
-        if self._task_id == 4:
-            return
-        if self._task_id == 5:
-            return
-        if self._task_id != 3:
-            return
-        if not self._task3_commit_ready():
-            return
-        orders = self._tables["orders"].copy()
-        products = self._tables["products"][["product_id", "unit_price"]].copy()
-        if "product_id" not in orders.columns or "product_id" not in products.columns:
-            return
-        orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
-        products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
-        merged = orders.merge(products, on="product_id", how="left", suffixes=("", "_product"))
-        quantity = pd.to_numeric(merged["quantity"], errors="coerce")
-        unit_price = pd.to_numeric(merged["unit_price"], errors="coerce")
-        merged["total_price"] = (quantity * unit_price).round(2)
-        self._tables["orders"] = merged[orders.columns].copy()
+        commit_changes(self)
 
     def _task3_commit_ready(self) -> bool:
-        if self._task_id != 3:
-            return True
-
-        if self._table_has_structural_issues("customers"):
-            return False
-        if self._table_has_structural_issues("products"):
-            return False
-        if self._table_has_structural_issues("orders"):
-            return False
-        return True
+        return task3_commit_ready(self)
 
     def _task4_commit_ready(self) -> bool:
-        if self._task_id != 4:
-            return True
-        for table_name in ("orders", "products", "daily_summary"):
-            if self._table_has_structural_issues(table_name):
-                return False
-        if self._state.backlog_rows > 0 or self._state.pending_batches > 0:
-            return False
-        if self._state.freshness_lag_minutes > 0:
-            return False
-        if bool(self._scenario_meta.get("downstream_stale", False)):
-            return False
-        return True
+        return task4_commit_ready(self)
 
     def _task5_commit_ready(self) -> bool:
-        if self._task_id != 5:
-            return True
-        for table_name in ("source_orders", "catalog", "hourly_rollup"):
-            if self._table_has_structural_issues(table_name):
-                return False
-        if self._state.backlog_rows > 0 or self._state.pending_batches > 0:
-            return False
-        if self._state.resource_level < self._state.required_resource_level:
-            return False
-        if self._state.freshness_lag_minutes > 30:
-            return False
-        if bool(self._scenario_meta.get("downstream_stale", False)):
-            return False
-        return True
+        return task5_commit_ready(self)
 
     def _scale_resources(self, *, up: bool) -> str:
-        if self._task_id not in {4, 5}:
-            raise ValueError("resource scaling is only available in task 4 or task 5")
-        current = self._state.resource_level
-        if up:
-            self._state.resource_level = min(current + 1, 3)
-        else:
-            self._state.resource_level = max(current - 1, 1)
-        self._scenario_meta["resource_level"] = self._state.resource_level
-        pressure = self._workload_pressure()
-        direction = "up" if up else "down"
-        return f"resources_scaled_{direction}: level={self._state.resource_level}, pressure={pressure:.2f}"
+        return scale_resources(self, up=up)
 
     def _prioritize_incremental_batch(self) -> str:
-        if self._task_id not in {4, 5}:
-            raise ValueError("incremental batch prioritization is only available in task 4 or task 5")
-        pending_orders = self._scenario_meta.get("pending_orders")
-        if not isinstance(pending_orders, pd.DataFrame) or pending_orders.empty:
-            return "No pending incremental batch detected."
-        if self._state.resource_level < self._state.required_resource_level:
-            raise ValueError("resource level is too low for incremental batch recovery")
-        target_table = "orders" if self._task_id == 4 else "source_orders"
-        self._tables[target_table] = pd.concat(
-            [self._tables[target_table], pending_orders.copy(deep=True)],
-            ignore_index=True,
-        )
-        self._scenario_meta["pending_orders"] = pending_orders.iloc[0:0].copy(deep=True)
-        self._state.backlog_rows = 0
-        self._state.pending_batches = 0
-        self._scenario_meta["backlog_rows"] = 0
-        self._scenario_meta["pending_batches"] = 0
-        lag_reduction = 90 if self._task_id == 4 else 120
-        self._state.freshness_lag_minutes = max(0, self._state.freshness_lag_minutes - lag_reduction)
-        self._scenario_meta["freshness_lag_minutes"] = self._state.freshness_lag_minutes
-        return "Incremental batch prioritized and loaded into the live orders table."
+        return prioritize_incremental_batch(self)
 
     def _refresh_downstream_summary(self) -> str:
-        if self._task_id not in {4, 5}:
-            raise ValueError("downstream refresh is only available in task 4 or task 5")
-        if self._task_id == 5:
-            return self._refresh_hourly_rollup()
-        orders = self._tables["orders"].copy()
-        products = self._tables["products"].copy()
-        if not {"product_id", "quantity", "event_ts"}.issubset(orders.columns):
-            raise ValueError("orders table is missing required columns for downstream refresh")
-        if not {"product_id", "unit_price"}.issubset(products.columns):
-            raise ValueError("products table is missing required columns for downstream refresh")
-        orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
-        products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
-        orders["quantity"] = pd.to_numeric(orders["quantity"], errors="coerce")
-        products["unit_price"] = pd.to_numeric(
-            products["unit_price"].map(self._normalize_numeric_value),
-            errors="coerce",
-        )
-        orders["event_date"] = orders["event_ts"].map(
-            lambda value: (
-                self._normalize_date_string(str(value), preserve_time=True) or ""
-            )[:10]
-        )
-        merged = orders.merge(products[["product_id", "unit_price"]], on="product_id", how="left")
-        merged["total_revenue"] = merged["quantity"] * merged["unit_price"]
-        summary = (
-            merged.groupby("event_date", as_index=False)
-            .agg(order_count=("order_id", "count"), total_revenue=("total_revenue", "sum"))
-        )
-        self._tables["daily_summary"] = summary
-        self._state.freshness_lag_minutes = 0 if self._state.backlog_rows == 0 else max(15, self._state.freshness_lag_minutes)
-        self._scenario_meta["freshness_lag_minutes"] = self._state.freshness_lag_minutes
-        self._scenario_meta["downstream_stale"] = self._state.backlog_rows > 0
-        return "Downstream daily summary refreshed from the current upstream tables."
+        return refresh_downstream_summary(self)
 
     def _refresh_hourly_rollup(self) -> str:
-        source = self._tables["source_orders"].copy()
-        catalog = self._tables["catalog"].copy()
-        time_column = "event_ts" if "event_ts" in source.columns else "observed_at"
-        if not {"product_id", "quantity", time_column}.issubset(source.columns):
-            raise ValueError("source_orders is missing required columns for hourly rollup refresh")
-        if not {"product_id", "unit_price"}.issubset(catalog.columns):
-            raise ValueError("catalog is missing required columns for hourly rollup refresh")
-        source["product_id"] = pd.to_numeric(source["product_id"], errors="coerce")
-        source["quantity"] = pd.to_numeric(source["quantity"].map(self._normalize_numeric_value), errors="coerce")
-        source["event_ts"] = source[time_column].map(
-            lambda value: self._normalize_date_string(str(value), preserve_time=True)
-        )
-        catalog["product_id"] = pd.to_numeric(catalog["product_id"], errors="coerce")
-        catalog["unit_price"] = pd.to_numeric(
-            catalog["unit_price"].map(self._normalize_numeric_value),
-            errors="coerce",
-        )
-        merged = source.merge(catalog[["product_id", "unit_price"]], on="product_id", how="left")
-        merged["gross_revenue"] = merged["quantity"] * merged["unit_price"]
-        merged["hour_bucket"] = pd.to_datetime(merged["event_ts"], errors="coerce", utc=True).dt.strftime(
-            "%Y-%m-%dT%H:00:00Z"
-        )
-        rollup = (
-            merged.groupby("hour_bucket", as_index=False)
-            .agg(order_count=("order_id", "count"), gross_revenue=("gross_revenue", "sum"))
-        )
-        self._tables["hourly_rollup"] = rollup
-        self._state.freshness_lag_minutes = 0 if self._state.backlog_rows == 0 else max(30, self._state.freshness_lag_minutes)
-        self._scenario_meta["freshness_lag_minutes"] = self._state.freshness_lag_minutes
-        self._scenario_meta["downstream_stale"] = self._state.backlog_rows > 0
-        return "Hourly rollup refreshed from source_orders and catalog."
+        return refresh_hourly_rollup(self)
 
     def _table_has_structural_issues(self, table_name: str) -> bool:
-        frame = self._tables[table_name]
-        if frame.isnull().sum().sum() > 0:
-            return True
-        if duplicate_row_count(frame) > 0:
-            return True
-        if self._schema_report_for_table(table_name):
-            return True
-        if self._outlier_details_for_frame(frame):
-            return True
-        if self._format_issue_details_for_frame(frame):
-            return True
-        return False
+        return table_has_structural_issues(self, table_name)
 
     def _build_observation(
         self,
@@ -667,95 +400,22 @@ class PipelineDoctorEnvironment(
         action_result: str = "",
         metadata: dict[str, object] | None = None,
     ) -> PipelineDoctorObservation:
-        current = self._current_frame()
-        total_cells = max(len(current) * max(len(current.columns), 1), 1)
-        missing_rate = float(current.isnull().sum().sum() / total_cells)
-        duplicate_rate = float(duplicate_row_count(current) / max(len(current), 1))
-
-        schema_report = self._schema_report()
-        alias_hints = self._column_alias_hints()
-        subgoal_progress, subgoal_order, active_subgoal, reward_machine_state = self._task_progress_bundle()
-        observation = PipelineDoctorObservation(
-            missing_rate=round(missing_rate, 4),
-            duplicate_rate=round(duplicate_rate, 4),
-            type_violations=len(schema_report),
-            outlier_count=self._outlier_count(),
-            format_issues=self._format_issue_count(),
-            schema_report=schema_report,
-            recent_errors=self._recent_errors[:5],
-            current_score=self._state.current_score,
-            steps_taken=self._state.step_count,
-            stage=self._state.active_table,
-            available_actions=list(range(20)),
-            action_result=action_result,
-            table_health=self._table_health(),
-            dependency_alerts=self._dependency_alerts(),
-            commit_ready=self._commit_ready(),
-            scenario_split=self._split,
-            schema_drift_count=len(schema_report) + self._format_issue_count(),
-            backlog_rows=self._state.backlog_rows,
-            freshness_lag_minutes=self._state.freshness_lag_minutes,
-            resource_level=self._state.resource_level,
-            required_resource_level=self._state.required_resource_level,
-            workload_pressure=self._workload_pressure(),
-            pending_batches=self._state.pending_batches,
-            downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
-            orchestration_alerts=self._orchestration_alerts(),
-            observed_columns=list(current.columns),
-            missing_expected_columns=self._missing_expected_columns(self._state.active_table),
-            column_alias_hints=alias_hints,
-            scenario_profile=str(self._scenario_meta.get("scenario_profile", "baseline")),
-            open_world_patterns=list(self._scenario_meta.get("open_world_patterns", [])),
-            time_budget_remaining=max(0, self._state.max_steps - self._state.step_count),
-            time_budget_ratio=round(
-                max(0.0, (self._state.max_steps - self._state.step_count) / max(self._state.max_steps, 1)),
-                4,
-            ),
-            truncated=self._state.truncated,
-            done_reason=self._state.done_reason,
-            synthetic_data_notes=list(self._scenario_meta.get("synthetic_data_notes", [])),
-            reward_breakdown=dict(self._last_reward_breakdown),
-            objective_breakdown=self._objective_breakdown(),
-            tradeoff_weights=dict(TASK_OBJECTIVE_WEIGHTS.get(self._task_id, {})),
-            subgoal_progress=subgoal_progress,
-            subgoal_order=subgoal_order,
-            active_subgoal=active_subgoal,
-            reward_machine_state=reward_machine_state,
-            adaptation_target=str(self._scenario_meta.get("adaptation_target", "")),
-            heldout_profile_family=bool(self._scenario_meta.get("heldout_profile_family", False)),
+        return build_observation(
+            self,
             reward=reward,
             done=done,
-            metadata=metadata or {},
+            action_result=action_result,
+            metadata=metadata,
         )
-        return observation
 
     def _schema_report(self) -> dict[str, dict[str, str]]:
-        return self._schema_report_for_table(self._state.active_table)
+        return schema_report(self)
 
     def _deduplicate_current_table(self) -> pd.DataFrame:
-        current = self._current_frame()
-        key_column = None
-        for candidate in ("transaction_id", "order_id", "customer_id", "product_id"):
-            if candidate in current.columns:
-                key_column = candidate
-                break
-        if key_column:
-            return current.drop_duplicates(subset=[key_column], keep="first").reset_index(drop=True)
-        return current.drop_duplicates().reset_index(drop=True)
+        return deduplicate_current_table(self)
 
     def _schema_report_for_table(self, table_name: str) -> dict[str, dict[str, str]]:
-        current = self._tables[table_name]
-        expected = self._expected_types[table_name]
-        report: dict[str, dict[str, str]] = {}
-        for column in current.columns:
-            actual = str(current[column].dtype)
-            desired = expected.get(column)
-            if desired and actual != desired:
-                report[column] = {"expected": desired, "actual": actual}
-        for column in expected:
-            if column not in current.columns:
-                report[column] = {"expected": expected[column], "actual": "missing"}
-        return report
+        return schema_report_for_table(self, table_name)
 
     def _missing_expected_columns(self, table_name: str) -> list[str]:
         return missing_expected_columns(self, table_name)
@@ -764,25 +424,22 @@ class PipelineDoctorEnvironment(
         return column_alias_hints(self)
 
     def _outlier_details(self) -> dict[str, int]:
-        return self._outlier_details_for_frame(self._current_frame())
+        return outlier_details(self)
 
     def _outlier_details_for_frame(self, current: pd.DataFrame) -> dict[str, int]:
         return outlier_details_for_frame(self, current)
 
     def _outlier_count(self) -> int:
-        count = 0
-        for column_count in self._outlier_details().values():
-            count += column_count
-        return count
+        return outlier_count(self)
 
     def _format_issue_details(self) -> dict[str, int]:
-        return self._format_issue_details_for_frame(self._current_frame())
+        return format_issue_details(self)
 
     def _format_issue_details_for_frame(self, current: pd.DataFrame) -> dict[str, int]:
         return format_issue_details_for_frame(self, current)
 
     def _format_issue_count(self) -> int:
-        return sum(self._format_issue_details().values())
+        return format_issue_count(self)
 
     def _dependency_alerts(self) -> list[str]:
         return dependency_alerts(self)
@@ -791,93 +448,10 @@ class PipelineDoctorEnvironment(
         return table_health(self)
 
     def _refresh_errors(self) -> None:
-        current = self._current_frame()
-        errors: list[str] = []
-        null_counts = current.isnull().sum()
-        for column, count in null_counts.items():
-            if int(count) > 0:
-                errors.append(f"{column}: {int(count)} null values")
-        duplicate_count = duplicate_row_count(current)
-        if duplicate_count > 0:
-            errors.append(f"{duplicate_count} duplicate rows detected")
-        for column, count in self._outlier_details().items():
-            errors.append(f"{column}: {count} outlier values")
-        for column, count in self._format_issue_details().items():
-            errors.append(f"{column}: {count} format mismatch values")
-        for column, info in self._schema_report().items():
-            errors.append(
-                f"{column}: expected {info['expected']}, found {info['actual']}"
-            )
-        if self._task_id == 3 and self._state.active_table == "orders":
-            mismatch_count = calculation_mismatch_count(
-                self._tables["orders"], self._tables["products"]
-            )
-            if mismatch_count > 0:
-                errors.append(f"total_price: {mismatch_count} rows have calculation mismatch")
-        if self._task_id == 4:
-            if self._state.backlog_rows > 0:
-                errors.append(f"backlog: {self._state.backlog_rows} pending rows still need ingestion")
-            if self._state.pending_batches > 0:
-                errors.append(f"pending_batches: {self._state.pending_batches} incremental batch remains unprocessed")
-            if bool(self._scenario_meta.get("downstream_stale", False)):
-                errors.append("daily_summary: downstream aggregate is stale")
-            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
-                errors.append(
-                    f"resources: level {self._state.resource_level} below required {self._state.required_resource_level}"
-                )
-        if self._task_id == 5:
-            if self._state.backlog_rows > 0:
-                errors.append(f"late_batches: {self._state.backlog_rows} rows still await replay")
-            if self._state.pending_batches > 0:
-                errors.append(f"pending_batches: {self._state.pending_batches} temporal batches remain unreplayed")
-            if bool(self._scenario_meta.get("downstream_stale", False)):
-                errors.append("hourly_rollup: downstream aggregate is stale")
-            if self._state.freshness_lag_minutes > 30:
-                errors.append(
-                    f"freshness_sla: lag is {self._state.freshness_lag_minutes} minutes"
-                )
-            if self._state.resource_level < self._state.required_resource_level and self._state.backlog_rows > 0:
-                errors.append(
-                    f"resources: level {self._state.resource_level} below temporal requirement {self._state.required_resource_level}"
-                )
-        errors.extend(self._dependency_alerts())
-        errors.extend(self._orchestration_alerts())
-        self._recent_errors = errors[:6]
+        refresh_errors(self)
 
     def _score(self) -> float:
-        if self._task_id == 3:
-            score, _ = score_task3(self._tables, self._ground_truth, self._expected_types)
-            return score
-        if self._task_id == 4:
-            score, _ = score_task4(
-                self._tables,
-                self._ground_truth,
-                self._expected_types,
-                backlog_rows=self._state.backlog_rows,
-                freshness_lag_minutes=self._state.freshness_lag_minutes,
-                resource_level=self._state.resource_level,
-                required_resource_level=self._state.required_resource_level,
-                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
-            )
-            return score
-        if self._task_id == 5:
-            score, _ = score_task5(
-                self._tables,
-                self._ground_truth,
-                self._expected_types,
-                backlog_rows=self._state.backlog_rows,
-                freshness_lag_minutes=self._state.freshness_lag_minutes,
-                resource_level=self._state.resource_level,
-                required_resource_level=self._state.required_resource_level,
-                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
-            )
-            return score
-        score, _ = score_single_table(
-            self._tables["single"],
-            self._ground_truth["single"],
-            self._expected_types["single"],
-        )
-        return score
+        return score(self)
 
     def _current_table(self) -> pd.DataFrame:
         return self._tables[self._state.active_table]
@@ -886,55 +460,11 @@ class PipelineDoctorEnvironment(
         return self._tables[self._state.active_table]
 
     def _store_episode_summary(self) -> None:
-        threshold = TASK_THRESHOLDS[self._task_id]
-        success = bool(self._state.done and self._state.current_score >= threshold)
-        summary = {
-            "task_id": self._task_id,
-            "episode_id": self._state.episode_id,
-            "score": round(self._state.current_score, 4),
-            "breakdown": self._breakdown_payload(),
-            "success": success,
-            "steps_taken": self._state.step_count,
-            "truncated": self._state.truncated,
-            "done_reason": self._state.done_reason,
-            "scenario_profile": self._state.scenario_profile,
-        }
-        EPISODE_SUMMARIES[self._state.episode_id or str(uuid4())] = summary
+        self.EPISODE_SUMMARIES = EPISODE_SUMMARIES
+        store_episode_summary(self)
 
     def _breakdown_payload(self) -> dict[str, object]:
-        if self._task_id == 3:
-            _, breakdown = score_task3(self._tables, self._ground_truth, self._expected_types)
-            return breakdown
-        if self._task_id == 4:
-            _, breakdown = score_task4(
-                self._tables,
-                self._ground_truth,
-                self._expected_types,
-                backlog_rows=self._state.backlog_rows,
-                freshness_lag_minutes=self._state.freshness_lag_minutes,
-                resource_level=self._state.resource_level,
-                required_resource_level=self._state.required_resource_level,
-                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
-            )
-            return breakdown
-        if self._task_id == 5:
-            _, breakdown = score_task5(
-                self._tables,
-                self._ground_truth,
-                self._expected_types,
-                backlog_rows=self._state.backlog_rows,
-                freshness_lag_minutes=self._state.freshness_lag_minutes,
-                resource_level=self._state.resource_level,
-                required_resource_level=self._state.required_resource_level,
-                downstream_stale=bool(self._scenario_meta.get("downstream_stale", False)),
-            )
-            return breakdown
-        _, breakdown = score_single_table(
-            self._tables["single"],
-            self._ground_truth["single"],
-            self._expected_types["single"],
-        )
-        return breakdown
+        return breakdown_payload(self)
 
     def _workload_pressure(self) -> float:
         return workload_pressure(self)
@@ -952,69 +482,13 @@ class PipelineDoctorEnvironment(
         return True
 
     def _objective_breakdown(self) -> dict[str, float]:
-        breakdown = self._breakdown_payload()
-        pipeline = breakdown.get("pipeline", {}) if isinstance(breakdown, dict) else {}
-        return {
-            key: round(float(value), 4)
-            for key, value in pipeline.items()
-            if isinstance(value, (int, float))
-        }
+        return objective_breakdown(self)
 
     def _task_progress_bundle(self) -> tuple[dict[str, bool], list[str], str, str]:
-        subgoal_progress = self._subgoal_progress()
-        order = list(FORMAL_TASK_SPECS.get(self._task_id, {}).get("reward_machine_order", []))
-        active_subgoal = next((name for name in order if not subgoal_progress.get(name, False)), "")
-        completed = sum(1 for name in order if subgoal_progress.get(name, False))
-        reward_machine_state = (
-            f"s{completed}/{len(order)}:{active_subgoal or 'terminal'}" if order else ""
-        )
-        return subgoal_progress, order, active_subgoal, reward_machine_state
+        return task_progress_bundle(self)
 
     def _update_task_progress_state(self) -> None:
-        _, _, active_subgoal, reward_machine_state = self._task_progress_bundle()
-        self._state.active_subgoal = active_subgoal
-        self._state.reward_machine_state = reward_machine_state
+        update_task_progress_state(self)
 
     def _subgoal_progress(self) -> dict[str, bool]:
-        if self._task_id == 3:
-            progress = {
-                "repair_customers": not self._table_has_structural_issues("customers"),
-                "repair_products": not self._table_has_structural_issues("products"),
-                "repair_orders": not self._table_has_structural_issues("orders"),
-                "restore_dependency_consistency": calculation_mismatch_count(
-                    self._tables["orders"],
-                    self._tables["products"],
-                ) == 0,
-                "commit_pipeline": bool(self._state.done and self._state.success),
-            }
-            return progress
-        if self._task_id == 4:
-            return {
-                "normalize_orders_stream": not self._table_has_structural_issues("orders"),
-                "scale_resources_if_needed": (
-                    self._state.resource_level >= self._state.required_resource_level
-                    if self._state.backlog_rows > 0
-                    else True
-                ),
-                "load_incremental_backlog": self._state.backlog_rows == 0 and self._state.pending_batches == 0,
-                "refresh_daily_summary": (
-                    not bool(self._scenario_meta.get("downstream_stale", False))
-                    and self._state.freshness_lag_minutes == 0
-                ),
-                "commit_recovery": bool(self._state.done and self._state.success),
-            }
-        if self._task_id == 5:
-            schema_ok = not self._table_has_structural_issues("source_orders") and not self._table_has_structural_issues("catalog")
-            no_aliases = not self._missing_expected_columns("source_orders") and not self._missing_expected_columns("catalog")
-            return {
-                "reconcile_schema_aliases": no_aliases,
-                "repair_catalog_and_source_quality": schema_ok,
-                "replay_late_batches": self._state.backlog_rows == 0 and self._state.pending_batches == 0,
-                "refresh_temporal_rollup": (
-                    not self._table_has_structural_issues("hourly_rollup")
-                    and not bool(self._scenario_meta.get("downstream_stale", False))
-                ),
-                "meet_freshness_sla": self._state.freshness_lag_minutes <= 30,
-                "commit_temporal_pipeline": bool(self._state.done and self._state.success),
-            }
-        return {}
+        return subgoal_progress_map(self)

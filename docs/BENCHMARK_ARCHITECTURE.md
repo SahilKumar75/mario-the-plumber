@@ -16,7 +16,7 @@ The public submission surface remains stable:
 
 ## Internal Structure
 
-Mario 2.0 now uses a clearer internal split:
+Mario uses a benchmark-oriented internal split:
 
 - `benchmark/catalog.py`
   - benchmark version
@@ -33,12 +33,17 @@ Mario 2.0 now uses a clearer internal split:
   - heuristic and hybrid policies
   - strict pure-LLM policy helpers
   - action-candidate utilities
+- `benchmark/env_actions.py`
+  - repair and orchestration action handlers
+- `benchmark/env_reporting.py`
+  - observation packaging
+  - episode reporting
+  - structured progress signals
 - `server/data_generator.py`
   - deterministic synthetic scenario generation for tasks 1-5
 - `server/pipeline_doctor_environment.py`
   - environment lifecycle orchestration
-  - action execution
-  - observation packaging
+  - state transitions
 - `server/app.py`
   - OpenEnv server entrypoint
   - benchmark metadata routes
@@ -46,7 +51,7 @@ Mario 2.0 now uses a clearer internal split:
 
 ## Runtime Framing
 
-Mario exposes three benchmark-oriented runtime framings:
+Mario exposes three benchmark-oriented runtime framings in metadata and demo surfaces:
 
 - `benchmark`
   - default scoring/evaluation mode
@@ -55,7 +60,7 @@ Mario exposes three benchmark-oriented runtime framings:
 - `hybrid`
   - benchmark mode with richer visualization/reporting
 
-These modes do not change the core action/task contract. They change reporting and demo framing only.
+These modes do not change the public task or action contract.
 
 ## Task Progression
 
@@ -65,9 +70,9 @@ These modes do not change the core action/task contract. They change reporting a
 - Task 4: incremental recovery under backlog, freshness, and resource pressure
 - Task 5: temporal recovery with formal subgoals and held-out profile adaptation
 
-## Reward and Adaptation
+## Evaluation Signals
 
-Mario keeps a scalar OpenEnv reward, but hard tasks also expose:
+Mario keeps a scalar OpenEnv reward, while hard tasks also expose:
 
 - `reward_breakdown`
 - `objective_breakdown`
@@ -75,5 +80,4 @@ Mario keeps a scalar OpenEnv reward, but hard tasks also expose:
 - `subgoal_progress`
 - `reward_machine_state`
 
-This preserves hackathon compatibility while making the benchmark easier to inspect and analyze.
-
+This keeps the environment fully OpenEnv-compatible while making evaluation easier to inspect.

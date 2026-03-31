@@ -1,10 +1,8 @@
-# Reward Structure and Adaptation Notes
+# Reward and Adaptation
 
-This note captures the concrete benchmark upgrades motivated by the latest reward-design, single-episode transfer, Reward Machine, and LTL papers.
+This note describes how Mario scores the harder tasks and how held-out generalization is measured.
 
-## What Changed In Mario
-
-Mario now exposes a structured layer on top of its scalar OpenEnv reward for the harder tasks.
+## Structured Evaluation
 
 For Tasks 3, 4, and 5, observations now include:
 
@@ -18,23 +16,11 @@ For Tasks 3, 4, and 5, observations now include:
 - `adaptation_target`
 - `heldout_profile_family`
 
-This keeps the benchmark OpenEnv-compatible while making the reward story much more auditable.
+This keeps the benchmark OpenEnv-compatible while making grading easier to audit.
 
-## Why This Matters
+## Why This Exists
 
-The papers consistently point to four benchmark design needs:
-
-1. reward should be interpretable, not only scalar
-2. multi-objective tradeoffs should be visible
-3. harder tasks benefit from explicit temporal / compositional structure
-4. adaptation should be tested on unseen profile families, not just seen distributions
-
-Mario now addresses each one:
-
-- reward decomposition: via `reward_breakdown`
-- objective visibility: via `objective_breakdown` and `tradeoff_weights`
-- formal task structure: via Reward-Machine-style `subgoal_order` and `reward_machine_state`
-- adaptation benchmark: via held-out Task 5 profile families and `scripts/benchmark_adaptation.py`
+Mario’s harder tasks combine data quality, freshness, dependency repair, backlog recovery, and resource behavior. A single scalar reward is still returned, but these extra signals explain why a score moved.
 
 ## Task 3 Formal Spec
 
@@ -65,8 +51,6 @@ LTL-style hint:
 `G(commit -> backlog_cleared & freshness_restored & summary_fresh)`
 
 ## Task 5 Formal Spec
-
-Task 5 is the new temporal/compositional benchmark task inspired by Reward Machines and temporal-logic task structure.
 
 Tables:
 
@@ -111,7 +95,7 @@ Task 5:
 - `resource_efficiency`: `0.10`
 - `data_quality`: `0.15`
 
-These are intentionally exposed so benchmark users can understand what the environment is rewarding.
+These weights are exposed so benchmark users can see what the environment is optimizing.
 
 ## Adaptation Benchmark
 
@@ -127,11 +111,4 @@ Current local result:
 - eval Task 5 mean: `0.9774`
 - held-out profile family Task 5 mean: `0.9767`
 
-This is not yet a full learned-policy transfer benchmark, but it is a much cleaner test of generalization to unseen profile families than the earlier single-seed submission story.
-
-## What This Enables Next
-
-- compare pure-LLM vs heuristic vs hybrid on formal subgoal tasks
-- audit which objectives are dominating the reward in harder tasks
-- add profile-family-specific reporting
-- evolve Task 5 toward a stronger temporal benchmark with in-episode workload shifts
+This is not a learned-policy transfer benchmark, but it provides a direct held-out profile-family check instead of relying on a single seed.
