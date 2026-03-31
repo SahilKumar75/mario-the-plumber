@@ -198,6 +198,15 @@ Current local heuristic runs with `seed=42`:
 
 Pure-LLM mode is implemented in [`inference.py`](inference.py), but it requires live model credentials and is not hardcoded into the checked-in benchmark table.
 
+Strict pure-LLM spot check on the eval split with `deepseek-ai/DeepSeek-V3-0324`:
+
+- Task 1: `0.9250`
+- Task 2: `0.6600`
+- Task 3: `0.1967`
+- Average: `0.5939`
+
+This lower score is intentional benchmark evidence: once heuristic rescue is removed, the model-only path is much weaker than the structured baseline, which makes the benchmark comparison more credible.
+
 ## Evaluation Summary
 
 The grading logic is deterministic and score-based rather than binary-only:
@@ -244,4 +253,4 @@ Task 3 hardening checks now show a meaningful difficulty gap:
 ## Known Limitations
 
 - `drop_nulls` changes row count, so the accuracy metric strongly discourages deletion-heavy repair paths; the intended agent behavior is to prefer fill and type-repair actions over row removal.
-- The provided `inference.py` is a family of baselines, not a learned RL policy. The strongest checked-in baseline is still heuristic-heavy on Task 3, while `pure-llm` mode is provided for cleaner model-only evaluation.
+- The provided `inference.py` is a family of baselines, not a learned RL policy. `pure-llm` mode is now strict and does not borrow heuristic rescue, so its lower score should be read as a cleaner model-only benchmark rather than a submission-optimized baseline.

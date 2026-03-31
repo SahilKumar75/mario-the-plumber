@@ -157,6 +157,7 @@ def _choose_action(
 ) -> tuple[PipelineDoctorAction, str]:
     heuristic_action = _heuristic_action(task_id, observation)
     candidate_actions = _candidate_actions(task_id, observation, heuristic_action, policy_mode)
+    strict_llm_mode = policy_mode == "pure-llm"
 
     if policy_mode == "heuristic":
         return heuristic_action, "heuristic"
@@ -176,7 +177,12 @@ def _choose_action(
             stream=False,
         )
         response_text = completion.choices[0].message.content or ""
-        model_action = _parse_action(response_text, task_id, observation)
+        model_action = _parse_action(
+            response_text,
+            task_id,
+            observation,
+            fallback_action=FALLBACK_ACTION if strict_llm_mode else heuristic_action,
+        )
         normalized_action = _normalize_candidate_action(model_action, candidate_actions)
         stabilized_action = _stabilize_action(
             policy_mode,
@@ -192,6 +198,8 @@ def _choose_action(
             return stabilized_action, "heuristic_guardrail"
         return stabilized_action, "fallback"
     except Exception:
+        if strict_llm_mode:
+            return FALLBACK_ACTION, "llm_error"
         return heuristic_action, "heuristic_exception"
 
 
@@ -235,16 +243,17 @@ def _parse_action(
     response_text: str,
     task_id: int,
     observation: PipelineDoctorObservation,
+    fallback_action: PipelineDoctorAction,
 ) -> PipelineDoctorAction:
     match = JSON_PATTERN.search(response_text)
     if not match:
-        return _heuristic_action(task_id, observation)
+        return fallback_action
 
     try:
         payload = json.loads(match.group(0))
         return PipelineDoctorAction(**payload)
     except Exception:
-        return _heuristic_action(task_id, observation)
+        return fallback_action
 
 
 def _stabilize_action(
@@ -387,6 +396,9 @@ def _candidate_actions(
     if observation.current_score >= TASK_THRESHOLDS[task_id] and not _table_needs_attention(observation):
         return [PipelineDoctorAction(action_id=15), PipelineDoctorAction(action_id=14)]
 
+    if policy_mode == "pure-llm":
+        return [PipelineDoctorAction(action_id=14)]
+
     return [heuristic_action]
 
 
@@ -402,7 +414,7 @@ def _task3_candidate_actions(
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
 
-    if heuristic_action.action_id != FALLBACK_ACTION.action_id:
+    if policy_mode != "pure-llm" and heuristic_action.action_id != FALLBACK_ACTION.action_id:
         actions.append(heuristic_action)
 
     if observation.duplicate_rate > 0:
