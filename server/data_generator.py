@@ -38,28 +38,47 @@ class Scenario:
     ground_truth_tables: dict[str, pd.DataFrame]
     expected_types: dict[str, dict[str, str]]
     active_table: str
+    split: str = "train"
 
 
-def generate_scenario(task_id: int, seed: int | None = None) -> Scenario:
+def generate_scenario(
+    task_id: int,
+    seed: int | None = None,
+    split: str = "train",
+) -> Scenario:
     """Build a synthetic broken pipeline for the given task."""
 
     rng = np.random.default_rng(seed)
     if task_id == 1:
-        return _generate_task1(rng, seed)
+        return _generate_task1(rng, seed, split)
     if task_id == 2:
-        return _generate_task2(rng, seed)
+        return _generate_task2(rng, seed, split)
     if task_id == 3:
-        return _generate_task3(rng, seed)
+        return _generate_task3(rng, seed, split)
     raise ValueError(f"Unsupported task_id: {task_id}")
 
 
-def _generate_task1(rng: np.random.Generator, seed: int | None) -> Scenario:
+def _generate_task1(
+    rng: np.random.Generator,
+    seed: int | None,
+    split: str,
+) -> Scenario:
     ground_truth = pd.DataFrame(
         {
             "customer_id": [101, 102, 103, 104, 105, 106, 107, 108],
             "age": [22, 31, 45, 28, 36, 41, 25, 33],
             "monthly_spend": [120.0, 240.0, 180.0, 210.0, 160.0, 300.0, 145.0, 190.0],
             "city": ["Delhi", "Noida", "Delhi", "Pune", "Mumbai", "Delhi", "Pune", "Mumbai"],
+            "signup_date": [
+                "2026-01-03",
+                "2026-01-11",
+                "2026-01-18",
+                "2026-02-02",
+                "2026-02-10",
+                "2026-02-17",
+                "2026-03-01",
+                "2026-03-08",
+            ],
         }
     )
     broken = ground_truth.copy()
@@ -77,6 +96,17 @@ def _generate_task1(rng: np.random.Generator, seed: int | None) -> Scenario:
 
     if rng.random() < 0.4:
         broken["monthly_spend"] = broken["monthly_spend"].astype(object)
+        currency_rows = rng.choice(len(broken), size=int(rng.integers(1, 3)), replace=False)
+        for row in currency_rows:
+            value = ground_truth.loc[row, "monthly_spend"]
+            broken.loc[row, "monthly_spend"] = f"${value:,.2f} USD"
+
+    if split == "eval" or rng.random() < 0.5:
+        broken["signup_date"] = broken["signup_date"].astype(object)
+        date_rows = rng.choice(len(broken), size=int(rng.integers(2, 5)), replace=False)
+        for row in date_rows:
+            value = pd.to_datetime(ground_truth.loc[row, "signup_date"])
+            broken.loc[row, "signup_date"] = value.strftime("%d/%m/%Y")
 
     return Scenario(
         task_id=1,
@@ -85,16 +115,29 @@ def _generate_task1(rng: np.random.Generator, seed: int | None) -> Scenario:
         ground_truth_tables={"single": ground_truth},
         expected_types={"single": _expected_types(ground_truth)},
         active_table="single",
+        split=split,
     )
 
 
-def _generate_task2(rng: np.random.Generator, seed: int | None) -> Scenario:
+def _generate_task2(
+    rng: np.random.Generator,
+    seed: int | None,
+    split: str,
+) -> Scenario:
     ground_truth = pd.DataFrame(
         {
             "transaction_id": [1001, 1002, 1003, 1004, 1005, 1006],
             "age": [29, 41, 35, 27, 52, 38],
             "amount": [199.5, 329.0, 149.0, 450.25, 510.0, 275.5],
             "status": ["paid", "paid", "failed", "paid", "failed", "paid"],
+            "event_date": [
+                "2026-03-01",
+                "2026-03-02",
+                "2026-03-03",
+                "2026-03-04",
+                "2026-03-05",
+                "2026-03-06",
+            ],
         }
     )
     broken = ground_truth.copy()
@@ -103,6 +146,14 @@ def _generate_task2(rng: np.random.Generator, seed: int | None) -> Scenario:
     broken = pd.concat([broken, broken.iloc[[1, 4]]], ignore_index=True)
     if rng.random() < 0.3:
         broken.loc[0, "amount"] = "999999.0"
+    if split == "eval" or rng.random() < 0.5:
+        broken["amount"] = broken["amount"].map(lambda value: f"INR {value}")
+    if split == "eval" or rng.random() < 0.4:
+        broken["event_date"] = broken["event_date"].astype(object)
+        date_rows = rng.choice(len(broken), size=int(rng.integers(2, 5)), replace=False)
+        for row in date_rows:
+            value = pd.to_datetime(str(ground_truth.loc[min(row, len(ground_truth) - 1), "event_date"]))
+            broken.loc[row, "event_date"] = value.strftime("%m-%d-%Y")
 
     return Scenario(
         task_id=2,
@@ -111,10 +162,15 @@ def _generate_task2(rng: np.random.Generator, seed: int | None) -> Scenario:
         ground_truth_tables={"single": ground_truth},
         expected_types={"single": _expected_types(ground_truth)},
         active_table="single",
+        split=split,
     )
 
 
-def _generate_task3(rng: np.random.Generator, seed: int | None) -> Scenario:
+def _generate_task3(
+    rng: np.random.Generator,
+    seed: int | None,
+    split: str,
+) -> Scenario:
     customers_truth = pd.DataFrame(
         {
             "customer_id": [1, 2, 3, 4, 5],
@@ -143,6 +199,13 @@ def _generate_task3(rng: np.random.Generator, seed: int | None) -> Scenario:
             "customer_id": [1, 2, 3, 4, 5],
             "product_id": [10, 11, 12, 13, 10],
             "quantity": [2, 1, 3, 2, 5],
+            "order_date": [
+                "2026-03-01",
+                "2026-03-02",
+                "2026-03-03",
+                "2026-03-04",
+                "2026-03-05",
+            ],
         }
     )
     orders_truth = orders_truth.merge(
@@ -156,6 +219,9 @@ def _generate_task3(rng: np.random.Generator, seed: int | None) -> Scenario:
     customers_broken = customers_truth.copy()
     customers_broken["age"] = customers_broken["age"].astype(object)
     customers_broken.loc[int(rng.integers(0, len(customers_broken))), "age"] = np.nan
+    if split == "eval" or rng.random() < 0.5:
+        email_row = int(rng.integers(0, len(customers_broken)))
+        customers_broken.loc[email_row, "email"] = f" {customers_broken.loc[email_row, 'email'].upper()} "
 
     products_broken = products_truth.copy()
     products_broken["unit_price"] = products_broken["unit_price"].astype(str)
@@ -166,11 +232,32 @@ def _generate_task3(rng: np.random.Generator, seed: int | None) -> Scenario:
     )
     if rng.random() < 0.5:
         products_broken.loc[0, "unit_price"] = "999999.0"
+    if split == "eval" or rng.random() < 0.6:
+        products_broken.loc[1, "category"] = " IoT "
+    if split == "eval" or rng.random() < 0.5:
+        formatted_rows = rng.choice(len(products_broken), size=min(2, len(products_broken)), replace=False)
+        for row in formatted_rows:
+            raw_value = pd.to_numeric(products_broken.loc[row, "unit_price"], errors="coerce")
+            if pd.notna(raw_value):
+                products_broken.loc[row, "unit_price"] = f"${raw_value:,.2f}"
 
     orders_broken = orders_truth.copy()
     product_prices = products_truth.set_index("product_id")["unit_price"]
     orders_broken["customer_id"] = orders_broken["customer_id"].astype(str)
     orders_broken["quantity"] = orders_broken["quantity"].astype(str)
+    if split == "eval" or rng.random() < 0.5:
+        quantity_rows = rng.choice(len(orders_broken), size=int(rng.integers(1, 3)), replace=False)
+        for row in quantity_rows:
+            orders_broken.loc[row, "quantity"] = f"{orders_truth.loc[row, 'quantity']} units"
+    if split == "eval" or rng.random() < 0.6:
+        orders_broken["order_date"] = orders_broken["order_date"].astype(object)
+        date_rows = rng.choice(len(orders_broken), size=int(rng.integers(2, 5)), replace=False)
+        for row in date_rows:
+            value = pd.to_datetime(orders_truth.loc[row, "order_date"])
+            if row % 2 == 0:
+                orders_broken.loc[row, "order_date"] = value.strftime("%d/%m/%Y")
+            else:
+                orders_broken.loc[row, "order_date"] = value.strftime("%m-%d-%Y")
     numeric_quantity = pd.to_numeric(orders_truth["quantity"], errors="coerce")
     mapped_price = orders_broken["product_id"].map(product_prices)
     orders_broken["total_price"] = (numeric_quantity + mapped_price).round(2)
@@ -196,6 +283,7 @@ def _generate_task3(rng: np.random.Generator, seed: int | None) -> Scenario:
             "products": _expected_types(products_truth),
         },
         active_table="orders",
+        split=split,
     )
 
 

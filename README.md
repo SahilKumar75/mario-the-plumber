@@ -51,11 +51,23 @@ flowchart TD
 | API | `reset()` / `step()` / `state` |
 | Tasks | 3 |
 | Action space | 16 discrete repair actions |
+| Scenario splits | `train`, `eval` |
+| Policy modes | `random`, `heuristic`, `hybrid`, `pure-llm` |
 | Success thresholds | `0.85`, `0.80`, `0.75` |
 | Initial Task 3 score over 20 seeds | avg `0.2005` |
 | Random Task 3 score over 20 seeds | avg `0.2065` |
 | Structured Task 3 baseline | `0.9070` |
 | Live Space | [`sahilksingh/mario-the-plumber`](https://huggingface.co/spaces/sahilksingh/mario-the-plumber) |
+
+## What Changed In The New Benchmark Version
+
+| Area | Earlier Benchmark | Current Benchmark |
+|---|---|---|
+| Generalization story | single fixed-seed demo | explicit `train` / `eval` splits |
+| Baselines | mostly one hybrid path | `random`, `heuristic`, `hybrid`, `pure-llm` modes |
+| Task 3 difficulty | random agent stayed too high | random stays near initial broken score |
+| Observation design | flat error summary | table-health, dependency alerts, format issues, commit readiness |
+| Reporting | one-off runs | reproducible benchmark table via `scripts/benchmark_models.py` |
 
 ## Why This Benchmark Matters
 
@@ -82,6 +94,7 @@ The environment also gives partial progress signals, which means the agent has t
 
 - typed action, observation, and state models
 - Synthetic generators for all 3 tasks
+- train/eval scenario split for held-out evaluation
 - Deterministic graders for single-table and multi-table scoring
 - OpenEnv server environment with `reset`, `step`, and `state`
 - Extra FastAPI endpoints: `/tasks`, `/grader`, and `/baseline`
@@ -135,12 +148,13 @@ python3 -m server.app
 
 ## Baseline
 
-[`inference.py`](inference.py) follows the submission shape from the platform:
+[`inference.py`](inference.py) now supports multiple policy modes:
 
 - uses the OpenAI client for LLM calls
 - reads `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
-- runs all 3 tasks with fixed `seed=42`
-- lets the model choose among safe candidate repairs on easier tasks, with heuristic fallback for invalid or premature moves
+- supports `heuristic`, `hybrid`, and `pure-llm` policy modes
+- supports `train` and `eval` scenario splits
+- records where actions came from (`llm`, `heuristic_guardrail`, `heuristic`, `auto_table_switch`)
 - supports seed benchmarking with `python3 inference.py --seeds 1 2 3 4 5`
 
 Example env setup:
@@ -149,28 +163,46 @@ Example env setup:
 export API_BASE_URL="https://router.huggingface.co/v1"
 export MODEL_NAME="deepseek-ai/DeepSeek-V3-0324"
 export HF_TOKEN="your-token"
-python3 inference.py
+python3 inference.py --policy-mode pure-llm --split eval
 ```
 
-Verified local fallback run with no credentials, using fixed `seed=42`:
+Example benchmark commands:
 
-- Task 1: `0.8875` in 4 steps
-- Task 2: `1.0000` in 4 steps
-- Task 3: `0.9820` in 8 steps
-- Average: `0.9565`
+```bash
+python3 inference.py --policy-mode heuristic --split train --seed 42
+python3 inference.py --policy-mode heuristic --split eval --seed 42
+python3 scripts/benchmark_models.py --policies random heuristic --splits train eval --seeds 1 2 3 --format markdown
+```
 
-Verified LLM-backed run with `deepseek-ai/DeepSeek-V3-0324`, using fixed `seed=42`:
+Current local heuristic runs with `seed=42`:
 
-- Task 1: `0.8875` in 4 steps
-- Task 2: `1.0000` in 4 steps
-- Task 3: `0.9820` in 8 steps
-- Average: `0.9565`
+- train split:
+  - Task 1: `0.9250` in 4 steps
+  - Task 2: `1.0000` in 4 steps
+  - Task 3: `0.9820` in 12 steps
+  - Average: `0.9690`
+- eval split:
+  - Task 1: `0.9250` in 5 steps
+  - Task 2: `1.0000` in 5 steps
+  - Task 3: `0.9820` in 13 steps
+  - Average: `0.9690`
+
+## Benchmark Results
+
+| Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 |
+|---|---:|---:|---:|---:|---:|
+| random | train | `0.4548` | `0.6108` | `0.5567` | `0.1968` |
+| heuristic | train | `0.9370` | `0.9125` | `0.9667` | `0.9320` |
+| random | eval | `0.4548` | `0.6108` | `0.5567` | `0.1968` |
+| heuristic | eval | `0.9454` | `0.9125` | `0.9667` | `0.9570` |
+
+Pure-LLM mode is implemented in [`inference.py`](inference.py), but it requires live model credentials and is not hardcoded into the checked-in benchmark table.
 
 ## Evaluation Summary
 
 The grading logic is deterministic and score-based rather than binary-only:
 
-- observations expose repair signals such as missing-rate, duplicate-rate, type violations, outlier count, and schema mismatches
+- observations expose repair signals such as missing-rate, duplicate-rate, type violations, outlier count, format mismatches, dependency alerts, and per-table health summaries
 - each task has a fixed success threshold
 - the reward function provides partial progress and penalizes invalid or destructive actions
 - Task 3 uses weighted multi-table scoring so the agent must repair the full pipeline, not just one table
@@ -180,12 +212,6 @@ Current local thresholds:
 - Task 1: `0.85`
 - Task 2: `0.80`
 - Task 3: `0.75`
-
-Example multi-seed benchmark output now shows score variance across scenarios:
-
-- seed `1`: average `0.9690`
-- seed `2`: average `0.9148`
-- seed `3`: average `0.9148`
 
 Task 3 hardening checks now show a meaningful difficulty gap:
 
@@ -209,12 +235,13 @@ Task 3 hardening checks now show a meaningful difficulty gap:
 ## Current Local Status
 
 - `openenv validate` passes from the repo root
-- `python3 inference.py` runs all 3 official tasks with `seed=42`
+- `python3 inference.py` runs all 3 official tasks with explicit split + policy controls
+- `python3 scripts/benchmark_models.py` produces reproducible benchmark tables
 - The deployed Hugging Face Space is live and responds to `/health` and `/reset`
-- The deterministic fallback baseline is intended for smoke testing when model credentials are absent
 - The preferred submission path is still the OpenAI-client baseline with `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
+- The repo now supports held-out evaluation and pure-LLM benchmarking without changing the environment API
 
 ## Known Limitations
 
 - `drop_nulls` changes row count, so the accuracy metric strongly discourages deletion-heavy repair paths; the intended agent behavior is to prefer fill and type-repair actions over row removal.
-- The provided `inference.py` is a hybrid heuristic-LLM baseline. Tasks 1 and 2 now let the model choose among safe candidate actions, but Task 3 still uses stronger heuristic guardrails than a pure LLM agent would.
+- The provided `inference.py` is a family of baselines, not a learned RL policy. The strongest checked-in baseline is still heuristic-heavy on Task 3, while `pure-llm` mode is provided for cleaner model-only evaluation.

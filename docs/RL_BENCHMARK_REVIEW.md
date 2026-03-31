@@ -14,6 +14,29 @@ This note updates the project assessment using ideas from the following material
 
 The goal is not to restate RL theory. The goal is to judge whether Mario the Plumber behaves like a meaningful RL / agent benchmark and to identify the highest-value next improvements.
 
+## What Is Now Implemented
+
+The current repo now includes the main missing pieces identified in the earlier review cycle:
+
+- held-out `train` / `eval` scenario splits in the generator and environment
+- multiple baseline modes in [`inference.py`](/Users/sahilkumarsingh/Desktop/MARIO-the%20plumber/inference.py):
+  - `heuristic`
+  - `hybrid`
+  - `pure-llm`
+- richer task observations for multi-table reasoning:
+  - `table_health`
+  - `dependency_alerts`
+  - `format_issues`
+  - `commit_ready`
+  - `scenario_split`
+- more realistic corruption families:
+  - mixed date formats
+  - currency / unit formatting drift
+  - whitespace and categorical normalization drift
+- benchmark reporting via [`scripts/benchmark_models.py`](/Users/sahilkumarsingh/Desktop/MARIO-the%20plumber/scripts/benchmark_models.py)
+
+These changes move Mario from a strong one-run hackathon demo toward a more credible small benchmark.
+
 ## Additional Takeaways from the Second Reading Pass
 
 The newer papers sharpened four ideas that matter directly for Mario:
@@ -249,6 +272,33 @@ What keeps it below a research-grade benchmark is not correctness. It is ambitio
 - the hardest task is not yet proven difficult for a frontier evaluator
 
 That is a very good place to be for a first OpenEnv environment.
+
+## Old Vs New Benchmark Shape
+
+| Dimension | Earlier Version | Current Version |
+|---|---|---|
+| Evaluation story | fixed-seed success story | train/eval split with seed sweeps |
+| Baselines | mostly one hybrid path | random, heuristic, hybrid, pure-llm |
+| Observation richness | flat repair summary | dependency-aware and table-aware signals |
+| Corruption realism | nulls, duplicates, type drift, outliers | plus date drift, text drift, currency/unit formatting |
+| Reporting | isolated benchmark claims | reproducible benchmark table script |
+| Task 3 hardness evidence | random agent too strong | random stays near broken-state score |
+
+### Practical comparison
+
+Earlier Mario was already valid and deployable, but the benchmark story was weaker:
+
+- it relied too much on one canonical seed
+- it did not separate held-out evaluation from the tuning split
+- it did not expose a pure-LLM mode
+- it gave weaker evidence that Task 3 rewarded structured reasoning over randomness
+
+Current Mario is stronger in specifically RL-relevant ways:
+
+- it evaluates generalization more honestly through a split-aware generator
+- it exposes multiple policy families for comparison
+- it communicates cross-table planning state directly in the observation
+- it has a clearer benchmark gap between random and structured behavior
 
 ## Practical Takeaway
 

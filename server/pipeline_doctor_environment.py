@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import Counter
 import json
 from datetime import UTC, datetime
+import re
 from uuid import uuid4
 
 import pandas as pd
@@ -19,11 +20,23 @@ from openenv.core.env_server.interfaces import Environment
 try:
     from ..models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
     from .data_generator import MAX_STEPS, TASK_THRESHOLDS, generate_scenario
-    from .grader import calculation_mismatch_count, compute_reward, score_single_table, score_task3
+    from .grader import (
+        calculation_mismatch_count,
+        compute_reward,
+        duplicate_row_count,
+        score_single_table,
+        score_task3,
+    )
 except ImportError:
     from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
     from server.data_generator import MAX_STEPS, TASK_THRESHOLDS, generate_scenario
-    from server.grader import calculation_mismatch_count, compute_reward, score_single_table, score_task3
+    from server.grader import (
+        calculation_mismatch_count,
+        compute_reward,
+        duplicate_row_count,
+        score_single_table,
+        score_task3,
+    )
 
 ACTION_NAMES = {
     0: "inspect_schema",
@@ -60,6 +73,7 @@ class PipelineDoctorEnvironment(
         self._expected_types: dict[str, dict[str, str]] = {}
         self._task_id = 1
         self._seed: int | None = None
+        self._split = "train"
         self._recent_errors: list[str] = []
         self._state = PipelineDoctorState(
             episode_id=str(uuid4()),
@@ -72,6 +86,7 @@ class PipelineDoctorEnvironment(
             done=False,
             success=None,
             active_table="single",
+            scenario_split="train",
             started_at=datetime.now(UTC).isoformat(),
         )
 
@@ -80,11 +95,12 @@ class PipelineDoctorEnvironment(
         seed: int | None = None,
         episode_id: str | None = None,
         task_id: int = 1,
+        split: str = "train",
         **_: object,
     ) -> PipelineDoctorObservation:
         """Reset the environment to a fresh synthetic scenario."""
 
-        scenario = generate_scenario(task_id=task_id, seed=seed)
+        scenario = generate_scenario(task_id=task_id, seed=seed, split=split)
         self._tables = {
             name: frame.copy(deep=True) for name, frame in scenario.broken_tables.items()
         }
@@ -94,6 +110,7 @@ class PipelineDoctorEnvironment(
         self._expected_types = dict(scenario.expected_types)
         self._task_id = task_id
         self._seed = seed
+        self._split = scenario.split
         self._recent_errors = []
         current_score = self._score()
 
@@ -109,6 +126,7 @@ class PipelineDoctorEnvironment(
             done=False,
             success=None,
             active_table=scenario.active_table,
+            scenario_split=scenario.split,
             started_at=datetime.now(UTC).isoformat(),
         )
         self._refresh_errors()
@@ -217,9 +235,9 @@ class PipelineDoctorEnvironment(
         elif action.action_id == 9:
             self._current_frame()[action.target_column] = self._current_frame()[
                 action.target_column
-            ].astype(str)
+            ].map(lambda value: self._normalize_string_value(value, action.target_column))
         elif action.action_id == 10:
-            self._tables[self._state.active_table] = self._current_frame().drop_duplicates().reset_index(drop=True)
+            self._tables[self._state.active_table] = self._deduplicate_current_table()
         elif action.action_id == 11:
             self._drop_outliers(action.target_column)
         elif action.action_id == 12:
@@ -260,7 +278,7 @@ class PipelineDoctorEnvironment(
     def _fill_with_statistic(self, column: str | None, statistic: str) -> None:
         if column not in self._current_frame().columns:
             raise ValueError("target_column not found")
-        numeric = pd.to_numeric(self._current_frame()[column], errors="coerce")
+        numeric = self._numeric_series(column)
         if statistic == "mean":
             value = numeric.mean()
         else:
@@ -270,7 +288,7 @@ class PipelineDoctorEnvironment(
     def _cast_column(self, column: str | None, dtype: str) -> None:
         if column not in self._current_frame().columns:
             raise ValueError("target_column not found")
-        numeric = pd.to_numeric(self._current_frame()[column], errors="coerce")
+        numeric = self._numeric_series(column)
         if dtype == "int64":
             if numeric.isna().any():
                 raise ValueError("cannot cast to int while nulls remain")
@@ -278,13 +296,62 @@ class PipelineDoctorEnvironment(
         else:
             self._current_frame()[column] = numeric.astype("float64")
 
+    def _numeric_series(self, column: str) -> pd.Series:
+        raw_series = self._current_frame()[column]
+        normalized = raw_series.map(self._normalize_numeric_value)
+        return pd.to_numeric(normalized, errors="coerce")
+
+    def _normalize_numeric_value(self, value: object) -> object:
+        if pd.isna(value):
+            return value
+        text = str(value).strip()
+        text = text.replace(",", "")
+        text = re.sub(r"(?i)\b(?:usd|inr|units?)\b", "", text).strip()
+        text = text.replace("$", "").replace("₹", "")
+        return text
+
+    def _normalize_string_value(self, value: object, column: str | None) -> object:
+        if pd.isna(value):
+            return value
+        text = str(value)
+        if "Ã" in text or "Â" in text:
+            try:
+                text = text.encode("latin1").decode("utf-8")
+            except Exception:
+                pass
+        text = text.strip()
+        column_name = (column or "").lower()
+        if "date" in column_name:
+            parsed_text = self._normalize_date_string(text)
+            if parsed_text:
+                return parsed_text
+        if column_name in {"email", "category", "status"}:
+            return text.lower()
+        return text
+
+    def _normalize_date_string(self, text: str) -> str | None:
+        stripped = text.strip()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", stripped):
+            return stripped
+        for fmt in ("%d/%m/%Y", "%m-%d-%Y", "%m/%d/%Y", "%d-%m-%Y"):
+            try:
+                parsed = datetime.strptime(stripped, fmt)
+                return parsed.strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        parsed = pd.to_datetime(stripped, errors="coerce")
+        if pd.notna(parsed):
+            return parsed.strftime("%Y-%m-%d")
+        return None
+
     def _drop_outliers(self, column: str | None) -> None:
         if column not in self._current_frame().columns:
             raise ValueError("target_column not found")
         selected = self._current_frame()[column]
         if not isinstance(selected, pd.Series):
             raise ValueError("target_column must resolve to a single column")
-        numeric = pd.to_numeric(selected, errors="coerce")
+        numeric = selected.map(self._normalize_numeric_value)
+        numeric = pd.to_numeric(numeric, errors="coerce")
         std = float(numeric.std(skipna=True))
         if pd.isna(std) or std == 0:
             return
@@ -326,11 +393,13 @@ class PipelineDoctorEnvironment(
         frame = self._tables[table_name]
         if frame.isnull().sum().sum() > 0:
             return True
-        if int(frame.duplicated().sum()) > 0:
+        if duplicate_row_count(frame) > 0:
             return True
         if self._schema_report_for_table(table_name):
             return True
         if self._outlier_details_for_frame(frame):
+            return True
+        if self._format_issue_details_for_frame(frame):
             return True
         return False
 
@@ -345,7 +414,7 @@ class PipelineDoctorEnvironment(
         current = self._current_frame()
         total_cells = max(len(current) * max(len(current.columns), 1), 1)
         missing_rate = float(current.isnull().sum().sum() / total_cells)
-        duplicate_rate = float(current.duplicated().sum() / max(len(current), 1))
+        duplicate_rate = float(duplicate_row_count(current) / max(len(current), 1))
 
         schema_report = self._schema_report()
         observation = PipelineDoctorObservation(
@@ -353,6 +422,7 @@ class PipelineDoctorEnvironment(
             duplicate_rate=round(duplicate_rate, 4),
             type_violations=len(schema_report),
             outlier_count=self._outlier_count(),
+            format_issues=self._format_issue_count(),
             schema_report=schema_report,
             recent_errors=self._recent_errors[:5],
             current_score=self._state.current_score,
@@ -360,6 +430,10 @@ class PipelineDoctorEnvironment(
             stage=self._state.active_table,
             available_actions=list(range(16)),
             action_result=action_result,
+            table_health=self._table_health(),
+            dependency_alerts=self._dependency_alerts(),
+            commit_ready=self._task3_commit_ready(),
+            scenario_split=self._split,
             reward=reward,
             done=done,
             metadata=metadata or {},
@@ -368,6 +442,17 @@ class PipelineDoctorEnvironment(
 
     def _schema_report(self) -> dict[str, dict[str, str]]:
         return self._schema_report_for_table(self._state.active_table)
+
+    def _deduplicate_current_table(self) -> pd.DataFrame:
+        current = self._current_frame()
+        key_column = None
+        for candidate in ("transaction_id", "order_id", "customer_id", "product_id"):
+            if candidate in current.columns:
+                key_column = candidate
+                break
+        if key_column:
+            return current.drop_duplicates(subset=[key_column], keep="first").reset_index(drop=True)
+        return current.drop_duplicates().reset_index(drop=True)
 
     def _schema_report_for_table(self, table_name: str) -> dict[str, dict[str, str]]:
         current = self._tables[table_name]
@@ -410,6 +495,65 @@ class PipelineDoctorEnvironment(
             count += column_count
         return count
 
+    def _format_issue_details(self) -> dict[str, int]:
+        return self._format_issue_details_for_frame(self._current_frame())
+
+    def _format_issue_details_for_frame(self, current: pd.DataFrame) -> dict[str, int]:
+        details: dict[str, int] = {}
+        for column in current.columns:
+            series = current[column]
+            if not isinstance(series, pd.Series):
+                continue
+            issue_count = 0
+            column_name = column.lower()
+            for value in series.dropna():
+                text = str(value)
+                normalized = self._normalize_string_value(value, column)
+                if "date" in column_name:
+                    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(text).strip()):
+                        issue_count += 1
+                        continue
+                elif column_name in {"email", "category", "status"} and text != str(normalized):
+                    issue_count += 1
+            if issue_count > 0:
+                details[column] = issue_count
+        return details
+
+    def _format_issue_count(self) -> int:
+        return sum(self._format_issue_details().values())
+
+    def _dependency_alerts(self) -> list[str]:
+        if self._task_id != 3:
+            return []
+        alerts: list[str] = []
+        mismatch_count = calculation_mismatch_count(
+            self._tables["orders"], self._tables["products"]
+        )
+        if mismatch_count > 0:
+            alerts.append(
+                "orders.total_price depends on products.unit_price and is still inconsistent"
+            )
+        if self._table_has_structural_issues("products"):
+            alerts.append("products still blocks a safe task 3 commit")
+        if self._table_has_structural_issues("orders"):
+            alerts.append("orders still contains structural issues")
+        return alerts[:3]
+
+    def _table_health(self) -> dict[str, float]:
+        if self._task_id != 3:
+            return {"single": round(self._state.current_score, 4)}
+        return {
+            table_name: round(
+                score_single_table(
+                    self._tables[table_name],
+                    self._ground_truth[table_name],
+                    self._expected_types[table_name],
+                )[0],
+                4,
+            )
+            for table_name in ("orders", "customers", "products")
+        }
+
     def _refresh_errors(self) -> None:
         current = self._current_frame()
         errors: list[str] = []
@@ -417,11 +561,13 @@ class PipelineDoctorEnvironment(
         for column, count in null_counts.items():
             if int(count) > 0:
                 errors.append(f"{column}: {int(count)} null values")
-        duplicate_count = int(current.duplicated().sum())
+        duplicate_count = duplicate_row_count(current)
         if duplicate_count > 0:
             errors.append(f"{duplicate_count} duplicate rows detected")
         for column, count in self._outlier_details().items():
             errors.append(f"{column}: {count} outlier values")
+        for column, count in self._format_issue_details().items():
+            errors.append(f"{column}: {count} format mismatch values")
         for column, info in self._schema_report().items():
             errors.append(
                 f"{column}: expected {info['expected']}, found {info['actual']}"
@@ -432,7 +578,8 @@ class PipelineDoctorEnvironment(
             )
             if mismatch_count > 0:
                 errors.append(f"total_price: {mismatch_count} rows have calculation mismatch")
-        self._recent_errors = errors[:5]
+        errors.extend(self._dependency_alerts())
+        self._recent_errors = errors[:6]
 
     def _score(self) -> float:
         if self._task_id == 3:

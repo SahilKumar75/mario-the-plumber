@@ -4,11 +4,12 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""OpenAI-client baseline for Mario the Plumber."""
+"""OpenAI-client baseline and benchmark harness for Mario the Plumber."""
 
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import os
 import re
@@ -47,33 +48,55 @@ SYSTEM_PROMPT = textwrap.dedent(
     - Do not include markdown fences or explanations.
     - Prefer one of the provided candidate next actions when they are available.
     - Common actions:
-      3=fill_mean, 4=fill_median, 5=fill_forward, 7=cast_to_int, 8=cast_to_float,
+      4=fill_median, 5=fill_forward, 7=cast_to_int, 8=cast_to_float, 9=cast_to_string,
       10=remove_duplicates, 11=drop_outliers, 14=validate_schema, 15=commit_changes.
     - Prefer fixing missing values before integer casts.
     - Use remove_duplicates when duplicate_rate > 0.
+    - Use cast_to_string to normalize mixed date formats, noisy text encodings, and whitespace drift.
     - In task 3, action 0 with target_column equal to a table name switches the active table.
-    - Use action 14 to validate when the table looks clean.
-    - Use action 15 only when the score is at or above the task threshold or there are no obvious remaining errors.
+    - Read dependency_alerts and commit_ready before committing on task 3.
+    - Use action 15 only when commit_ready is true or the score is above the task threshold with no obvious remaining errors.
     """
 ).strip()
 
 
-def run_baseline(seed: int = 42) -> dict[str, object]:
-    """Run the submission baseline over the three official tasks."""
+def run_baseline(
+    seed: int = 42,
+    *,
+    split: str = "train",
+    policy_mode: str = "hybrid",
+    model_name: str | None = None,
+) -> dict[str, object]:
+    """Run the benchmark baseline over the three official tasks."""
 
     started = time.perf_counter()
     client = _build_client()
+    selected_model = model_name or MODEL_NAME
+    if policy_mode == "pure-llm" and (client is None or not selected_model):
+        raise RuntimeError("pure-llm mode requires MODEL_NAME and HF_TOKEN/API_KEY")
+
     results: list[dict[str, object]] = []
+    action_sources: Counter[str] = Counter()
 
     for task_id in (1, 2, 3):
         env = PipelineDoctorEnvironment()
-        observation = env.reset(seed=seed, task_id=task_id)
+        observation = env.reset(seed=seed, task_id=task_id, split=split)
+        task_sources: Counter[str] = Counter()
 
         for _ in range(MAX_STEPS[task_id]):
             if env.state.done:
                 break
 
-            action = _choose_action(client, task_id, env.state.step_count + 1, observation)
+            action, action_source = _choose_action(
+                client,
+                selected_model,
+                policy_mode,
+                task_id,
+                env.state.step_count + 1,
+                observation,
+            )
+            action_sources[action_source] += 1
+            task_sources[action_source] += 1
             observation = env.step(action)
 
             if env.state.done:
@@ -85,9 +108,13 @@ def run_baseline(seed: int = 42) -> dict[str, object]:
                     observation = env.step(
                         PipelineDoctorAction(action_id=0, target_column=next_table)
                     )
+                    action_sources["auto_table_switch"] += 1
+                    task_sources["auto_table_switch"] += 1
 
         if not env.state.done:
             observation = env.step(PipelineDoctorAction(action_id=15))
+            action_sources["forced_commit"] += 1
+            task_sources["forced_commit"] += 1
 
         results.append(
             {
@@ -95,6 +122,7 @@ def run_baseline(seed: int = 42) -> dict[str, object]:
                 "score": round(observation.current_score, 4),
                 "steps": env.state.step_count,
                 "success": bool(env.state.success),
+                "action_sources": dict(task_sources),
             }
         )
 
@@ -103,8 +131,12 @@ def run_baseline(seed: int = 42) -> dict[str, object]:
     )
     return {
         "status": "complete",
+        "policy_mode": policy_mode,
+        "scenario_split": split,
+        "model_name": selected_model if client is not None else None,
         "results": results,
         "average_score": average_score,
+        "action_source_totals": dict(action_sources),
         "runtime_seconds": round(time.perf_counter() - started, 2),
     }
 
@@ -117,28 +149,27 @@ def _build_client() -> OpenAI | None:
 
 def _choose_action(
     client: OpenAI | None,
+    model_name: str | None,
+    policy_mode: str,
     task_id: int,
     step_number: int,
     observation: PipelineDoctorObservation,
-) -> PipelineDoctorAction:
+) -> tuple[PipelineDoctorAction, str]:
     heuristic_action = _heuristic_action(task_id, observation)
-    candidate_actions = _candidate_actions(task_id, observation, heuristic_action)
-    if client is None or not MODEL_NAME:
-        return heuristic_action
+    candidate_actions = _candidate_actions(task_id, observation, heuristic_action, policy_mode)
+
+    if policy_mode == "heuristic":
+        return heuristic_action, "heuristic"
+    if client is None or not model_name:
+        return heuristic_action, "heuristic_no_client"
 
     user_prompt = _build_user_prompt(task_id, step_number, observation, candidate_actions)
     try:
         completion = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=model_name,
             messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
             ],
             temperature=TEMPERATURE,
             max_tokens=MAX_TOKENS,
@@ -146,16 +177,22 @@ def _choose_action(
         )
         response_text = completion.choices[0].message.content or ""
         model_action = _parse_action(response_text, task_id, observation)
-        model_action = _normalize_candidate_action(model_action, candidate_actions)
-        return _stabilize_action(
+        normalized_action = _normalize_candidate_action(model_action, candidate_actions)
+        stabilized_action = _stabilize_action(
+            policy_mode,
             task_id,
             observation,
-            model_action,
+            normalized_action,
             heuristic_action,
             candidate_actions,
         )
+        if _same_action(stabilized_action, normalized_action):
+            return stabilized_action, "llm"
+        if _same_action(stabilized_action, heuristic_action):
+            return stabilized_action, "heuristic_guardrail"
+        return stabilized_action, "fallback"
     except Exception:
-        return heuristic_action
+        return heuristic_action, "heuristic_exception"
 
 
 def _build_user_prompt(
@@ -171,6 +208,7 @@ def _build_user_prompt(
         f"""
         Task id: {task_id}
         Task threshold: {TASK_THRESHOLDS[task_id]}
+        Scenario split: {observation.scenario_split}
         Step: {step_number}
         Active table: {observation.stage}
         Current score: {observation.current_score}
@@ -178,6 +216,10 @@ def _build_user_prompt(
         Duplicate rate: {observation.duplicate_rate}
         Type violations: {observation.type_violations}
         Outlier count: {observation.outlier_count}
+        Format issues: {observation.format_issues}
+        Commit ready: {observation.commit_ready}
+        Table health: {json.dumps(observation.table_health, sort_keys=True)}
+        Dependency alerts: {json.dumps(observation.dependency_alerts)}
         Schema report: {json.dumps(observation.schema_report, sort_keys=True)}
         Recent errors: {json.dumps(observation.recent_errors)}
         Last action result: {observation.action_result or ""}
@@ -206,12 +248,18 @@ def _parse_action(
 
 
 def _stabilize_action(
+    policy_mode: str,
     task_id: int,
     observation: PipelineDoctorObservation,
     model_action: PipelineDoctorAction,
     heuristic_action: PipelineDoctorAction,
     candidate_actions: list[PipelineDoctorAction],
 ) -> PipelineDoctorAction:
+    if policy_mode == "pure-llm":
+        if not _action_has_required_fields(model_action):
+            return FALLBACK_ACTION
+        return model_action
+
     if not _action_has_required_fields(model_action):
         return heuristic_action
 
@@ -224,7 +272,7 @@ def _stabilize_action(
     if model_action.action_id == 14 and _table_needs_attention(observation):
         return heuristic_action
 
-    if task_id == 3 and model_action.action_id == 15 and observation.stage != "products":
+    if task_id == 3 and model_action.action_id == 15 and not observation.commit_ready:
         return heuristic_action
 
     if task_id in (1, 2) and not _is_candidate_action(model_action, candidate_actions):
@@ -272,6 +320,10 @@ def _heuristic_action(
         if expected == "object":
             return PipelineDoctorAction(action_id=9, target_column=column)
 
+    format_column = _column_from_errors(error_text, "format mismatch")
+    if format_column:
+        return PipelineDoctorAction(action_id=9, target_column=format_column)
+
     if observation.outlier_count > 0:
         outlier_column = _column_from_errors(error_text, "outlier")
         if outlier_column:
@@ -287,9 +339,10 @@ def _candidate_actions(
     task_id: int,
     observation: PipelineDoctorObservation,
     heuristic_action: PipelineDoctorAction,
+    policy_mode: str,
 ) -> list[PipelineDoctorAction]:
     if task_id == 3:
-        return [heuristic_action]
+        return _task3_candidate_actions(observation, heuristic_action, policy_mode)
 
     error_text = " | ".join(observation.recent_errors).lower()
     mismatch = _first_schema_mismatch(observation)
@@ -311,9 +364,7 @@ def _candidate_actions(
                 PipelineDoctorAction(action_id=4, target_column=null_column),
                 PipelineDoctorAction(action_id=5, target_column=null_column),
             ]
-        return [
-            PipelineDoctorAction(action_id=5, target_column=null_column),
-        ]
+        return [PipelineDoctorAction(action_id=5, target_column=null_column)]
 
     if mismatch:
         column, info = mismatch
@@ -325,6 +376,10 @@ def _candidate_actions(
         if expected == "object":
             return [PipelineDoctorAction(action_id=9, target_column=column)]
 
+    format_column = _column_from_errors(error_text, "format mismatch")
+    if observation.format_issues > 0 and format_column:
+        return [PipelineDoctorAction(action_id=9, target_column=format_column)]
+
     outlier_column = _column_from_errors(error_text, "outlier")
     if observation.outlier_count > 0 and outlier_column:
         return [PipelineDoctorAction(action_id=11, target_column=outlier_column)]
@@ -333,6 +388,70 @@ def _candidate_actions(
         return [PipelineDoctorAction(action_id=15), PipelineDoctorAction(action_id=14)]
 
     return [heuristic_action]
+
+
+def _task3_candidate_actions(
+    observation: PipelineDoctorObservation,
+    heuristic_action: PipelineDoctorAction,
+    policy_mode: str,
+) -> list[PipelineDoctorAction]:
+    if policy_mode == "hybrid":
+        return [heuristic_action]
+
+    actions: list[PipelineDoctorAction] = []
+    error_text = " | ".join(observation.recent_errors).lower()
+    mismatch = _first_schema_mismatch(observation)
+
+    if heuristic_action.action_id != FALLBACK_ACTION.action_id:
+        actions.append(heuristic_action)
+
+    if observation.duplicate_rate > 0:
+        actions.append(PipelineDoctorAction(action_id=10))
+
+    null_column = _column_from_errors(error_text, "null")
+    if null_column:
+        actions.extend(
+            [
+                PipelineDoctorAction(action_id=4, target_column=null_column),
+                PipelineDoctorAction(action_id=5, target_column=null_column),
+            ]
+        )
+
+    format_column = _column_from_errors(error_text, "format mismatch")
+    if observation.format_issues > 0 and format_column:
+        actions.append(PipelineDoctorAction(action_id=9, target_column=format_column))
+
+    if mismatch:
+        column, info = mismatch
+        expected = info.get("expected")
+        if expected == "int64":
+            actions.append(PipelineDoctorAction(action_id=7, target_column=column))
+        elif expected == "float64":
+            actions.append(PipelineDoctorAction(action_id=8, target_column=column))
+        elif expected == "object":
+            actions.append(PipelineDoctorAction(action_id=9, target_column=column))
+
+    outlier_column = _column_from_errors(error_text, "outlier")
+    if observation.outlier_count > 0 and outlier_column:
+        actions.append(PipelineDoctorAction(action_id=11, target_column=outlier_column))
+
+    next_table = _next_table(observation.stage)
+    if next_table:
+        actions.append(PipelineDoctorAction(action_id=0, target_column=next_table))
+
+    actions.append(PipelineDoctorAction(action_id=14))
+    if observation.commit_ready or observation.current_score >= TASK_THRESHOLDS[3]:
+        actions.append(PipelineDoctorAction(action_id=15))
+
+    deduped: list[PipelineDoctorAction] = []
+    seen: set[str] = set()
+    for action in actions:
+        key = json.dumps(action.model_dump(exclude_none=True), sort_keys=True)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(action)
+    return deduped or [heuristic_action]
 
 
 def _normalize_candidate_action(
@@ -383,6 +502,10 @@ def _task3_heuristic_action(
         if observation.duplicate_rate > 0:
             return PipelineDoctorAction(action_id=10)
 
+        format_column = _column_from_errors(error_text, "format mismatch")
+        if format_column:
+            return PipelineDoctorAction(action_id=9, target_column=format_column)
+
         if mismatch:
             column, info = mismatch
             expected = info.get("expected")
@@ -390,6 +513,8 @@ def _task3_heuristic_action(
                 return PipelineDoctorAction(action_id=7, target_column=column)
             if expected == "float64":
                 return PipelineDoctorAction(action_id=8, target_column=column)
+            if expected == "object":
+                return PipelineDoctorAction(action_id=9, target_column=column)
 
         if _only_calculation_mismatch(observation):
             return PipelineDoctorAction(action_id=0, target_column="customers")
@@ -399,6 +524,10 @@ def _task3_heuristic_action(
         if null_column:
             return PipelineDoctorAction(action_id=4, target_column=null_column)
 
+        format_column = _column_from_errors(error_text, "format mismatch")
+        if format_column:
+            return PipelineDoctorAction(action_id=9, target_column=format_column)
+
         if mismatch:
             column, info = mismatch
             expected = info.get("expected")
@@ -406,6 +535,8 @@ def _task3_heuristic_action(
                 return PipelineDoctorAction(action_id=7, target_column=column)
             if expected == "float64":
                 return PipelineDoctorAction(action_id=8, target_column=column)
+            if expected == "object":
+                return PipelineDoctorAction(action_id=9, target_column=column)
 
         if not _table_needs_attention(observation):
             return PipelineDoctorAction(action_id=0, target_column="products")
@@ -413,6 +544,10 @@ def _task3_heuristic_action(
     elif observation.stage == "products":
         if observation.duplicate_rate > 0:
             return PipelineDoctorAction(action_id=10)
+
+        format_column = _column_from_errors(error_text, "format mismatch")
+        if format_column:
+            return PipelineDoctorAction(action_id=9, target_column=format_column)
 
         if observation.outlier_count > 0:
             return PipelineDoctorAction(action_id=11, target_column="unit_price")
@@ -424,6 +559,8 @@ def _task3_heuristic_action(
                 return PipelineDoctorAction(action_id=7, target_column=column)
             if expected == "float64":
                 return PipelineDoctorAction(action_id=8, target_column=column)
+            if expected == "object":
+                return PipelineDoctorAction(action_id=9, target_column=column)
 
         if not _table_needs_attention(observation):
             return PipelineDoctorAction(action_id=15)
@@ -454,7 +591,7 @@ def _table_needs_attention(observation: PipelineDoctorObservation) -> bool:
         or observation.duplicate_rate > 0
         or observation.type_violations > 0
         or observation.outlier_count > 0
-        or observation.recent_errors
+        or observation.format_issues > 0
     )
 
 
@@ -469,6 +606,7 @@ def _only_calculation_mismatch(observation: PipelineDoctorObservation) -> bool:
         and observation.duplicate_rate == 0
         and observation.type_violations == 0
         and observation.outlier_count == 0
+        and observation.format_issues == 0
         and _has_calculation_mismatch(observation)
     )
 
@@ -496,9 +634,30 @@ def _next_table(current_table: str) -> str | None:
     return order[index + 1]
 
 
+def _same_action(left: PipelineDoctorAction, right: PipelineDoctorAction) -> bool:
+    return left.model_dump(exclude_none=True) == right.model_dump(exclude_none=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Mario the Plumber baseline.")
     parser.add_argument("--seed", type=int, default=42, help="Seed for one benchmark run.")
+    parser.add_argument(
+        "--split",
+        choices=["train", "eval"],
+        default="train",
+        help="Scenario distribution split to evaluate.",
+    )
+    parser.add_argument(
+        "--policy-mode",
+        choices=["heuristic", "hybrid", "pure-llm"],
+        default="hybrid",
+        help="Baseline decision policy.",
+    )
+    parser.add_argument(
+        "--model-name",
+        default=None,
+        help="Optional model override for LLM-backed modes.",
+    )
     parser.add_argument(
         "--seeds",
         type=int,
@@ -513,13 +672,23 @@ def main() -> None:
             "runs": [
                 {
                     "seed": seed,
-                    **run_baseline(seed=seed),
+                    **run_baseline(
+                        seed=seed,
+                        split=args.split,
+                        policy_mode=args.policy_mode,
+                        model_name=args.model_name,
+                    ),
                 }
                 for seed in args.seeds
             ],
         }
     else:
-        payload = run_baseline(seed=args.seed)
+        payload = run_baseline(
+            seed=args.seed,
+            split=args.split,
+            policy_mode=args.policy_mode,
+            model_name=args.model_name,
+        )
 
     print(json.dumps(payload, indent=2))
 

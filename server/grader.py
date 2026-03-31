@@ -11,6 +11,15 @@ from __future__ import annotations
 import pandas as pd
 
 
+def duplicate_row_count(frame: pd.DataFrame) -> int:
+    """Count duplicates using primary-key-like columns when available."""
+
+    key_column = _primary_key_column(frame)
+    if key_column and key_column in frame.columns:
+        return int(frame.duplicated(subset=[key_column]).sum())
+    return int(frame.duplicated().sum())
+
+
 def score_single_table(
     fixed_df: pd.DataFrame,
     ground_truth_df: pd.DataFrame,
@@ -30,7 +39,7 @@ def score_single_table(
 
     consistency = 1.0
     if len(fixed_df) > 0:
-        consistency = 1.0 - (fixed_df.duplicated().sum() / len(fixed_df))
+        consistency = 1.0 - (duplicate_row_count(fixed_df) / len(fixed_df))
 
     accuracy = _accuracy(fixed_df, ground_truth_df)
     score = round(
@@ -156,3 +165,10 @@ def _accuracy(fixed_df: pd.DataFrame, ground_truth_df: pd.DataFrame) -> float:
         return 0.0
     matches = (fixed == truth).all(axis=1)
     return float(matches.mean()) if len(matches) else 1.0
+
+
+def _primary_key_column(frame: pd.DataFrame) -> str | None:
+    for candidate in ("transaction_id", "order_id", "customer_id", "product_id"):
+        if candidate in frame.columns:
+            return candidate
+    return None

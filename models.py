@@ -38,6 +38,7 @@ class MarioThePlumberObservation(Observation):
     duplicate_rate: float = Field(default=0.0, ge=0.0, le=1.0)
     type_violations: int = Field(default=0, ge=0)
     outlier_count: int = Field(default=0, ge=0)
+    format_issues: int = Field(default=0, ge=0)
     schema_report: dict[str, dict[str, Any]] = Field(default_factory=dict)
     recent_errors: list[str] = Field(default_factory=list)
     current_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -45,6 +46,10 @@ class MarioThePlumberObservation(Observation):
     stage: str = Field(default="single")
     available_actions: list[int] = Field(default_factory=lambda: list(range(16)))
     action_result: str = Field(default="")
+    table_health: dict[str, float] = Field(default_factory=dict)
+    dependency_alerts: list[str] = Field(default_factory=list)
+    commit_ready: bool = False
+    scenario_split: str = Field(default="train")
 
 
 class MarioThePlumberState(State):
@@ -59,6 +64,7 @@ class MarioThePlumberState(State):
     done: bool = False
     success: bool | None = None
     active_table: str = Field(default="single")
+    scenario_split: str = Field(default="train")
     started_at: str = Field(default="")
 
 
