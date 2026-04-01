@@ -64,6 +64,18 @@ def tasks_payload() -> dict[str, object]:
                 "18": "prioritize_incremental_batch",
                 "19": "refresh_downstream_summary",
             },
+            "incident_signals": [
+                "incident_type",
+                "incident_summary",
+                "diagnosis_signals",
+                "recovery_requirements",
+                "unsafe_commit_conditions",
+                "queue_backlog_age_minutes",
+                "sla_severity",
+                "recent_failure_counters",
+                "drift_markers",
+                "dependency_health_summary",
+            ],
             "reward_machine_signals": [
                 "reward_breakdown",
                 "objective_breakdown",

@@ -48,6 +48,8 @@ def run_random_baseline(seed: int, *, split: str = "train") -> dict[str, Any]:
                 "score": round(observation.current_score, 4),
                 "steps": env.state.step_count,
                 "success": bool(env.state.success),
+                "scenario_profile": observation.scenario_profile,
+                "heldout_profile_family": bool(observation.heldout_profile_family),
             }
         )
 
@@ -143,6 +145,55 @@ def write_csv(report: dict[str, Any], path: str) -> None:
         writer.writerows(report["rows"])
 
 
+def summarize_profiles(raw_runs: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for key, runs in raw_runs.items():
+        policy, split = key.split(":")
+        buckets: dict[tuple[int, str], list[float]] = {}
+        heldout_flags: dict[tuple[int, str], bool] = {}
+        for run in runs:
+            for result in run["results"]:
+                bucket_key = (int(result["task_id"]), str(result.get("scenario_profile", "baseline")))
+                buckets.setdefault(bucket_key, []).append(float(result["score"]))
+                heldout_flags[bucket_key] = bool(result.get("heldout_profile_family", False))
+        for (task_id, profile), scores in sorted(buckets.items()):
+            rows.append(
+                {
+                    "policy": policy,
+                    "split": split,
+                    "task_id": task_id,
+                    "scenario_profile": profile,
+                    "heldout_profile_family": heldout_flags[(task_id, profile)],
+                    "score_mean": round(mean(scores), 4),
+                    "score_std": round(pstdev(scores), 4) if len(scores) > 1 else 0.0,
+                }
+            )
+    return rows
+
+
+def generalization_gaps(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    gaps: list[dict[str, Any]] = []
+    task_ids = sorted(TASK_THRESHOLDS)
+    for policy in sorted({row["policy"] for row in rows}):
+        for task_id in task_ids:
+            train_row = next((row for row in rows if row["policy"] == policy and row["split"] == "train"), None)
+            eval_row = next((row for row in rows if row["policy"] == policy and row["split"] == "eval"), None)
+            if not train_row or not eval_row:
+                continue
+            train_score = float(train_row[f"task_{task_id}"])
+            eval_score = float(eval_row[f"task_{task_id}"])
+            gaps.append(
+                {
+                    "policy": policy,
+                    "task_id": task_id,
+                    "train_score": round(train_score, 4),
+                    "eval_score": round(eval_score, 4),
+                    "gap": round(train_score - eval_score, 4),
+                }
+            )
+    return gaps
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark Mario the Plumber baselines.")
     parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3, 4, 5])
@@ -196,7 +247,12 @@ def main() -> None:
             )
             raw_runs[f"{policy}:{split}"] = runs
 
-    report = {"rows": rows, "runs": raw_runs}
+    report = {
+        "rows": rows,
+        "runs": raw_runs,
+        "profile_rows": summarize_profiles(raw_runs),
+        "generalization_gaps": generalization_gaps(rows),
+    }
     report["runtime"] = runtime_meta
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(report, indent=2), encoding="utf-8")

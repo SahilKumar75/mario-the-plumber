@@ -1,6 +1,6 @@
-# Mario Benchmark Architecture
+# Mario ETL Incident Architecture
 
-Mario is a benchmark-first OpenEnv environment for broken ELT/ETL pipeline repair and recovery.
+Mario is an ETL/ELT pipeline incident fixer delivered through OpenEnv. The benchmark layer exists to make incident diagnosis, repair, and recovery reproducible and judgeable.
 
 ## Public Contract
 
@@ -51,7 +51,7 @@ Mario uses a benchmark-oriented internal split:
 
 ## Runtime Framing
 
-Mario exposes three benchmark-oriented runtime framings in metadata and demo surfaces:
+Mario exposes three runtime framings in metadata and demo surfaces:
 
 - `benchmark`
   - default scoring/evaluation mode
@@ -64,15 +64,28 @@ These modes do not change the public task or action contract.
 
 ## Task Progression
 
-- Task 1: single-table missing value and format repair
-- Task 2: duplicates, dtype drift, and outlier cleanup
-- Task 3: cascading multi-table dependency repair
-- Task 4: incremental recovery under backlog, freshness, and resource pressure
-- Task 5: temporal recovery with formal subgoals and held-out profile adaptation
+- Task 1: first-line ingestion repair after null and contract drift
+- Task 2: validation and event stabilization after retries and dtype regressions
+- Task 3: referential repair and cascading downstream recovery
+- Task 4: on-call incremental recovery under backlog, freshness, and resource pressure
+- Task 5: temporal rollup recovery with schema evolution, late corrections, and held-out profile adaptation
 
 ## Evaluation Signals
 
-Mario keeps a scalar OpenEnv reward, while hard tasks also expose:
+Mario keeps a scalar OpenEnv reward, while observations also expose incident and recovery structure:
+
+- `incident_type`
+- `incident_summary`
+- `diagnosis_signals`
+- `recovery_requirements`
+- `unsafe_commit_conditions`
+- `queue_backlog_age_minutes`
+- `sla_severity`
+- `recent_failure_counters`
+- `drift_markers`
+- `dependency_health_summary`
+
+Hard tasks also expose:
 
 - `reward_breakdown`
 - `objective_breakdown`

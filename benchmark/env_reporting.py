@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 try:
-    from .catalog import FORMAL_TASK_SPECS, TASK_OBJECTIVE_WEIGHTS, TASK_THRESHOLDS
+    from .catalog import FORMAL_TASK_SPECS, TASK_CARDS, TASK_OBJECTIVE_WEIGHTS, TASK_THRESHOLDS
     from .grading import (
         calculation_mismatch_count,
         duplicate_row_count,
@@ -25,7 +25,7 @@ try:
         workload_pressure,
     )
 except ImportError:
-    from benchmark.catalog import FORMAL_TASK_SPECS, TASK_OBJECTIVE_WEIGHTS, TASK_THRESHOLDS
+    from benchmark.catalog import FORMAL_TASK_SPECS, TASK_CARDS, TASK_OBJECTIVE_WEIGHTS, TASK_THRESHOLDS
     from benchmark.grading import (
         calculation_mismatch_count,
         duplicate_row_count,
@@ -67,7 +67,14 @@ def build_observation(
     schema_report_payload = schema_report(env)
     alias_hints = column_alias_hints(env)
     subgoal_progress, subgoal_order, active_subgoal, reward_machine_state = task_progress_bundle(env)
+    task_card = TASK_CARDS.get(env._task_id, {})
     return PipelineDoctorObservation(
+        incident_type=str(task_card.get("incident_type", "")),
+        incident_summary=str(task_card.get("incident_description", "")),
+        diagnosis_signals=list(task_card.get("diagnosis_signals", [])),
+        recovery_requirements=list(task_card.get("recovery_requirements", [])),
+        unsafe_commit_conditions=list(task_card.get("unsafe_commit_conditions", [])),
+        threshold_rationale=str(task_card.get("threshold_rationale", "")),
         missing_rate=round(missing_rate, 4),
         duplicate_rate=round(duplicate_rate, 4),
         type_violations=len(schema_report_payload),
@@ -86,13 +93,18 @@ def build_observation(
         scenario_split=env._split,
         schema_drift_count=len(schema_report_payload) + format_issue_count(env),
         backlog_rows=env._state.backlog_rows,
+        queue_backlog_age_minutes=backlog_age_minutes(env),
         freshness_lag_minutes=env._state.freshness_lag_minutes,
+        sla_severity=sla_severity(env),
         resource_level=env._state.resource_level,
         required_resource_level=env._state.required_resource_level,
         workload_pressure=workload_pressure(env),
         pending_batches=env._state.pending_batches,
         downstream_stale=bool(env._scenario_meta.get("downstream_stale", False)),
         orchestration_alerts=orchestration_alerts(env),
+        recent_failure_counters=recent_failure_counters(env),
+        drift_markers=drift_markers(env),
+        dependency_health_summary=dependency_health_summary(env),
         observed_columns=list(current.columns),
         missing_expected_columns=missing_expected_columns(env, env._state.active_table),
         column_alias_hints=alias_hints,
@@ -295,6 +307,12 @@ def breakdown_payload(env) -> dict[str, object]:
 
 def objective_breakdown(env) -> dict[str, float]:
     breakdown = breakdown_payload(env)
+    if env._task_id in {1, 2} and isinstance(breakdown, dict):
+        return {
+            key: round(float(value), 4)
+            for key, value in breakdown.items()
+            if isinstance(value, (int, float))
+        }
     pipeline = breakdown.get("pipeline", {}) if isinstance(breakdown, dict) else {}
     return {
         key: round(float(value), 4)
@@ -316,6 +334,8 @@ def update_task_progress_state(env) -> None:
     _, _, active_subgoal, reward_machine_state = task_progress_bundle(env)
     env._state.active_subgoal = active_subgoal
     env._state.reward_machine_state = reward_machine_state
+    env._state.queue_backlog_age_minutes = backlog_age_minutes(env)
+    env._state.sla_severity = sla_severity(env)
 
 
 def subgoal_progress_map(env) -> dict[str, bool]:
@@ -363,3 +383,67 @@ def subgoal_progress_map(env) -> dict[str, bool]:
             "commit_temporal_pipeline": bool(env._state.done and env._state.success),
         }
     return {}
+
+
+def backlog_age_minutes(env) -> int:
+    if env._state.backlog_rows <= 0:
+        return 0
+    return int(env._scenario_meta.get("queue_backlog_age_minutes", env._state.queue_backlog_age_minutes))
+
+
+def sla_severity(env) -> str:
+    lag = int(env._state.freshness_lag_minutes)
+    backlog_age = backlog_age_minutes(env)
+    if lag <= 0 and backlog_age <= 0:
+        return "none"
+    if lag >= 180 or backlog_age >= 300:
+        return "critical"
+    if lag >= 90 or backlog_age >= 180:
+        return "high"
+    if lag > 0 or backlog_age > 0:
+        return "elevated"
+    return "none"
+
+
+def recent_failure_counters(env) -> dict[str, int]:
+    payload = env._scenario_meta.get("recent_failure_counters", {})
+    if isinstance(payload, dict):
+        return {str(key): int(value) for key, value in payload.items()}
+    return {}
+
+
+def drift_markers(env) -> list[str]:
+    markers = list(env._scenario_meta.get("open_world_patterns", []))
+    if missing_expected_columns(env, env._state.active_table):
+        markers.append("missing_expected_columns")
+    if column_alias_hints(env):
+        markers.append("column_alias_drift")
+    if schema_report(env):
+        markers.append("schema_validation_regression")
+    return sorted(dict.fromkeys(str(marker) for marker in markers))
+
+
+def dependency_health_summary(env) -> dict[str, str]:
+    if env._task_id == 3:
+        return {
+            "customer_contract": "stable" if not env._table_has_structural_issues("customers") else "repair_required",
+            "product_contract": "stable" if not env._table_has_structural_issues("products") else "repair_required",
+            "order_dependency": (
+                "consistent"
+                if not dependency_alerts(env)
+                else "cascading_breakage"
+            ),
+        }
+    if env._task_id == 4:
+        return {
+            "incremental_backlog": "cleared" if env._state.backlog_rows == 0 else "pending_replay",
+            "summary_state": "fresh" if not bool(env._scenario_meta.get("downstream_stale", False)) else "stale",
+            "recovery_gate": "safe_to_commit" if env._commit_ready() else "recovery_incomplete",
+        }
+    if env._task_id == 5:
+        return {
+            "schema_alignment": "stable" if not missing_expected_columns(env, "source_orders") else "schema_drift_active",
+            "temporal_backfill": "cleared" if env._state.backlog_rows == 0 else "late_batches_pending",
+            "rollup_state": "fresh" if not bool(env._scenario_meta.get("downstream_stale", False)) else "rollup_stale",
+        }
+    return {"single_table_state": "stable" if not env._recent_errors else "repair_required"}

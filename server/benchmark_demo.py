@@ -53,21 +53,33 @@ def build_benchmark_demo(
         return "\n".join(
             [
                 f"### Task {task_id}",
+                f"**Incident type:** {card['incident_type']}",
                 f"**Objective:** {card['objective']}",
+                f"**Incident summary:** {card['incident_description']}",
                 f"**Broken state:** {card['broken_state']}",
+                f"**Diagnosis signals:** {', '.join(card['diagnosis_signals'])}",
+                f"**Recovery requirements:** {', '.join(card['recovery_requirements'])}",
+                f"**Unsafe commit conditions:** {', '.join(card['unsafe_commit_conditions'])}",
                 f"**Success threshold:** `{card['success_threshold']}`",
+                f"**Threshold rationale:** {card['threshold_rationale']}",
+                f"**Target policy:** {card['target_policy']}",
                 f"**Failure / truncation:** {', '.join(card['failure_conditions'])}",
                 f"**Key subgoals:** {', '.join(card['key_subgoals'])}",
             ]
         )
 
     def profile_markdown() -> str:
-        payload = benchmark_profiles_payload()["scenario_profiles"]
+        payload = benchmark_profiles_payload()
+        profiles = payload["scenario_profiles"]
+        descriptions = payload.get("profile_descriptions", {})
         lines = ["### Scenario Profile Families"]
-        for task_id in sorted(payload):
+        for task_id in sorted(profiles):
             lines.append(f"**Task {task_id}**")
-            lines.append(f"- train: {', '.join(payload[task_id]['train'])}")
-            lines.append(f"- eval: {', '.join(payload[task_id]['eval'])}")
+            lines.append(f"- train: {', '.join(profiles[task_id]['train'])}")
+            lines.append(f"- eval: {', '.join(profiles[task_id]['eval'])}")
+            example_profile = profiles[task_id]["eval"][0]
+            if example_profile in descriptions:
+                lines.append(f"- example incident: {descriptions[example_profile]}")
             lines.append("")
         return "\n".join(lines)
 
@@ -82,7 +94,7 @@ def build_benchmark_demo(
             "",
             f"Tasks: `{len(benchmark_meta['task_names'])}` | Actions: `20` | Splits: `train`, `eval`",
             "",
-            "Mario is a benchmark-first ELT/ETL recovery environment. Agents repair broken tables, manage backlog and freshness pressure, and decide when pipeline state is safe to commit.",
+            "Mario is an ELT/ETL incident fixer delivered through OpenEnv. Agents diagnose broken ingestion and recovery states, repair upstream tables, restore downstream freshness, and decide when a pipeline is safe to commit.",
         ]
         return "\n".join(lines)
 
@@ -126,11 +138,11 @@ def build_benchmark_demo(
                     with gr.Column(scale=3):
                         gr.Markdown(profile_markdown())
                     with gr.Column(scale=2):
-                        gr.Markdown("## Task Explorer")
+                        gr.Markdown("## Incident Explorer")
                         task_picker = gr.Dropdown(
                             choices=[(f"Task {task_id}", task_id) for task_id in sorted(TASK_CARDS)],
                             value=1,
-                            label="Task card",
+                            label="Incident card",
                         )
                         task_card = gr.Markdown(task_card_markdown(1))
                         task_picker.change(task_card_markdown, inputs=task_picker, outputs=task_card)
@@ -140,12 +152,12 @@ def build_benchmark_demo(
                     _image_component("difficulty_gap.png", "Difficulty gap")
                     _image_component("objective_weights.png", "Task scoring weights")
                 gr.Markdown(
-                    "Tasks 1-2 show the single-table score mix. Tasks 3-5 show the higher-level benchmark objectives used by the hard recovery tasks."
+                    "Tasks 1-2 show single-table stabilization. Tasks 3-5 show pipeline-level recovery objectives for the harder ETL incidents."
                 )
 
             with gr.Tab("Episode Inspector"):
                 gr.Markdown(
-                    "## Live Episode Inspector\nReset a task, inspect the observation/state bundle, and step manually with the same discrete action contract the benchmark uses."
+                    "## Live Episode Inspector\nReset an incident, inspect the diagnosis/recovery state bundle, and step manually with the same discrete action contract the benchmark uses."
                 )
                 with gr.Row():
                     task_id = gr.Dropdown(
@@ -196,10 +208,11 @@ def build_benchmark_demo(
                         [
                             "## Benchmark Architecture",
                             "",
-                            "- **Observation signals:** data quality, dependency consistency, freshness, backlog, resource pressure, and reward-machine state.",
+                            "- **Incident framing:** each task is a broken ETL incident with diagnosis signals, recovery requirements, and unsafe-commit conditions.",
+                            "- **Observation signals:** data quality, dependency consistency, backlog age, freshness severity, resource pressure, and reward-machine state.",
                             "- **Action space:** discrete repair plus orchestration actions under a stable 0-19 contract.",
-                            "- **Scoring:** per-task deterministic grader with explicit objective-weight reporting for the hard tasks.",
-                            "- **Scoring weights:** Tasks 1-2 expose the single-table score mix; Tasks 3-5 expose multi-objective pipeline weights.",
+                            "- **Scoring:** per-task deterministic grader with explicit incident-recovery and objective-weight reporting for the hard tasks.",
+                            "- **Scoring weights:** Tasks 1-2 expose the single-table score mix; Tasks 3-5 expose multi-objective pipeline recovery weights.",
                             "- **Runtime modes:** benchmark, incident, and hybrid. These change the framing/reporting surface, not the underlying benchmark contract.",
                         ]
                     )

@@ -1,6 +1,6 @@
-# Reward and Adaptation
+# Reward, Recovery Semantics, and Adaptation
 
-This note describes how Mario scores the harder tasks and how held-out generalization is measured.
+This note describes how Mario scores ETL recovery, how dense shaping relates to true task success, and how held-out generalization is measured.
 
 ## Structured Evaluation
 
@@ -16,7 +16,23 @@ For Tasks 3, 4, and 5, observations now include:
 - `adaptation_target`
 - `heldout_profile_family`
 
-This keeps the benchmark OpenEnv-compatible while making grading easier to audit.
+This keeps the benchmark OpenEnv-compatible while making recovery logic easier to audit.
+
+## Success vs Shaping
+
+Mario always returns a scalar OpenEnv reward, but the intended task success is stricter than one step of score movement.
+
+- **True task success**
+  - the repaired table or pipeline clears the task threshold
+  - commit happens only after recovery preconditions are satisfied
+  - unsafe commit paths should fail even if local table quality temporarily improves
+- **Dense shaping**
+  - small progress deltas reward better diagnosis and staged repair
+  - step cost discourages wandering
+  - invalid-action penalties discourage impossible or malformed recovery moves
+  - terminal bonus only fires when the commit is actually successful
+
+This means Mario is trying to reward **safe incident recovery**, not just local cleanup.
 
 ## Why This Exists
 
@@ -95,7 +111,16 @@ Task 5:
 - `resource_efficiency`: `0.10`
 - `data_quality`: `0.15`
 
-These weights are exposed so benchmark users can see what the environment is optimizing.
+These weights are exposed so benchmark users can see what the environment is optimizing and how hard tasks trade off quality, freshness, backlog clearance, and resource use.
+
+## Exploit Checks
+
+Track A explicitly treats these as invalid benchmark wins:
+
+- deletion-heavy repair that hides missing data instead of restoring it
+- premature commit before dependency, backlog, freshness, or rollup recovery is complete
+- cosmetic consistency that leaves true downstream semantics broken
+- resource overuse that looks active but does not actually recover the incident
 
 ## Adaptation Benchmark
 

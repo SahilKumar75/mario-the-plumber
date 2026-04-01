@@ -20,10 +20,11 @@ def missing_expected_columns(env, table_name: str) -> list[str]:
 
 def column_alias_hints(env) -> dict[str, str]:
     current_columns = set(env._current_frame().columns)
+    expected_columns = set(env._expected_types[env._state.active_table])
     aliases = {
+        "signup_dt": "signup_date",
         "product_category": "category",
         "product_segment": "category",
-        "event_time": "event_ts",
         "business_date": "event_date",
         "observed_at": "event_ts",
         "window_start": "hour_bucket",
@@ -32,6 +33,11 @@ def column_alias_hints(env) -> dict[str, str]:
     for drifted_name, expected_name in aliases.items():
         if drifted_name in current_columns and expected_name not in current_columns:
             hints[drifted_name] = expected_name
+    if "event_time" in current_columns:
+        if "event_date" in expected_columns and "event_date" not in current_columns:
+            hints["event_time"] = "event_date"
+        elif "event_ts" in expected_columns and "event_ts" not in current_columns:
+            hints["event_time"] = "event_ts"
     return hints
 
 

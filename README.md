@@ -14,13 +14,13 @@ tags:
 
 # Mario the Plumber
 
-Mario the Plumber is an OpenEnv benchmark for **broken ELT/ETL pipeline repair and recovery**. Agents diagnose data-quality failures, repair cross-table dependencies, clear delayed batches, restore downstream summaries, and decide when it is safe to commit a pipeline.
+Mario the Plumber is an **ELT/ETL pipeline incident fixer** delivered through OpenEnv. Agents diagnose broken ingestion and recovery states, repair upstream tables, restore downstream freshness, and decide when a pipeline is safe to commit.
 
 ## Benchmark Card
 
 | Item | Value |
 |---|---|
-| Domain | ETL repair + online pipeline recovery |
+| Domain | ETL incident diagnosis, repair, and safe recovery |
 | API | `reset()` / `step()` / `state` |
 | Tasks | `5` |
 | Actions | `20` discrete actions |
@@ -64,7 +64,7 @@ flowchart LR
     F --> G["success / failure / truncation"]
 ```
 
-## Benchmark Results
+## Recovery Proof
 
 ![Benchmark overview](docs/assets/benchmark_overview.png)
 
@@ -87,25 +87,35 @@ Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchm
 
 ![Difficulty gap](docs/assets/difficulty_gap.png)
 
-The benchmark is designed so that hard tasks stay clearly above random behavior but remain solvable by structured policies.
+The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies.
 
 ## Tasks
 
-| Task | Difficulty | Focus | Tables |
+| Task | Difficulty | Incident Type | Tables |
 |---|---|---|---|
-| 1 | Easy | missing values + format cleanup | `single` |
-| 2 | Medium | duplicates + dtype repair | `single` |
-| 3 | Hard | cross-table dependency repair | `orders`, `customers`, `products` |
-| 4 | Hard | online ETL recovery under backlog, freshness, and resource pressure | `orders`, `products`, `daily_summary` |
-| 5 | Hard | temporal recovery with formal subgoal structure | `source_orders`, `catalog`, `hourly_rollup` |
+| 1 | Easy | first-line ingestion repair | `single` |
+| 2 | Medium | validation and event stabilization | `single` |
+| 3 | Hard | referential repair and cascading recovery | `orders`, `customers`, `products` |
+| 4 | Hard | on-call incremental recovery under backlog, freshness, and resource pressure | `orders`, `products`, `daily_summary` |
+| 5 | Hard | temporal rollup recovery with schema evolution and late corrections | `source_orders`, `catalog`, `hourly_rollup` |
+
+Each task now exposes an explicit ETL incident card with:
+
+- what broke
+- diagnosis signals
+- recovery requirements
+- unsafe commit conditions
+- threshold rationale
 
 ## Observation and Actions
 
 Observations expose:
 
+- incident framing: `incident_type`, `incident_summary`, `diagnosis_signals`, `recovery_requirements`, `unsafe_commit_conditions`
 - quality signals: `missing_rate`, `duplicate_rate`, `type_violations`, `outlier_count`, `format_issues`
 - dependency and table signals: `table_health`, `dependency_alerts`, `commit_ready`
-- orchestration signals: `backlog_rows`, `freshness_lag_minutes`, `resource_level`, `required_resource_level`, `pending_batches`
+- orchestration signals: `backlog_rows`, `queue_backlog_age_minutes`, `freshness_lag_minutes`, `sla_severity`, `resource_level`, `required_resource_level`, `pending_batches`
+- operational incident signals: `recent_failure_counters`, `drift_markers`, `dependency_health_summary`
 - open-world signals: `scenario_profile`, `open_world_patterns`, `missing_expected_columns`, `column_alias_hints`
 - episode semantics: `time_budget_remaining`, `truncated`, `done_reason`
 - structured task signals for Tasks 3-5:
@@ -133,9 +143,9 @@ Actions:
 
 The Hugging Face Space serves the standard OpenEnv API and, when the web interface is enabled, a benchmark-specific visualization tab at `/web`:
 
-- benchmark overview
-- task explorer
-- live episode inspector
+- ETL incident overview
+- incident/task explorer
+- live diagnosis and recovery inspector
 - benchmark results and adaptation artifacts
 - architecture notes for reviewers
 
@@ -143,10 +153,12 @@ The Hugging Face Space serves the standard OpenEnv API and, when the web interfa
 
 ![Objective weights](docs/assets/objective_weights.png)
 
-Mario returns a scalar OpenEnv reward, but the benchmark now exposes its scoring structure more clearly:
+Mario keeps a scalar OpenEnv reward, but the ETL recovery logic is now more explicit:
 
 - Tasks 1-2 use the single-table mix: completeness, validity, consistency, accuracy
 - Tasks 3-5 expose higher-level pipeline objective weights alongside the scalar score
+- task cards distinguish **true recovery success** from **dense shaping terms**
+- exploit checks explicitly guard against deletion-heavy repair, premature commit, cosmetic consistency, and fake recovery through resource overuse
 
 - `reward_breakdown`
 - `objective_breakdown`
@@ -156,7 +168,7 @@ Mario returns a scalar OpenEnv reward, but the benchmark now exposes its scoring
 - `active_subgoal`
 - `reward_machine_state`
 
-These signals make the benchmark easier to audit without changing the standard OpenEnv API.
+These signals make the ETL incident fixer easier to audit without changing the standard OpenEnv API.
 
 ## Artifact Generation
 
@@ -179,6 +191,13 @@ python3 scripts/generate_visuals.py
 - `pure-llm`
 
 `pure-llm` is strict and does not silently borrow heuristic rescue.
+
+Benchmark artifacts also report:
+
+- action-source mix
+- held-out profile-family behavior
+- incident-family coverage
+- generalization gaps between `train` and `eval`
 
 ## Deployment
 
@@ -205,6 +224,7 @@ Key submission files:
 - `drop_nulls` changes row count, so the accuracy metric strongly discourages deletion-heavy repairs.
 - `inference.py` is a benchmark baseline family, not a learned RL policy.
 - Task 5 uses a hand-authored formal subgoal structure rather than a learned task specification.
+- Mario models realistic ETL incident structure, not real schedulers, warehouses, or enterprise-scale row volume.
 
 ## Additional Docs
 

@@ -102,19 +102,21 @@ def _generate_task1(
     broken.loc[age_null_rows, "age"] = np.nan
     broken.loc[spend_null_rows, "monthly_spend"] = np.nan
 
-    if profile in {"currency_format_pressure"} or rng.random() < 0.4:
+    if profile in {"currency_contract_regression", "signup_contract_drift"} or rng.random() < 0.4:
         broken["monthly_spend"] = broken["monthly_spend"].astype(object)
         currency_rows = rng.choice(len(broken), size=int(rng.integers(1, 3)), replace=False)
         for row in currency_rows:
             value = ground_truth.loc[row, "monthly_spend"]
             broken.loc[row, "monthly_spend"] = f"${value:,.2f} USD"
 
-    if profile in {"nulls_and_date_drift"} or split == "eval" or rng.random() < 0.5:
+    if profile in {"ingestion_date_contract_drift", "signup_contract_drift"} or split == "eval" or rng.random() < 0.5:
         broken["signup_date"] = broken["signup_date"].astype(object)
         date_rows = rng.choice(len(broken), size=int(rng.integers(2, 5)), replace=False)
         for row in date_rows:
             value = pd.to_datetime(ground_truth.loc[row, "signup_date"])
             broken.loc[row, "signup_date"] = value.strftime("%d/%m/%Y")
+    if profile == "signup_contract_drift":
+        broken = broken.rename(columns={"signup_date": "signup_dt"})
 
     return Scenario(
         task_id=1,
@@ -128,6 +130,11 @@ def _generate_task1(
             "scenario_profile": profile,
             "open_world_patterns": _patterns_for_profile(profile),
             "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
+            "recent_failure_counters": {
+                "ingestion_job_failures": 1,
+                "contract_validation_failures": 1 if profile == "signup_contract_drift" else 0,
+            },
+            "queue_backlog_age_minutes": 0,
         },
     )
 
@@ -158,16 +165,18 @@ def _generate_task2(
     broken["age"] = broken["age"].astype(str)
     broken["amount"] = broken["amount"].astype(str)
     broken = pd.concat([broken, broken.iloc[[1, 4]]], ignore_index=True)
-    if profile == "outlier_and_currency_drift" or rng.random() < 0.3:
+    if profile == "outlier_currency_regression" or rng.random() < 0.3:
         broken.loc[0, "amount"] = "999999.0"
-    if profile in {"duplicates_dtype_and_date_drift", "outlier_and_currency_drift"} or split == "eval" or rng.random() < 0.5:
+    if profile in {"event_contract_breakage", "outlier_currency_regression"} or split == "eval" or rng.random() < 0.5:
         broken["amount"] = broken["amount"].map(lambda value: f"INR {value}")
-    if profile == "duplicates_dtype_and_date_drift" or split == "eval" or rng.random() < 0.4:
+    if profile == "event_contract_breakage" or split == "eval" or rng.random() < 0.4:
         broken["event_date"] = broken["event_date"].astype(object)
         date_rows = rng.choice(len(broken), size=int(rng.integers(2, 5)), replace=False)
         for row in date_rows:
             value = pd.to_datetime(str(ground_truth.loc[min(row, len(ground_truth) - 1), "event_date"]))
             broken.loc[row, "event_date"] = value.strftime("%m-%d-%Y")
+    if profile == "event_contract_breakage":
+        broken = broken.rename(columns={"event_date": "event_time"})
 
     return Scenario(
         task_id=2,
@@ -181,6 +190,11 @@ def _generate_task2(
             "scenario_profile": profile,
             "open_world_patterns": _patterns_for_profile(profile),
             "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
+            "recent_failure_counters": {
+                "retry_replay_failures": 1,
+                "validation_failures": 2 if profile in {"dtype_validation_regression", "event_contract_breakage"} else 1,
+            },
+            "queue_backlog_age_minutes": 0,
         },
     )
 
@@ -239,10 +253,10 @@ def _generate_task3(
     customers_broken = customers_truth.copy()
     customers_broken["age"] = customers_broken["age"].astype(object)
     customers_broken.loc[int(rng.integers(0, len(customers_broken))), "age"] = np.nan
-    if profile in {"alias_encoding_drift", "mixed_open_world_breakage"} or split == "eval" or rng.random() < 0.5:
+    if profile in {"alias_and_encoding_regression", "cascading_reference_outage"} or split == "eval" or rng.random() < 0.5:
         email_row = int(rng.integers(0, len(customers_broken)))
         customers_broken.loc[email_row, "email"] = f" {customers_broken.loc[email_row, 'email'].upper()} "
-    if profile in {"sentinel_missing_values", "mixed_open_world_breakage"}:
+    if profile in {"sentinel_reference_breakage", "cascading_reference_outage"}:
         sentinel_row = int(rng.integers(0, len(customers_broken)))
         customers_broken.loc[sentinel_row, "age"] = "unknown"
 
@@ -255,12 +269,12 @@ def _generate_task3(
     )
     if rng.random() < 0.5:
         products_broken.loc[0, "unit_price"] = "999999.0"
-    if profile in {"alias_encoding_drift", "mixed_open_world_breakage"}:
+    if profile in {"alias_and_encoding_regression", "cascading_reference_outage"}:
         products_broken = products_broken.rename(columns={"category": "product_category"})
     category_column = "product_category" if "product_category" in products_broken.columns else "category"
-    if split == "eval" or profile in {"currency_date_drift", "timezone_and_currency_drift", "mixed_open_world_breakage"} or rng.random() < 0.6:
+    if split == "eval" or profile in {"customer_product_contract_drift", "timezone_currency_consistency_incident", "cascading_reference_outage"} or rng.random() < 0.6:
         products_broken.loc[1, category_column] = " IoT "
-    if split == "eval" or profile in {"currency_date_drift", "timezone_and_currency_drift", "mixed_open_world_breakage"} or rng.random() < 0.5:
+    if split == "eval" or profile in {"customer_product_contract_drift", "timezone_currency_consistency_incident", "cascading_reference_outage"} or rng.random() < 0.5:
         formatted_rows = rng.choice(len(products_broken), size=min(2, len(products_broken)), replace=False)
         for row in formatted_rows:
             raw_value = pd.to_numeric(products_broken.loc[row, "unit_price"], errors="coerce")
@@ -271,7 +285,7 @@ def _generate_task3(
     product_prices = products_truth.set_index("product_id")["unit_price"]
     orders_broken["customer_id"] = orders_broken["customer_id"].astype(str)
     orders_broken["quantity"] = orders_broken["quantity"].astype(str)
-    if split == "eval" or profile in {"sentinel_missing_values", "mixed_open_world_breakage"}:
+    if split == "eval" or profile in {"sentinel_reference_breakage", "cascading_reference_outage"}:
         quantity_rows = rng.choice(len(orders_broken), size=int(rng.integers(1, 3)), replace=False)
         for row in quantity_rows:
             orders_broken.loc[row, "quantity"] = "missing"
@@ -279,7 +293,7 @@ def _generate_task3(
         quantity_rows = rng.choice(len(orders_broken), size=int(rng.integers(1, 3)), replace=False)
         for row in quantity_rows:
             orders_broken.loc[row, "quantity"] = f"{orders_truth.loc[row, 'quantity']} units"
-    if profile in {"timezone_and_currency_drift", "mixed_open_world_breakage"}:
+    if profile in {"timezone_currency_consistency_incident", "cascading_reference_outage"}:
         orders_broken["order_date"] = orders_broken["order_date"].astype(object)
         date_rows = rng.choice(len(orders_broken), size=int(rng.integers(2, 5)), replace=False)
         for row in date_rows:
@@ -327,6 +341,11 @@ def _generate_task3(
             "scenario_profile": profile,
             "open_world_patterns": _patterns_for_profile(profile),
             "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
+            "recent_failure_counters": {
+                "join_validation_failures": 1,
+                "downstream_total_mismatches": int(len(orders_truth)),
+            },
+            "queue_backlog_age_minutes": 0,
         },
     )
 
@@ -389,16 +408,16 @@ def _generate_task4(
     drift_rows = rng.choice(len(orders_broken), size=min(3, len(orders_broken)), replace=False)
     for index, row in enumerate(drift_rows):
         ts = pd.to_datetime(visible_orders.iloc[row]["event_ts"])
-        if profile in {"timezone_alias_burst", "mixed_operational_open_world"} and index == 0:
+        if profile in {"timezone_alias_burst_incident", "mixed_operational_recovery_incident"} and index == 0:
             orders_broken.iloc[row, orders_broken.columns.get_loc("event_ts")] = ts.strftime("%Y-%m-%d %H:%M:%S+05:30")
         elif index % 2 == 0:
             orders_broken.iloc[row, orders_broken.columns.get_loc("event_ts")] = ts.strftime("%d/%m/%Y %H:%M")
         else:
             orders_broken.iloc[row, orders_broken.columns.get_loc("event_ts")] = ts.strftime("%m-%d-%Y %H:%M")
-    if profile in {"schema_alias_and_units", "timezone_alias_burst", "mixed_operational_open_world"}:
+    if profile in {"schema_alias_unit_regression", "timezone_alias_burst_incident", "mixed_operational_recovery_incident"}:
         orders_broken = orders_broken.rename(columns={"event_ts": "event_time"})
 
-    if split == "eval" or profile in {"mixed_operational_open_world"} or rng.random() < 0.7:
+    if split == "eval" or profile in {"mixed_operational_recovery_incident"} or rng.random() < 0.7:
         quantity_rows = rng.choice(len(orders_broken), size=min(2, len(orders_broken)), replace=False)
         for row in quantity_rows:
             value = visible_orders.iloc[row]["quantity"]
@@ -412,9 +431,9 @@ def _generate_task4(
             products_broken.iloc[row, products_broken.columns.get_loc("unit_price")] = f"${value:,.2f}"
         else:
             products_broken.iloc[row, products_broken.columns.get_loc("unit_price")] = f"{int(value * 100)} cents"
-    if split == "eval" or profile in {"schema_alias_and_units", "mixed_operational_open_world"} or rng.random() < 0.6:
+    if split == "eval" or profile in {"schema_alias_unit_regression", "mixed_operational_recovery_incident"} or rng.random() < 0.6:
         products_broken.iloc[1, products_broken.columns.get_loc("category")] = " IoT "
-    if profile in {"schema_alias_and_units", "mixed_operational_open_world"}:
+    if profile in {"schema_alias_unit_regression", "mixed_operational_recovery_incident"}:
         products_broken = products_broken.rename(columns={"category": "product_segment"})
 
     summary_broken["event_date"] = summary_broken["event_date"].astype(object)
@@ -422,14 +441,15 @@ def _generate_task4(
         first_date = pd.to_datetime(summary_broken.iloc[0]["event_date"])
         summary_broken.iloc[0, summary_broken.columns.get_loc("event_date")] = first_date.strftime("%d/%m/%Y")
     summary_broken["total_revenue"] = (summary_broken["total_revenue"] * 0.92).round(2)
-    if profile in {"stale_summary_recovery", "mixed_operational_open_world"}:
+    if profile in {"stale_summary_oncall_recovery", "mixed_operational_recovery_incident"}:
         summary_broken = summary_broken.rename(columns={"event_date": "business_date"})
 
     backlog_rows = len(pending_orders)
     required_resource_level = 2 if backlog_rows <= 2 else 3
     freshness_lag_minutes = 90 if split == "train" else 150
-    if profile in {"timezone_alias_burst", "mixed_operational_open_world"}:
+    if profile in {"timezone_alias_burst_incident", "mixed_operational_recovery_incident"}:
         freshness_lag_minutes += 30
+    backlog_age_minutes = 165 if split == "train" else 240
 
     return Scenario(
         task_id=4,
@@ -454,6 +474,7 @@ def _generate_task4(
         metadata={
             "pending_orders": pending_orders,
             "backlog_rows": backlog_rows,
+            "queue_backlog_age_minutes": backlog_age_minutes,
             "freshness_lag_minutes": freshness_lag_minutes,
             "resource_level": 1,
             "required_resource_level": required_resource_level,
@@ -463,6 +484,11 @@ def _generate_task4(
             "scenario_profile": profile,
             "open_world_patterns": _patterns_for_profile(profile),
             "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
+            "recent_failure_counters": {
+                "incremental_load_failures": 1,
+                "summary_refresh_failures": 1,
+                "resource_scale_attempts": 1 if required_resource_level > 1 else 0,
+            },
         },
     )
 
@@ -527,7 +553,7 @@ def _generate_task5(
     source_broken["event_ts"] = source_broken["event_ts"].astype(object)
     source_broken["gross_revenue"] = (visible_orders["gross_revenue"] * 0.83).round(2).astype(object)
 
-    if profile in {"schema_evolution_and_backfill", "temporal_open_world_shift", "heldout_temporal_profile_family"}:
+    if profile in {"schema_evolution_backfill_recovery", "temporal_open_world_shift_incident", "heldout_temporal_incident_family"}:
         source_broken = source_broken.rename(columns={"event_ts": "observed_at"})
     time_column = "observed_at" if "observed_at" in source_broken.columns else "event_ts"
     drift_rows = rng.choice(len(source_broken), size=min(3, len(source_broken)), replace=False)
@@ -551,13 +577,13 @@ def _generate_task5(
         catalog_broken.iloc[row, catalog_broken.columns.get_loc("unit_price")] = (
             f"${value:,.2f}" if row % 2 == 0 else f"{int(value * 100)} cents"
         )
-    if profile in {"schema_evolution_and_backfill", "heldout_temporal_profile_family"}:
+    if profile in {"schema_evolution_backfill_recovery", "heldout_temporal_incident_family"}:
         catalog_broken = catalog_broken.rename(columns={"category": "product_segment"})
     category_column = "product_segment" if "product_segment" in catalog_broken.columns else "category"
     catalog_broken.iloc[1, catalog_broken.columns.get_loc(category_column)] = " IoT "
     catalog_broken = pd.concat([catalog_broken, catalog_broken.iloc[[2]]], ignore_index=True)
 
-    if profile in {"temporal_rollup_recovery", "temporal_open_world_shift", "heldout_temporal_profile_family"}:
+    if profile in {"temporal_rollup_backfill_incident", "temporal_open_world_shift_incident", "heldout_temporal_incident_family"}:
         rollup_broken = rollup_broken.rename(columns={"hour_bucket": "window_start"})
     rollup_time_column = "window_start" if "window_start" in rollup_broken.columns else "hour_bucket"
     if len(rollup_broken) > 0:
@@ -567,6 +593,7 @@ def _generate_task5(
     backlog_rows = len(pending_orders)
     required_resource_level = 3 if backlog_rows >= 4 else 2
     freshness_lag_minutes = 180 if split == "eval" else 120
+    backlog_age_minutes = 240 if split == "train" else 360
 
     return Scenario(
         task_id=5,
@@ -591,6 +618,7 @@ def _generate_task5(
         metadata={
             "pending_orders": pending_orders,
             "backlog_rows": backlog_rows,
+            "queue_backlog_age_minutes": backlog_age_minutes,
             "freshness_lag_minutes": freshness_lag_minutes,
             "resource_level": 1,
             "required_resource_level": required_resource_level,
@@ -600,10 +628,15 @@ def _generate_task5(
             "scenario_profile": profile,
             "open_world_patterns": _patterns_for_profile(profile),
             "synthetic_data_notes": SYNTHETIC_DATA_NOTES,
-            "heldout_profile_family": profile == "heldout_temporal_profile_family",
+            "heldout_profile_family": profile == "heldout_temporal_incident_family",
             "adaptation_target": "Recover an unseen temporal profile family in one episode.",
             "task_spec": FORMAL_TASK_SPECS[5],
             "tradeoff_weights": TASK_OBJECTIVE_WEIGHTS[5],
+            "recent_failure_counters": {
+                "late_correction_failures": 2,
+                "rollup_refresh_failures": 1,
+                "schema_migration_regressions": 1,
+            },
         },
     )
 

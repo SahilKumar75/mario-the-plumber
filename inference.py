@@ -94,6 +94,8 @@ def run_baseline(
                 "score": round(observation.current_score, 4),
                 "steps": env.state.step_count,
                 "success": bool(env.state.success),
+                "scenario_profile": observation.scenario_profile,
+                "heldout_profile_family": bool(observation.heldout_profile_family),
                 "action_sources": dict(task_sources),
             }
         )

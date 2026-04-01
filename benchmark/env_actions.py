@@ -302,8 +302,10 @@ def prioritize_incremental_batch(env) -> str:
     )
     env._scenario_meta["pending_orders"] = pending_orders.iloc[0:0].copy(deep=True)
     env._state.backlog_rows = 0
+    env._state.queue_backlog_age_minutes = 0
     env._state.pending_batches = 0
     env._scenario_meta["backlog_rows"] = 0
+    env._scenario_meta["queue_backlog_age_minutes"] = 0
     env._scenario_meta["pending_batches"] = 0
     lag_reduction = 90 if env._task_id == 4 else 120
     env._state.freshness_lag_minutes = max(0, env._state.freshness_lag_minutes - lag_reduction)
@@ -344,6 +346,10 @@ def refresh_downstream_summary(env) -> str:
     )
     env._scenario_meta["freshness_lag_minutes"] = env._state.freshness_lag_minutes
     env._scenario_meta["downstream_stale"] = env._state.backlog_rows > 0
+    recent_failures = dict(env._scenario_meta.get("recent_failure_counters", {}))
+    if "summary_refresh_failures" in recent_failures:
+        recent_failures["summary_refresh_failures"] = 0
+        env._scenario_meta["recent_failure_counters"] = recent_failures
     return "Downstream daily summary refreshed from the current upstream tables."
 
 
@@ -380,6 +386,10 @@ def refresh_hourly_rollup(env) -> str:
     )
     env._scenario_meta["freshness_lag_minutes"] = env._state.freshness_lag_minutes
     env._scenario_meta["downstream_stale"] = env._state.backlog_rows > 0
+    recent_failures = dict(env._scenario_meta.get("recent_failure_counters", {}))
+    if "rollup_refresh_failures" in recent_failures:
+        recent_failures["rollup_refresh_failures"] = 0
+        env._scenario_meta["recent_failure_counters"] = recent_failures
     return "Hourly rollup refreshed from source_orders and catalog."
 
 
