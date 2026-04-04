@@ -1,6 +1,6 @@
 # Reward, Recovery Semantics, and Adaptation
 
-This note describes how Mario scores ETL recovery, how dense shaping relates to true task success, and how held-out generalization is measured.
+This note describes how Mario scores ETL recovery, how dense shaping relates to true task success, and how held-out generalization is measured in the trace-grounded benchmark.
 
 ## Structured Evaluation
 
@@ -132,8 +132,14 @@ python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 
 
 Current local result:
 
-- train Task 5 mean: `0.9774`
-- eval Task 5 mean: `0.8777`
-- held-out profile family Task 5 mean: `0.6776`
+- train Task 5 mean: `0.9789`
+- eval Task 5 mean: `0.7780`
+- familiar eval Task 5 mean: `0.9789`
+- held-out profile family Task 5 mean: `0.5770`
+- held-out family gap: `0.4019`
+- held-out profile breakdown:
+  - `heldout_temporal_schema_extension_family`: `0.5520`
+  - `heldout_temporal_rollup_contract_family`: `0.6271`
+  - `heldout_temporal_correction_replay_family`: `0.5520`
 
-This is not a learned-policy transfer benchmark, but it provides a direct held-out profile-family check instead of relying on a single seed.
+Task 5 held-out families now cover distinct temporal novelty axes rather than a single unseen profile, which makes the adaptation check more discriminative while preserving the same public action contract.

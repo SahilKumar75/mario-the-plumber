@@ -6,7 +6,7 @@ BENCHMARK_VERSION = "2.1"
 
 RUNTIME_MODES = {
     "benchmark": {
-        "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+        "summary": "Default self-contained trace-grounded benchmark episodes for ETL repair and recovery.",
         "use_case": "Scoring, automated evaluation, and baseline comparison.",
     },
     "incident": {
@@ -81,15 +81,16 @@ SCENARIO_PROFILES: dict[int, dict[str, list[str]]] = {
         "eval": [
             "schema_evolution_backfill_recovery",
             "late_correction_backpressure_incident",
-            "temporal_open_world_shift_incident",
-            "heldout_temporal_incident_family",
+            "heldout_temporal_schema_extension_family",
+            "heldout_temporal_rollup_contract_family",
+            "heldout_temporal_correction_replay_family",
         ],
     },
 }
 
 SYNTHETIC_DATA_NOTES = [
-    "Synthetic tables preserve schema-level repair structure, not enterprise-scale row volume.",
-    "Utility is benchmarked through relative policy separation across tasks and held-out splits.",
+    "Self-contained fixture packs bundle broken tables with DAG-run and warehouse-event traces.",
+    "Operational metadata is trace-grounded, but packaged locally so the environment stays reproducible and offline.",
     "Profiles intentionally vary failure combinations so agents cannot rely on a single fixed script.",
 ]
 
@@ -116,7 +117,26 @@ PROFILE_PATTERNS = {
     "schema_evolution_backfill_recovery": ["schema_alias", "unit_drift", "backfill_required", "schema_extension"],
     "late_correction_backpressure_incident": ["late_batch", "resource_pressure", "correction_replay", "unsafe_commit_risk"],
     "temporal_open_world_shift_incident": ["schema_alias", "timezone_drift", "timestamp_rollup", "correction_replay"],
-    "heldout_temporal_incident_family": ["schema_alias", "backfill_required", "workload_burst", "timestamp_rollup", "schema_extension"],
+    "heldout_temporal_schema_extension_family": [
+        "schema_alias",
+        "schema_extension",
+        "backfill_required",
+        "workload_burst",
+        "timestamp_rollup",
+    ],
+    "heldout_temporal_rollup_contract_family": [
+        "rollup_contract_drift",
+        "schema_alias",
+        "backfill_required",
+        "timestamp_rollup",
+    ],
+    "heldout_temporal_correction_replay_family": [
+        "late_batch",
+        "correction_replay",
+        "schema_alias",
+        "workload_burst",
+        "freshness_pressure",
+    ],
 }
 
 PROFILE_DESCRIPTIONS = {
@@ -142,7 +162,9 @@ PROFILE_DESCRIPTIONS = {
     "schema_evolution_backfill_recovery": "Schema evolution and backfill pressure must be reconciled before temporal rollups become trustworthy again.",
     "late_correction_backpressure_incident": "Late source corrections are piling up while the recovery path is under backpressure.",
     "temporal_open_world_shift_incident": "Temporal profiles shifted across schema, timestamps, and correction replay patterns.",
-    "heldout_temporal_incident_family": "A held-out temporal incident family combines unseen schema extension, burstiness, and rollup drift in one recovery episode.",
+    "heldout_temporal_schema_extension_family": "A held-out temporal family adds unseen schema-extension and alias drift while late batches and rollup freshness are both degraded.",
+    "heldout_temporal_rollup_contract_family": "A held-out temporal family changes rollup naming and revenue-contract semantics while backlog replay is still required.",
+    "heldout_temporal_correction_replay_family": "A held-out temporal family mixes late-correction replay pressure, freshness breaches, and alias drift across source and rollup layers.",
 }
 
 TASK_OBJECTIVE_WEIGHTS: dict[int, dict[str, float]] = {
@@ -438,7 +460,7 @@ TASK_CARDS = {
 KNOWN_LIMITATIONS = [
     "Row deletion via drop_nulls is intentionally penalized by row-count-sensitive accuracy, so agents should prefer repair over deletion.",
     "The provided inference baseline is a benchmark policy family, not a learned RL training pipeline.",
-    "Synthetic tables optimize for benchmark utility and policy separation, not enterprise-scale realism.",
+    "The environment is trace-grounded and self-contained, but it is still a benchmark abstraction rather than a live warehouse integration.",
 ]
 
 

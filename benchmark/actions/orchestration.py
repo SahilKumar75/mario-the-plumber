@@ -5,11 +5,13 @@ import pandas as pd
 try:
     from .transforms import normalize_date_string, normalize_numeric_value
     from .validation import table_has_structural_issues
-    from ..grading import task3_dependency_score
+    from ..grading import task3_dependency_score, task5_rollup_consistency_score
+    from ..observation_support import workload_pressure
 except ImportError:
     from benchmark.actions.transforms import normalize_date_string, normalize_numeric_value
     from benchmark.actions.validation import table_has_structural_issues
-    from benchmark.grading import task3_dependency_score
+    from benchmark.grading import task3_dependency_score, task5_rollup_consistency_score
+    from benchmark.observation_support import workload_pressure
 
 
 def commit_changes(env) -> None:
@@ -59,7 +61,11 @@ def task5_commit_ready(env) -> bool:
         return False
     if bool(env._scenario_meta.get("downstream_stale", False)):
         return False
-    return True
+    return task5_rollup_consistency_score(
+        env._tables["source_orders"],
+        env._tables["catalog"],
+        env._tables["hourly_rollup"],
+    ) >= 0.9999
 
 
 def scale_resources(env, *, up: bool) -> str:
@@ -68,7 +74,7 @@ def scale_resources(env, *, up: bool) -> str:
     current = env._state.resource_level
     env._state.resource_level = min(current + 1, 3) if up else max(current - 1, 1)
     env._scenario_meta["resource_level"] = env._state.resource_level
-    pressure = env._workload_pressure()
+    pressure = workload_pressure(env)
     direction = "up" if up else "down"
     return f"resources_scaled_{direction}: level={env._state.resource_level}, pressure={pressure:.2f}"
 

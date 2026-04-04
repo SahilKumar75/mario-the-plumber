@@ -13,3 +13,4 @@ venv/
 env/
 dist/
 build/
+docs/assets/*.png

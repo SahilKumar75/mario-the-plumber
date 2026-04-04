@@ -24,10 +24,20 @@ Mario uses a benchmark-oriented internal split:
   - profile families
   - objective weights
   - formal task specs
+- `server/incidents/`
+  - self-contained trace-grounded incident fixture packs
+  - incident manifests, DAG-run traces, and warehouse-event traces
 - `benchmark/grading.py`
   - deterministic single-table and multi-table scoring
   - reward shaping
   - consistency checks
+- `benchmark/evaluation.py`
+  - score dispatch
+  - episode summary snapshots
+- `benchmark/progress.py`
+  - subgoal progress
+  - reward-machine state
+  - dependency-health summaries
 - `benchmark/policies/`
   - prompt construction
   - heuristic and hybrid policies
@@ -40,10 +50,13 @@ Mario uses a benchmark-oriented internal split:
   - episode reporting
   - structured progress signals
 - `server/data_generator.py`
-  - deterministic synthetic scenario generation for tasks 1-5
+  - scenario dispatch for tasks 1-5
 - `server/pipeline_doctor_environment.py`
-  - environment lifecycle orchestration
-  - state transitions
+  - OpenEnv lifecycle shell
+  - state transitions and API wiring
+- `server/runtime.py`
+  - episode initialization
+  - step resolution
 - `server/app.py`
   - OpenEnv server entrypoint
   - benchmark metadata routes
@@ -69,6 +82,7 @@ These modes do not change the public task or action contract.
 - Task 3: referential repair and cascading downstream recovery
 - Task 4: on-call incremental recovery under backlog, freshness, and resource pressure
 - Task 5: temporal rollup recovery with schema evolution, late corrections, and held-out profile adaptation
+  - held-out families cover schema extension drift, rollup contract drift, and correction replay drift
 
 ## Evaluation Signals
 

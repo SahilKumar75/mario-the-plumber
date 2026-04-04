@@ -36,6 +36,9 @@ except ImportError:
         validate_parameter_action,
         normalize_string_value,
     )
+    from benchmark.runtime_state import current_frame, current_table
+else:
+    from ..runtime_state import current_frame, current_table
 
 
 def apply_action(env, action) -> str:
@@ -47,23 +50,23 @@ def apply_action(env, action) -> str:
     if action.action_id == 1:
         return "\n".join(env._recent_errors) if env._recent_errors else "No errors detected."
     if action.action_id == 2:
-        rows = env._current_table().head(5).to_dict(orient="records")
+        rows = current_table(env).head(5).to_dict(orient="records")
         return json.dumps(rows, default=str)
     if action.action_id in PARAMETER_ACTIONS and not action.target_column:
         raise ValueError("missing required parameter target_column")
     if action.action_id in {12, 13}:
-        validate_parameter_action(action, list(env._current_frame().columns))
+        validate_parameter_action(action, list(current_frame(env).columns))
 
     if action.action_id == 3:
         fill_with_statistic(env, action.target_column, "mean")
     elif action.action_id == 4:
         fill_with_statistic(env, action.target_column, "median")
     elif action.action_id == 5:
-        env._current_frame()[action.target_column] = (
-            env._current_frame()[action.target_column].ffill().bfill()
+        current_frame(env)[action.target_column] = (
+            current_frame(env)[action.target_column].ffill().bfill()
         )
     elif action.action_id == 6:
-        current = env._current_frame()
+        current = current_frame(env)
         env._tables[env._state.active_table] = current[current[action.target_column].notna()].reset_index(
             drop=True
         )
@@ -72,7 +75,7 @@ def apply_action(env, action) -> str:
     elif action.action_id == 8:
         cast_column(env, action.target_column, "float64")
     elif action.action_id == 9:
-        env._current_frame()[action.target_column] = env._current_frame()[action.target_column].map(
+        current_frame(env)[action.target_column] = current_frame(env)[action.target_column].map(
             lambda value: normalize_string_value(env, value, action.target_column)
         )
     elif action.action_id == 10:
@@ -80,11 +83,11 @@ def apply_action(env, action) -> str:
     elif action.action_id == 11:
         drop_outliers(env, action.target_column)
     elif action.action_id == 12:
-        env._tables[env._state.active_table] = env._current_frame().rename(
+        env._tables[env._state.active_table] = current_frame(env).rename(
             columns={action.target_column: action.new_name}
         )
     elif action.action_id == 13:
-        env._tables[env._state.active_table] = env._current_frame()[action.column_order].copy()
+        env._tables[env._state.active_table] = current_frame(env)[action.column_order].copy()
     elif action.action_id == 14:
         return "\n".join(env._recent_errors) if env._recent_errors else "Schema validation passed."
     elif action.action_id == 15:

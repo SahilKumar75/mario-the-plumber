@@ -2,8 +2,10 @@ from __future__ import annotations
 
 try:
     from ..grading import duplicate_row_count
+    from ..inspection import format_issue_details_for_frame, outlier_details_for_frame, schema_report_for_table
 except ImportError:
     from benchmark.grading import duplicate_row_count
+    from benchmark.inspection import format_issue_details_for_frame, outlier_details_for_frame, schema_report_for_table
 
 
 def table_has_structural_issues(env, table_name: str) -> bool:
@@ -12,10 +14,10 @@ def table_has_structural_issues(env, table_name: str) -> bool:
         return True
     if duplicate_row_count(frame) > 0:
         return True
-    if env._schema_report_for_table(table_name):
+    if schema_report_for_table(env, table_name):
         return True
-    if env._outlier_details_for_frame(frame):
+    if outlier_details_for_frame(env, frame):
         return True
-    if env._format_issue_details_for_frame(frame):
+    if format_issue_details_for_frame(env, frame):
         return True
     return False

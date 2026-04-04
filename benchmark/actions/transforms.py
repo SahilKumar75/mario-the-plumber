@@ -6,11 +6,16 @@ import re
 
 import pandas as pd
 
+try:
+    from ..runtime_state import current_frame
+except ImportError:
+    from benchmark.runtime_state import current_frame
+
 
 def handle_inspect_schema(env, action) -> str:
     if action.target_column and action.target_column in env._tables:
         env._state.active_table = action.target_column
-    current = env._current_frame()
+    current = current_frame(env)
     expected = env._expected_types[env._state.active_table]
     lines = [f"table={env._state.active_table}"]
     for column in current.columns:
@@ -19,29 +24,29 @@ def handle_inspect_schema(env, action) -> str:
 
 
 def fill_with_statistic(env, column: str | None, statistic: str) -> None:
-    if column not in env._current_frame().columns:
+    if column not in current_frame(env).columns:
         raise ValueError("target_column not found")
     numeric = numeric_series(env, column)
     if numeric.dropna().empty:
         raise ValueError("target_column has no numeric values for statistic fill")
     value = numeric.mean() if statistic == "mean" else numeric.median()
-    env._current_frame()[column] = numeric.fillna(value)
+    current_frame(env)[column] = numeric.fillna(value)
 
 
 def cast_column(env, column: str | None, dtype: str) -> None:
-    if column not in env._current_frame().columns:
+    if column not in current_frame(env).columns:
         raise ValueError("target_column not found")
     numeric = numeric_series(env, column)
     if dtype == "int64":
         if numeric.isna().any():
             raise ValueError("cannot cast to int while nulls remain")
-        env._current_frame()[column] = numeric.astype("int64")
+        current_frame(env)[column] = numeric.astype("int64")
     else:
-        env._current_frame()[column] = numeric.astype("float64")
+        current_frame(env)[column] = numeric.astype("float64")
 
 
 def numeric_series(env, column: str) -> pd.Series:
-    raw_series = env._current_frame()[column]
+    raw_series = current_frame(env)[column]
     normalized = raw_series.map(normalize_numeric_value)
     return pd.to_numeric(normalized, errors="coerce")
 
@@ -119,9 +124,9 @@ def looks_timestamp_string(text: str) -> bool:
 
 
 def drop_outliers(env, column: str | None) -> None:
-    if column not in env._current_frame().columns:
+    if column not in current_frame(env).columns:
         raise ValueError("target_column not found")
-    selected = env._current_frame()[column]
+    selected = current_frame(env)[column]
     if not isinstance(selected, pd.Series):
         raise ValueError("target_column must resolve to a single column")
     numeric = selected.map(normalize_numeric_value)
@@ -132,7 +137,7 @@ def drop_outliers(env, column: str | None) -> None:
     mean = float(numeric.mean(skipna=True))
     mask = (numeric - mean).abs() <= 3 * std
     mask = mask.fillna(False)
-    env._tables[env._state.active_table] = env._current_frame()[mask].reset_index(drop=True)
+    env._tables[env._state.active_table] = current_frame(env)[mask].reset_index(drop=True)
 
 
 def validate_parameter_action(action, current_columns: list[str]) -> None:
@@ -150,7 +155,7 @@ def validate_parameter_action(action, current_columns: list[str]) -> None:
 
 
 def deduplicate_current_table(env) -> pd.DataFrame:
-    current = env._current_frame()
+    current = current_frame(env)
     key_column = None
     for candidate in ("transaction_id", "order_id", "customer_id", "product_id"):
         if candidate in current.columns:

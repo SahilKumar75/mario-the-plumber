@@ -39,8 +39,9 @@ include-package-data = true
 packages = [
     "pipeline_doctor",
     "pipeline_doctor.server",
+    "pipeline_doctor.server.incidents",
     "pipeline_doctor.benchmark",
     "pipeline_doctor.benchmark.policies",
     "pipeline_doctor.benchmark.tasks",
 ]
-package-dir = { "pipeline_doctor" = ".", "pipeline_doctor.server" = "server", "pipeline_doctor.benchmark" = "benchmark", "pipeline_doctor.benchmark.policies" = "benchmark/policies", "pipeline_doctor.benchmark.tasks" = "benchmark/tasks" }
+package-dir = { "pipeline_doctor" = ".", "pipeline_doctor.server" = "server", "pipeline_doctor.server.incidents" = "server/incidents", "pipeline_doctor.benchmark" = "benchmark", "pipeline_doctor.benchmark.policies" = "benchmark/policies", "pipeline_doctor.benchmark.tasks" = "benchmark/tasks" }

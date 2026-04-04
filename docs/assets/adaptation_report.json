@@ -3,12 +3,12 @@
     "benchmark_version": "2.1",
     "runtime_mode": "benchmark",
     "runtime_mode_card": {
-      "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+      "summary": "Default self-contained trace-grounded benchmark episodes for ETL repair and recovery.",
       "use_case": "Scoring, automated evaluation, and baseline comparison."
     },
     "available_runtime_modes": {
       "benchmark": {
-        "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+        "summary": "Default self-contained trace-grounded benchmark episodes for ETL repair and recovery.",
         "use_case": "Scoring, automated evaluation, and baseline comparison."
       },
       "incident": {
@@ -30,24 +30,56 @@
     5,
     6
   ],
+  "eval_task5_profiles": {
+    "1": "heldout_temporal_schema_extension_family",
+    "2": "late_correction_backpressure_incident",
+    "3": "heldout_temporal_rollup_contract_family",
+    "4": "schema_evolution_backfill_recovery",
+    "5": "heldout_temporal_correction_replay_family",
+    "6": "late_correction_backpressure_incident"
+  },
   "heldout_task5_seeds": [
-    2,
-    3
+    1,
+    3,
+    5
   ],
   "train_task5": {
-    "mean": 0.9774,
-    "min": 0.9744,
-    "max": 0.9834
+    "mean": 0.9789,
+    "min": 0.9789,
+    "max": 0.9789
   },
   "eval_task5": {
-    "mean": 0.8777,
-    "min": 0.6776,
-    "max": 0.9834
+    "mean": 0.778,
+    "min": 0.552,
+    "max": 0.9789
+  },
+  "familiar_eval_task5": {
+    "mean": 0.9789,
+    "min": 0.9789,
+    "max": 0.9789
   },
   "heldout_profile_family_task5": {
-    "mean": 0.6776,
-    "min": 0.6776,
-    "max": 0.6776
+    "mean": 0.577,
+    "min": 0.552,
+    "max": 0.6271
   },
-  "adaptation_gap": 0.0997
+  "heldout_profile_breakdown_task5": {
+    "heldout_temporal_correction_replay_family": {
+      "mean": 0.552,
+      "min": 0.552,
+      "max": 0.552
+    },
+    "heldout_temporal_rollup_contract_family": {
+      "mean": 0.6271,
+      "min": 0.6271,
+      "max": 0.6271
+    },
+    "heldout_temporal_schema_extension_family": {
+      "mean": 0.552,
+      "min": 0.552,
+      "max": 0.552
+    }
+  },
+  "adaptation_gap": 0.2009,
+  "heldout_family_gap": 0.4019
 }

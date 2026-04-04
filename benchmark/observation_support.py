@@ -8,8 +8,14 @@ import pandas as pd
 
 try:
     from .grading import calculation_mismatch_count, score_single_table
+    from .runtime_state import current_frame
+    from .actions.transforms import is_datetime_like_column, normalize_string_value
+    from .actions.validation import table_has_structural_issues
 except ImportError:
     from benchmark.grading import calculation_mismatch_count, score_single_table
+    from benchmark.runtime_state import current_frame
+    from benchmark.actions.transforms import is_datetime_like_column, normalize_string_value
+    from benchmark.actions.validation import table_has_structural_issues
 
 
 def missing_expected_columns(env, table_name: str) -> list[str]:
@@ -19,15 +25,18 @@ def missing_expected_columns(env, table_name: str) -> list[str]:
 
 
 def column_alias_hints(env) -> dict[str, str]:
-    current_columns = set(env._current_frame().columns)
+    current_columns = set(current_frame(env).columns)
     expected_columns = set(env._expected_types[env._state.active_table])
     aliases = {
         "signup_dt": "signup_date",
         "product_category": "category",
         "product_segment": "category",
+        "sku_id": "product_id",
         "business_date": "event_date",
         "observed_at": "event_ts",
         "window_start": "hour_bucket",
+        "gross_sales": "gross_revenue",
+        "revenue_total": "gross_revenue",
     }
     hints: dict[str, str] = {}
     for drifted_name, expected_name in aliases.items():
@@ -70,8 +79,8 @@ def format_issue_details_for_frame(env, current: pd.DataFrame) -> dict[str, int]
         column_name = column.lower()
         for value in series.dropna():
             text = str(value)
-            normalized = env._normalize_string_value(value, column)
-            if env._is_datetime_like_column(column_name):
+            normalized = normalize_string_value(env, value, column)
+            if is_datetime_like_column(column_name):
                 if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(text).strip()):
                     if column_name.endswith("_ts") or column_name.endswith("_time"):
                         if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(text).strip()):
@@ -112,9 +121,9 @@ def dependency_alerts(env) -> list[str]:
     mismatch_count = calculation_mismatch_count(env._tables["orders"], env._tables["products"])
     if mismatch_count > 0:
         alerts.append("orders.total_price depends on products.unit_price and is still inconsistent")
-    if env._table_has_structural_issues("products"):
+    if table_has_structural_issues(env, "products"):
         alerts.append("products still blocks a safe task 3 commit")
-    if env._table_has_structural_issues("orders"):
+    if table_has_structural_issues(env, "orders"):
         alerts.append("orders still contains structural issues")
     return alerts[:3]
 
