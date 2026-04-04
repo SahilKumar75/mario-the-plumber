@@ -129,6 +129,12 @@ def task3_candidate_actions(
     outlier_column = column_from_errors(error_text, "outlier")
     if observation.outlier_count > 0 and outlier_column:
         actions.append(PipelineDoctorAction(action_id=11, target_column=outlier_column))
+    if (
+        observation.dependency_alerts
+        and observation.subgoal_progress.get("repair_customers", False)
+        and observation.subgoal_progress.get("repair_products", False)
+    ):
+        actions.append(PipelineDoctorAction(action_id=19))
 
     next_stage = next_table(observation.stage)
     if next_stage:

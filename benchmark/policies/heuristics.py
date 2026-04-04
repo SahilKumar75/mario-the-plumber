@@ -91,6 +91,12 @@ def task3_heuristic_action(
             column, info = mismatch
             return repair_action_for_mismatch(column, info)
         if only_calculation_mismatch(observation):
+            if not observation.subgoal_progress.get("repair_customers", False):
+                return PipelineDoctorAction(action_id=0, target_column="customers")
+            if not observation.subgoal_progress.get("repair_products", False):
+                return PipelineDoctorAction(action_id=0, target_column="products")
+            return PipelineDoctorAction(action_id=19)
+        if not table_needs_attention(observation):
             return PipelineDoctorAction(action_id=0, target_column="customers")
 
     elif observation.stage == "customers":
@@ -118,6 +124,8 @@ def task3_heuristic_action(
             column, info = mismatch
             return repair_action_for_mismatch(column, info)
         if not table_needs_attention(observation):
+            if observation.dependency_alerts:
+                return PipelineDoctorAction(action_id=0, target_column="orders")
             return PipelineDoctorAction(action_id=15)
     return FALLBACK_ACTION
 
