@@ -133,7 +133,7 @@ python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 
 Current local result:
 
 - train Task 5 mean: `0.9774`
-- eval Task 5 mean: `0.9774`
-- held-out profile family Task 5 mean: `0.9767`
+- eval Task 5 mean: `0.8777`
+- held-out profile family Task 5 mean: `0.6776`
 
 This is not a learned-policy transfer benchmark, but it provides a direct held-out profile-family check instead of relying on a single seed.

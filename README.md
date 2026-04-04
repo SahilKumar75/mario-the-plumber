@@ -44,6 +44,14 @@ Validate the environment:
 openenv validate
 ```
 
+Run the regression suite:
+
+```bash
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt pytest
+./.venv/bin/python -m pytest tests/test_environment_regressions.py -q
+```
+
 Run the baseline:
 
 ```bash
@@ -72,16 +80,16 @@ Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4239` | `0.6512` | `0.5425` | `0.1900` | `0.3755` | `0.3603` |
-| heuristic | train | `0.9169` | `0.9250` | `0.9750` | `0.9055` | `0.8000` | `0.9789` |
-| random | eval | `0.4053` | `0.6659` | `0.5425` | `0.1931` | `0.2853` | `0.3400` |
-| heuristic | eval | `0.9089` | `0.9062` | `0.9750` | `0.8920` | `0.7925` | `0.9789` |
+| random | train | `0.4973` | `0.6459` | `0.5425` | `0.3001` | `0.6381` | `0.3603` |
+| heuristic | train | `0.9531` | `0.9062` | `0.9750` | `0.9055` | `1.0000` | `0.9789` |
+| random | eval | `0.4686` | `0.6659` | `0.5225` | `0.2697` | `0.5464` | `0.3386` |
+| heuristic | eval | `0.9194` | `0.9062` | `0.9750` | `0.8920` | `0.9958` | `0.8282` |
 
 Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
 
 - train mean: `0.9774`
-- eval mean: `0.9774`
-- held-out profile family mean: `0.9767`
+- eval mean: `0.8777`
+- held-out profile family mean: `0.6776`
 
 ## Difficulty Gap
 
