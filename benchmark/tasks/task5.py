@@ -45,6 +45,52 @@ def task5_rollup_consistency_score(
     return _accuracy(expected, actual)
 
 
+def task5_temporal_closure_score(
+    source_orders_df: pd.DataFrame,
+    rollup_df: pd.DataFrame,
+    incident_manifest: dict[str, object] | None,
+) -> float:
+    if not incident_manifest:
+        return 1.0
+    if "order_id" not in source_orders_df.columns:
+        return 0.0
+    time_column = next(
+        (column for column in ("event_ts", "observed_at", "source_event_ts", "source_time_utc") if column in source_orders_df.columns),
+        None,
+    )
+    bucket_column = next((column for column in ("hour_bucket", "window_start") if column in rollup_df.columns), None)
+    if time_column is None or bucket_column is None:
+        return 0.0
+
+    required_order_ids = {
+        int(value)
+        for value in incident_manifest.get("late_correction_order_ids", [])
+        if str(value).strip()
+    }
+    required_buckets = {
+        _canonical_hour_bucket(str(value))
+        for value in incident_manifest.get("affected_hour_buckets", [])
+        if str(value).strip()
+    }
+    expected_watermark = _coerce_utc_timestamp(incident_manifest.get("expected_watermark_after_replay"))
+
+    source = source_orders_df.copy()
+    source["order_id"] = pd.to_numeric(source["order_id"], errors="coerce")
+    source["event_ts"] = source[time_column].map(_coerce_utc_timestamp)
+    actual_order_ids = {int(value) for value in source["order_id"].dropna().tolist()}
+    actual_watermark = source["event_ts"].dropna().max()
+    actual_buckets = {
+        _canonical_hour_bucket(str(value))
+        for value in rollup_df[bucket_column].dropna().tolist()
+        if str(value).strip()
+    }
+
+    order_score = 1.0 if not required_order_ids else len(actual_order_ids & required_order_ids) / len(required_order_ids)
+    watermark_score = 1.0 if expected_watermark is None else float(pd.notna(actual_watermark) and actual_watermark >= expected_watermark)
+    bucket_score = 1.0 if not required_buckets else len(actual_buckets & required_buckets) / len(required_buckets)
+    return round((order_score + watermark_score + bucket_score) / 3.0, 4)
+
+
 def score_task5(
     fixed_tables: dict[str, pd.DataFrame],
     ground_truth_tables: dict[str, pd.DataFrame],
@@ -55,6 +101,7 @@ def score_task5(
     resource_level: int,
     required_resource_level: int,
     downstream_stale: bool,
+    incident_manifest: dict[str, object] | None = None,
 ) -> tuple[float, dict[str, dict[str, float]]]:
     source_score, source_breakdown = score_single_table(
         fixed_tables["source_orders"],
@@ -85,6 +132,11 @@ def score_task5(
         fixed_tables["catalog"],
         fixed_tables["hourly_rollup"],
     )
+    temporal_closure = task5_temporal_closure_score(
+        fixed_tables["source_orders"],
+        fixed_tables["hourly_rollup"],
+        incident_manifest,
+    )
     freshness = max(0.0, 1.0 - (freshness_lag_minutes / 240.0))
     if downstream_stale:
         freshness *= 0.5
@@ -98,8 +150,9 @@ def score_task5(
     data_quality = (0.45 * source_score) + (0.25 * catalog_score) + (0.30 * rollup_score)
     score = round(
         (0.20 * schema_alignment)
-        + (0.20 * temporal_backfill)
-        + (0.20 * rollup_consistency)
+        + (0.15 * temporal_backfill)
+        + (0.15 * rollup_consistency)
+        + (0.10 * temporal_closure)
         + (0.15 * freshness)
         + (0.10 * resource_efficiency)
         + (0.15 * data_quality),
@@ -113,6 +166,7 @@ def score_task5(
             "schema_alignment": round(schema_alignment, 4),
             "temporal_backfill": round(temporal_backfill, 4),
             "rollup_consistency": round(rollup_consistency, 4),
+            "temporal_closure": round(temporal_closure, 4),
             "freshness": round(freshness, 4),
             "resource_efficiency": round(resource_efficiency, 4),
             "data_quality": round(data_quality, 4),

@@ -8,7 +8,7 @@ try:
         task4_batch_completeness_score,
         task4_summary_consistency_score,
     )
-    from .tasks.task5 import score_task5, task5_rollup_consistency_score
+    from .tasks.task5 import score_task5, task5_rollup_consistency_score, task5_temporal_closure_score
 except ImportError:
     from benchmark.tasks.shared import duplicate_row_count, score_single_table
     from benchmark.tasks.task3 import calculation_mismatch_count, score_task3, task3_dependency_score
@@ -17,7 +17,7 @@ except ImportError:
         task4_batch_completeness_score,
         task4_summary_consistency_score,
     )
-    from benchmark.tasks.task5 import score_task5, task5_rollup_consistency_score
+    from benchmark.tasks.task5 import score_task5, task5_rollup_consistency_score, task5_temporal_closure_score
 
 __all__ = [
     "calculation_mismatch_count",
@@ -31,6 +31,7 @@ __all__ = [
     "task3_dependency_score",
     "task4_batch_completeness_score",
     "task4_summary_consistency_score",
+    "task5_temporal_closure_score",
     "task5_rollup_consistency_score",
 ]
 

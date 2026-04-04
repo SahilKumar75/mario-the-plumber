@@ -190,8 +190,9 @@ TASK_OBJECTIVE_WEIGHTS: dict[int, dict[str, float]] = {
     },
     5: {
         "schema_alignment": 0.20,
-        "temporal_backfill": 0.20,
-        "rollup_consistency": 0.20,
+        "temporal_backfill": 0.15,
+        "rollup_consistency": 0.15,
+        "temporal_closure": 0.10,
         "freshness": 0.15,
         "resource_efficiency": 0.10,
         "data_quality": 0.15,

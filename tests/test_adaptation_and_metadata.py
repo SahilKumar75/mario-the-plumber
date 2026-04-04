@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from scripts.benchmark_adaptation import discover_heldout_task5_seeds
+from scripts.benchmark_adaptation import discover_heldout_task5_seeds, discover_task5_eval_profiles
 from scripts.export_benchmark_metadata import collect_initial_score_stats
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
@@ -30,3 +30,12 @@ def test_export_metadata_collects_per_task_initial_scores() -> None:
     assert payload["eval"]["task_5"]["name"] == "Temporal Rollup Recovery"
     assert payload["train"]["task_3"]["initial_score_mean"] >= 0.0
     json.dumps(payload)
+
+
+def test_task5_adaptation_profile_catalog_exposes_family_and_novelty_axes() -> None:
+    profiles = discover_task5_eval_profiles([1, 2, 3])
+
+    assert profiles[1]["profile_family"] == "heldout_temporal"
+    assert profiles[2]["profile_family"] == "familiar_temporal"
+    assert profiles[1]["novelty_axes"]
+    assert profiles[3]["profile"].startswith("heldout_temporal_")

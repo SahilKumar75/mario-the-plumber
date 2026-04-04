@@ -436,8 +436,9 @@
       },
       "5": {
         "schema_alignment": 0.2,
-        "temporal_backfill": 0.2,
-        "rollup_consistency": 0.2,
+        "temporal_backfill": 0.15,
+        "rollup_consistency": 0.15,
+        "temporal_closure": 0.1,
         "freshness": 0.15,
         "resource_efficiency": 0.1,
         "data_quality": 0.15
@@ -545,9 +546,9 @@
       "task_3": {
         "name": "Referential Repair and Cascading Recovery",
         "threshold": 0.75,
-        "initial_score_mean": 0.3303,
-        "initial_score_min": 0.269,
-        "initial_score_max": 0.3609,
+        "initial_score_mean": 0.3928,
+        "initial_score_min": 0.3307,
+        "initial_score_max": 0.4238,
         "profiles_seen": {
           "alias_and_encoding_regression": 2,
           "sentinel_reference_breakage": 4
@@ -556,9 +557,9 @@
       "task_4": {
         "name": "Incremental ETL Incident Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.4206,
-        "initial_score_min": 0.4169,
-        "initial_score_max": 0.4225,
+        "initial_score_mean": 0.3737,
+        "initial_score_min": 0.37,
+        "initial_score_max": 0.3756,
         "profiles_seen": {
           "schema_alias_unit_regression": 2,
           "stale_summary_oncall_recovery": 4
@@ -567,9 +568,9 @@
       "task_5": {
         "name": "Temporal Rollup Recovery",
         "threshold": 0.82,
-        "initial_score_mean": 0.3393,
-        "initial_score_min": 0.3108,
-        "initial_score_max": 0.3536,
+        "initial_score_mean": 0.2808,
+        "initial_score_min": 0.2523,
+        "initial_score_max": 0.2951,
         "profiles_seen": {
           "schema_evolution_backfill_recovery": 2,
           "late_correction_backpressure_incident": 4
@@ -602,9 +603,9 @@
       "task_3": {
         "name": "Referential Repair and Cascading Recovery",
         "threshold": 0.75,
-        "initial_score_mean": 0.2801,
-        "initial_score_min": 0.1937,
-        "initial_score_max": 0.3609,
+        "initial_score_mean": 0.3434,
+        "initial_score_min": 0.2021,
+        "initial_score_max": 0.4238,
         "profiles_seen": {
           "timezone_currency_consistency_incident": 2,
           "cascading_reference_outage": 2,
@@ -614,9 +615,9 @@
       "task_4": {
         "name": "Incremental ETL Incident Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.3774,
-        "initial_score_min": 0.3594,
-        "initial_score_max": 0.3892,
+        "initial_score_mean": 0.3305,
+        "initial_score_min": 0.3125,
+        "initial_score_max": 0.3423,
         "profiles_seen": {
           "schema_alias_unit_regression": 2,
           "mixed_operational_recovery_incident": 2,
@@ -626,9 +627,9 @@
       "task_5": {
         "name": "Temporal Rollup Recovery",
         "threshold": 0.82,
-        "initial_score_mean": 0.3035,
-        "initial_score_min": 0.2767,
-        "initial_score_max": 0.3349,
+        "initial_score_mean": 0.2449,
+        "initial_score_min": 0.2181,
+        "initial_score_max": 0.2763,
         "profiles_seen": {
           "heldout_temporal_schema_extension_family": 1,
           "late_correction_backpressure_incident": 2,

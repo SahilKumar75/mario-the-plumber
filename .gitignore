@@ -14,3 +14,6 @@ env/
 dist/
 build/
 docs/assets/*.png
+!docs/assets/benchmark_overview.png
+!docs/assets/difficulty_gap.png
+!docs/assets/objective_weights.png

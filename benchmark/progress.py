@@ -2,16 +2,14 @@ from __future__ import annotations
 
 try:
     from .catalog import FORMAL_TASK_SPECS
-    from .grading import calculation_mismatch_count, task5_rollup_consistency_score
-    from .observation_support import dependency_alerts, missing_expected_columns
-    from .runtime_state import commit_ready
-    from .actions.validation import table_has_structural_issues
+    from .observation_support import missing_expected_columns
+    from .task_runtime.dispatch import dependency_health_summary as runtime_dependency_health_summary
+    from .task_runtime.dispatch import subgoal_progress_map as runtime_subgoal_progress_map
 except ImportError:
     from benchmark.catalog import FORMAL_TASK_SPECS
-    from benchmark.grading import calculation_mismatch_count, task5_rollup_consistency_score
-    from benchmark.observation_support import dependency_alerts, missing_expected_columns
-    from benchmark.runtime_state import commit_ready
-    from benchmark.actions.validation import table_has_structural_issues
+    from benchmark.observation_support import missing_expected_columns
+    from benchmark.task_runtime.dispatch import dependency_health_summary as runtime_dependency_health_summary
+    from benchmark.task_runtime.dispatch import subgoal_progress_map as runtime_subgoal_progress_map
 
 
 def task_progress_bundle(env) -> tuple[dict[str, bool], list[str], str, str]:
@@ -32,56 +30,7 @@ def update_task_progress_state(env) -> None:
 
 
 def subgoal_progress_map(env) -> dict[str, bool]:
-    if env._task_id == 3:
-        return {
-            "repair_customers": not table_has_structural_issues(env, "customers"),
-            "repair_products": not table_has_structural_issues(env, "products"),
-            "repair_orders": not table_has_structural_issues(env, "orders"),
-            "restore_dependency_consistency": calculation_mismatch_count(
-                env._tables["orders"], env._tables["products"]
-            ) == 0,
-            "commit_pipeline": bool(env._state.done and env._state.success),
-        }
-    if env._task_id == 4:
-        return {
-            "normalize_orders_stream": not table_has_structural_issues(env, "orders"),
-            "scale_resources_if_needed": (
-                env._state.resource_level >= env._state.required_resource_level
-                if env._state.backlog_rows > 0
-                else True
-            ),
-            "load_incremental_backlog": env._state.backlog_rows == 0 and env._state.pending_batches == 0,
-            "refresh_daily_summary": (
-                not bool(env._scenario_meta.get("downstream_stale", False))
-                and env._state.freshness_lag_minutes == 0
-            ),
-            "commit_recovery": bool(env._state.done and env._state.success),
-        }
-    if env._task_id == 5:
-        schema_ok = not table_has_structural_issues(env, "source_orders") and not table_has_structural_issues(
-            env, "catalog"
-        )
-        no_aliases = not missing_expected_columns(env, "source_orders") and not missing_expected_columns(
-            env, "catalog"
-        )
-        rollup_consistent = task5_rollup_consistency_score(
-            env._tables["source_orders"],
-            env._tables["catalog"],
-            env._tables["hourly_rollup"],
-        ) >= 0.9999
-        return {
-            "reconcile_schema_aliases": no_aliases,
-            "repair_catalog_and_source_quality": schema_ok,
-            "replay_late_batches": env._state.backlog_rows == 0 and env._state.pending_batches == 0,
-            "refresh_temporal_rollup": (
-                not table_has_structural_issues(env, "hourly_rollup")
-                and not bool(env._scenario_meta.get("downstream_stale", False))
-                and rollup_consistent
-            ),
-            "meet_freshness_sla": env._state.freshness_lag_minutes <= 30,
-            "commit_temporal_pipeline": bool(env._state.done and env._state.success),
-        }
-    return {}
+    return runtime_subgoal_progress_map(env)
 
 
 def backlog_age_minutes(env) -> int:
@@ -133,35 +82,4 @@ def dependency_health_summary(env) -> dict[str, str]:
         trace_summary = {str(key): str(value) for key, value in trace_payload.items()}
     else:
         trace_summary = {}
-    if env._task_id == 3:
-        return {
-            **trace_summary,
-            "customer_contract": "stable" if not table_has_structural_issues(env, "customers") else "repair_required",
-            "product_contract": "stable" if not table_has_structural_issues(env, "products") else "repair_required",
-            "order_dependency": "consistent" if not dependency_alerts(env) else "cascading_breakage",
-        }
-    if env._task_id == 4:
-        return {
-            **trace_summary,
-            "incremental_backlog": "cleared" if env._state.backlog_rows == 0 else "pending_replay",
-            "summary_state": "fresh" if not bool(env._scenario_meta.get("downstream_stale", False)) else "stale",
-            "recovery_gate": "safe_to_commit" if commit_ready(env) else "recovery_incomplete",
-        }
-    if env._task_id == 5:
-        rollup_consistency = task5_rollup_consistency_score(
-            env._tables["source_orders"],
-            env._tables["catalog"],
-            env._tables["hourly_rollup"],
-        )
-        return {
-            **trace_summary,
-            "schema_alignment": "stable" if not missing_expected_columns(env, "source_orders") else "schema_drift_active",
-            "temporal_backfill": "cleared" if env._state.backlog_rows == 0 else "late_batches_pending",
-            "rollup_state": (
-                "fresh"
-                if not bool(env._scenario_meta.get("downstream_stale", False)) and rollup_consistency >= 0.9999
-                else "rollup_stale"
-            ),
-            "recovery_gate": "safe_to_commit" if commit_ready(env) else "recovery_incomplete",
-        }
-    return {"single_table_state": "stable" if not env._recent_errors else "repair_required"}
+    return runtime_dependency_health_summary(env, trace_summary)

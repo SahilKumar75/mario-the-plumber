@@ -34,3 +34,39 @@ def test_task5_commit_requires_temporal_replay_and_refresh() -> None:
     failed_commit = env.step(PipelineDoctorAction(action_id=15))
     assert failed_commit.done is True
     assert failed_commit.done_reason == "commit_failure"
+
+
+def test_task4_prioritize_incremental_batch_replays_one_batch_at_a_time() -> None:
+    env = PipelineDoctorEnvironment()
+    env.reset(task_id=4, split="eval", seed=2)
+
+    initial_backlog = env.state.backlog_rows
+    initial_batches = env.state.pending_batches
+
+    env.step(PipelineDoctorAction(action_id=16))
+    env.step(PipelineDoctorAction(action_id=16))
+    replay = env.step(PipelineDoctorAction(action_id=18))
+
+    assert replay.done is False
+    assert env.state.backlog_rows < initial_backlog
+    assert env.state.backlog_rows > 0
+    assert env.state.pending_batches == initial_batches - 1
+    assert env._scenario_meta["last_replayed_batch_id"] == "b3"
+
+
+def test_task5_prioritize_incremental_batch_replays_one_batch_at_a_time() -> None:
+    env = PipelineDoctorEnvironment()
+    env.reset(task_id=5, split="eval", seed=1)
+
+    initial_backlog = env.state.backlog_rows
+    initial_batches = env.state.pending_batches
+
+    env.step(PipelineDoctorAction(action_id=16))
+    env.step(PipelineDoctorAction(action_id=16))
+    replay = env.step(PipelineDoctorAction(action_id=18))
+
+    assert replay.done is False
+    assert env.state.backlog_rows < initial_backlog
+    assert env.state.backlog_rows > 0
+    assert env.state.pending_batches == initial_batches - 1
+    assert env._scenario_meta["last_replayed_batch_id"] == "t3"

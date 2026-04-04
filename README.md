@@ -78,24 +78,32 @@ Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4991` | `0.6459` | `0.5425` | `0.3105` | `0.6381` | `0.3588` |
-| heuristic | train | `0.9609` | `0.9062` | `0.9750` | `0.9445` | `1.0000` | `0.9789` |
-| random | eval | `0.4590` | `0.6659` | `0.5225` | `0.2372` | `0.5464` | `0.3229` |
-| heuristic | eval | `0.9032` | `0.9062` | `0.9750` | `0.8695` | `1.0000` | `0.7654` |
+| random | train | `0.4807` | `0.6459` | `0.5425` | `0.3721` | `0.5424` | `0.3003` |
+| heuristic | train | `0.9607` | `0.9062` | `0.9750` | `0.9396` | `1.0000` | `0.9823` |
+| random | eval | `0.4403` | `0.6659` | `0.5225` | `0.3006` | `0.4480` | `0.2643` |
+| heuristic | eval | `0.9067` | `0.9062` | `0.9750` | `0.9153` | `1.0000` | `0.7370` |
 
 Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
 
-- train mean: `0.9789`
-- eval mean: `0.7780`
-- familiar eval mean: `0.9789`
-- held-out profile family mean: `0.5770`
-- held-out family gap: `0.4019`
+- train mean: `0.9823`
+- eval mean: `0.7473`
+- familiar eval mean: `0.9823`
+- held-out profile family mean: `0.5124`
+- held-out family gap: `0.4699`
 - held-out profile breakdown:
-  - `heldout_temporal_schema_extension_family`: `0.5520`
-  - `heldout_temporal_rollup_contract_family`: `0.6271`
-  - `heldout_temporal_correction_replay_family`: `0.5520`
+  - `heldout_temporal_schema_extension_family`: `0.4918`
+  - `heldout_temporal_rollup_contract_family`: `0.5372`
+  - `heldout_temporal_correction_replay_family`: `0.5081`
 
-The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies.
+The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies. Task 5 now measures temporal closure explicitly and held-out profiles require recovery over unseen replay-window and rollup-contract patterns.
+
+## Benchmark Visuals
+
+![Benchmark overview](docs/assets/benchmark_overview.png)
+
+![Difficulty gap](docs/assets/difficulty_gap.png)
+
+![Objective weights](docs/assets/objective_weights.png)
 
 ## Tasks
 
@@ -145,7 +153,7 @@ Actions:
 - `13`: reorder columns
 - `14`: validate schema
 - `15`: commit changes
-- `16-19`: resource scaling, batch prioritization, and downstream refresh
+- `16-19`: ETL-native orchestration controls for worker scaling, replaying the priority batch, and refreshing downstream assets
 
 ## Space Demo
 
@@ -226,6 +234,8 @@ Key submission files:
 - [benchmark/grading.py](benchmark/grading.py): deterministic scoring and reward shaping
 - [benchmark/evaluation.py](benchmark/evaluation.py): score dispatch and episode summaries
 - [benchmark/progress.py](benchmark/progress.py): subgoal progression and recovery state
+- [benchmark/task_runtime](benchmark/task_runtime): task-specific runtime progression, dependency health, and runtime diagnostics
+- [benchmark/actions](benchmark/actions): repair handlers, orchestration handlers, and commit gating
 - [benchmark/policies/engine.py](benchmark/policies/engine.py): baseline policy orchestration
 - [server/benchmark_demo.py](server/benchmark_demo.py): custom web demo
 - [server/app.py](server/app.py): OpenEnv app wiring and benchmark routes

@@ -16,10 +16,10 @@ def load_task4_fixture(profile: str, split: str) -> IncidentFixture:
     )
     orders_truth = pd.DataFrame(
         {
-            "order_id": [9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008],
-            "batch_id": ["b1", "b1", "b1", "b2", "b2", "b3", "b3", "b3"],
-            "product_id": [401, 402, 404, 403, 401, 404, 402, 403],
-            "quantity": [2, 1, 3, 2, 5, 1, 2, 4],
+            "order_id": [9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010, 9011, 9012],
+            "batch_id": ["b1", "b1", "b1", "b2", "b2", "b3", "b3", "b3", "b4", "b4", "b4", "b4"],
+            "product_id": [401, 402, 404, 403, 401, 404, 402, 403, 401, 404, 402, 403],
+            "quantity": [2, 1, 3, 2, 5, 1, 2, 4, 3, 2, 1, 5],
             "event_ts": [
                 "2026-03-28T10:00:00Z",
                 "2026-03-28T10:05:00Z",
@@ -29,6 +29,10 @@ def load_task4_fixture(profile: str, split: str) -> IncidentFixture:
                 "2026-03-30T08:45:00Z",
                 "2026-03-30T09:00:00Z",
                 "2026-03-30T09:30:00Z",
+                "2026-03-30T10:00:00Z",
+                "2026-03-30T10:20:00Z",
+                "2026-03-30T10:40:00Z",
+                "2026-03-30T11:00:00Z",
             ],
         }
     )
@@ -41,8 +45,8 @@ def load_task4_fixture(profile: str, split: str) -> IncidentFixture:
         .agg(order_count=("order_id", "count"), total_revenue=("revenue", "sum"))
     )
 
-    pending_orders = orders_truth[orders_truth["batch_id"] == "b3"].copy()
-    visible_orders = orders_truth[orders_truth["batch_id"] != "b3"].copy()
+    pending_orders = orders_truth[orders_truth["batch_id"].isin(["b3", "b4"])].copy()
+    visible_orders = orders_truth[orders_truth["batch_id"].isin(["b1", "b2"])].copy()
     orders_broken = visible_orders.copy()
     products_broken = products_truth.copy()
     summary_broken = summary_truth[summary_truth["event_date"] != "2026-03-30"].copy()
@@ -131,7 +135,7 @@ def load_task4_fixture(profile: str, split: str) -> IncidentFixture:
         "freshness_lag_minutes": freshness_lag_minutes,
         "resource_level": 1,
         "required_resource_level": required_resource_level,
-        "pending_batches": 1 if backlog_rows > 0 else 0,
+        "pending_batches": int(pending_orders["batch_id"].nunique()) if backlog_rows > 0 else 0,
         "downstream_stale": True,
         "workload_pressure": 0.9 if split == "eval" else 0.75,
         "incident_manifest": {

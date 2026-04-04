@@ -36,6 +36,7 @@ def score(env) -> float:
             resource_level=env._state.resource_level,
             required_resource_level=env._state.required_resource_level,
             downstream_stale=bool(env._scenario_meta.get("downstream_stale", False)),
+            incident_manifest=env._scenario_meta.get("incident_manifest"),
         )
         return value
     value, _ = score_single_table(
@@ -72,6 +73,7 @@ def breakdown_payload(env) -> dict[str, object]:
             resource_level=env._state.resource_level,
             required_resource_level=env._state.required_resource_level,
             downstream_stale=bool(env._scenario_meta.get("downstream_stale", False)),
+            incident_manifest=env._scenario_meta.get("incident_manifest"),
         )
         return breakdown
     _, breakdown = score_single_table(

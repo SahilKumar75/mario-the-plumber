@@ -31,12 +31,17 @@ def discover_heldout_task5_seeds(seeds: list[int]) -> list[int]:
     return heldout
 
 
-def discover_task5_eval_profiles(seeds: list[int]) -> dict[int, str]:
-    profiles: dict[int, str] = {}
+def discover_task5_eval_profiles(seeds: list[int]) -> dict[int, dict[str, object]]:
+    profiles: dict[int, dict[str, object]] = {}
     env = PipelineDoctorEnvironment()
     for seed in seeds:
         observation = env.reset(seed=seed, task_id=5, split="eval")
-        profiles[seed] = observation.scenario_profile
+        manifest = env._scenario_meta.get("incident_manifest", {})
+        profiles[seed] = {
+            "profile": observation.scenario_profile,
+            "profile_family": manifest.get("profile_family", "familiar_temporal"),
+            "novelty_axes": list(manifest.get("novelty_axes", [])),
+        }
     return profiles
 
 
@@ -64,7 +69,7 @@ def main() -> None:
     heldout_scores_by_profile: dict[str, list[float]] = {}
 
     eval_profiles = discover_task5_eval_profiles(args.seeds)
-    heldout_seeds = [seed for seed, profile in eval_profiles.items() if profile.startswith("heldout_temporal_")]
+    heldout_seeds = [seed for seed, payload in eval_profiles.items() if payload["profile_family"] == "heldout_temporal"]
 
     for seed in args.seeds:
         train_run = run_baseline(seed=seed, split="train", policy_mode=args.policy_mode, model_name=args.model_name)
@@ -74,8 +79,8 @@ def main() -> None:
         train_scores.append(float(train_task5["score"]))
         eval_scores.append(float(eval_task5["score"]))
         eval_score = float(eval_task5["score"])
-        profile = eval_profiles[seed]
-        if profile.startswith("heldout_temporal_"):
+        profile = str(eval_profiles[seed]["profile"])
+        if eval_profiles[seed]["profile_family"] == "heldout_temporal":
             heldout_scores.append(eval_score)
             heldout_scores_by_profile.setdefault(profile, []).append(eval_score)
         else:

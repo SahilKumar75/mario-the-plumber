@@ -17,11 +17,10 @@ ACTION_NAMES = {
     13: "reorder_columns",
     14: "validate_schema",
     15: "commit_changes",
-    16: "scale_resources_up",
-    17: "scale_resources_down",
-    18: "prioritize_incremental_batch",
-    19: "refresh_downstream_summary",
+    16: "scale_recovery_workers_up",
+    17: "scale_recovery_workers_down",
+    18: "replay_priority_batch",
+    19: "refresh_downstream_assets",
 }
 
 PARAMETER_ACTIONS = {3, 4, 5, 6, 7, 8, 9, 11, 12}
-

@@ -33,7 +33,15 @@ def test_generate_visuals_smoke(tmp_path) -> None:
                         "2": {"accuracy": 0.3, "completeness": 0.2, "consistency": 0.3, "validity": 0.2},
                         "3": {"data_quality": 0.55, "dependency_consistency": 0.45},
                         "4": {"data_quality": 0.45, "freshness": 0.2, "backlog": 0.15, "resource_efficiency": 0.1, "summary_consistency": 0.1},
-                        "5": {"schema_alignment": 0.2, "temporal_backfill": 0.2, "rollup_consistency": 0.2, "freshness": 0.15, "resource_efficiency": 0.1, "data_quality": 0.15},
+                        "5": {
+                            "schema_alignment": 0.2,
+                            "temporal_backfill": 0.15,
+                            "rollup_consistency": 0.15,
+                            "temporal_closure": 0.1,
+                            "freshness": 0.15,
+                            "resource_efficiency": 0.1,
+                            "data_quality": 0.15,
+                        },
                     }
                 },
                 "initial_score_stats": {

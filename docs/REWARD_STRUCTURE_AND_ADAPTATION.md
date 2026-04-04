@@ -85,7 +85,7 @@ Subgoal order:
 
 LTL-style hint:
 
-`G(commit -> schema_aligned & backlog_cleared & rollup_consistent & freshness_sla_met)`
+`G(commit -> schema_aligned & backlog_cleared & rollup_consistent & temporal_closure_complete & freshness_sla_met)`
 
 ## Tradeoff Weights
 
@@ -105,8 +105,9 @@ Task 4:
 Task 5:
 
 - `schema_alignment`: `0.20`
-- `temporal_backfill`: `0.20`
-- `rollup_consistency`: `0.20`
+- `temporal_backfill`: `0.15`
+- `rollup_consistency`: `0.15`
+- `temporal_closure`: `0.10`
 - `freshness`: `0.15`
 - `resource_efficiency`: `0.10`
 - `data_quality`: `0.15`
@@ -132,14 +133,14 @@ python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 
 
 Current local result:
 
-- train Task 5 mean: `0.9789`
-- eval Task 5 mean: `0.7780`
-- familiar eval Task 5 mean: `0.9789`
-- held-out profile family Task 5 mean: `0.5770`
-- held-out family gap: `0.4019`
+- train Task 5 mean: `0.9823`
+- eval Task 5 mean: `0.7473`
+- familiar eval Task 5 mean: `0.9823`
+- held-out profile family Task 5 mean: `0.5124`
+- held-out family gap: `0.4699`
 - held-out profile breakdown:
-  - `heldout_temporal_schema_extension_family`: `0.5520`
-  - `heldout_temporal_rollup_contract_family`: `0.6271`
-  - `heldout_temporal_correction_replay_family`: `0.5520`
+  - `heldout_temporal_schema_extension_family`: `0.4918`
+  - `heldout_temporal_rollup_contract_family`: `0.5372`
+  - `heldout_temporal_correction_replay_family`: `0.5081`
 
-Task 5 held-out families now cover distinct temporal novelty axes rather than a single unseen profile, which makes the adaptation check more discriminative while preserving the same public action contract.
+Task 5 held-out families now cover distinct temporal novelty axes rather than a single unseen profile, and the temporal commit gate now requires both rollup consistency and closure over the affected replay windows. This makes the adaptation check more discriminative while preserving the same public action contract.

@@ -43,6 +43,9 @@ def test_task5_train_and_eval_profiles_follow_heldout_split_semantics() -> None:
     assert train.metadata["scenario_profile"] != eval_.metadata["scenario_profile"]
     assert train.metadata["incident_manifest"]["dag_id"] == "temporal_orders_rollup"
     assert eval_.metadata["incident_manifest"]["dag_id"] == "temporal_orders_rollup"
+    assert train.metadata["incident_manifest"]["expected_watermark_after_replay"]
+    assert eval_.metadata["incident_manifest"]["affected_hour_buckets"]
+    assert eval_.metadata["incident_manifest"]["novelty_axes"]
     assert train.metadata["operational_trace_summary"]
     assert eval_.metadata["operational_trace_summary"]
 

@@ -66,7 +66,7 @@ def test_task4_commit_stays_blocked_while_incident_pressure_remains() -> None:
 
     assert env._task4_commit_ready() is False
 
-    for action_id in (16, 16, 18, 19):
+    for action_id in (16, 16, 18, 18, 19):
         env.step(PipelineDoctorAction(action_id=action_id))
 
     assert env.state.backlog_rows == 0
@@ -87,7 +87,7 @@ def test_task5_commit_stays_blocked_until_temporal_recovery_is_complete() -> Non
     assert observation.scenario_profile.startswith("heldout_temporal_")
     assert env._task5_commit_ready() is False
 
-    for action_id in (16, 16, 18, 19):
+    for action_id in (16, 16, 18, 18, 18, 19):
         env.step(PipelineDoctorAction(action_id=action_id))
 
     assert env.state.backlog_rows == 0
@@ -166,7 +166,7 @@ def test_benchmark_metadata_and_tasks_payload_smoke() -> None:
     assert metadata["runtime_mode_card"]["summary"]
     assert metadata["task_names"][5] == "Temporal Rollup Recovery"
     assert metadata["formal_task_specs"][5]["reward_machine_order"]
-    assert metadata["objective_weights"][5]["rollup_consistency"] == 0.2
+    assert metadata["objective_weights"][5]["rollup_consistency"] == 0.15
 
     assert len(payload["tasks"]) == 5
     assert "incident_signals" in payload["action_schema"]

@@ -31,12 +31,57 @@
     6
   ],
   "eval_task5_profiles": {
-    "1": "heldout_temporal_schema_extension_family",
-    "2": "late_correction_backpressure_incident",
-    "3": "heldout_temporal_rollup_contract_family",
-    "4": "schema_evolution_backfill_recovery",
-    "5": "heldout_temporal_correction_replay_family",
-    "6": "late_correction_backpressure_incident"
+    "1": {
+      "profile": "heldout_temporal_schema_extension_family",
+      "profile_family": "heldout_temporal",
+      "novelty_axes": [
+        "unknown_source_aliases",
+        "schema_extension",
+        "catalog_contract_drift"
+      ]
+    },
+    "2": {
+      "profile": "late_correction_backpressure_incident",
+      "profile_family": "familiar_temporal",
+      "novelty_axes": [
+        "late_correction_replay",
+        "rollup_window_alias"
+      ]
+    },
+    "3": {
+      "profile": "heldout_temporal_rollup_contract_family",
+      "profile_family": "heldout_temporal",
+      "novelty_axes": [
+        "unknown_catalog_aliases",
+        "rollup_contract_drift",
+        "backfill_pressure"
+      ]
+    },
+    "4": {
+      "profile": "schema_evolution_backfill_recovery",
+      "profile_family": "familiar_temporal",
+      "novelty_axes": [
+        "schema_alias_shift",
+        "catalog_contract_drift"
+      ]
+    },
+    "5": {
+      "profile": "heldout_temporal_correction_replay_family",
+      "profile_family": "heldout_temporal",
+      "novelty_axes": [
+        "unknown_source_aliases",
+        "late_correction_replay",
+        "catalog_contract_drift"
+      ]
+    },
+    "6": {
+      "profile": "late_correction_backpressure_incident",
+      "profile_family": "familiar_temporal",
+      "novelty_axes": [
+        "late_correction_replay",
+        "rollup_window_alias"
+      ]
+    }
   },
   "heldout_task5_seeds": [
     1,
@@ -44,42 +89,42 @@
     5
   ],
   "train_task5": {
-    "mean": 0.9789,
-    "min": 0.9789,
-    "max": 0.9789
+    "mean": 0.9823,
+    "min": 0.9823,
+    "max": 0.9823
   },
   "eval_task5": {
-    "mean": 0.778,
-    "min": 0.552,
-    "max": 0.9789
+    "mean": 0.7473,
+    "min": 0.4918,
+    "max": 0.9823
   },
   "familiar_eval_task5": {
-    "mean": 0.9789,
-    "min": 0.9789,
-    "max": 0.9789
+    "mean": 0.9823,
+    "min": 0.9823,
+    "max": 0.9823
   },
   "heldout_profile_family_task5": {
-    "mean": 0.577,
-    "min": 0.552,
-    "max": 0.6271
+    "mean": 0.5124,
+    "min": 0.4918,
+    "max": 0.5372
   },
   "heldout_profile_breakdown_task5": {
     "heldout_temporal_correction_replay_family": {
-      "mean": 0.552,
-      "min": 0.552,
-      "max": 0.552
+      "mean": 0.5081,
+      "min": 0.5081,
+      "max": 0.5081
     },
     "heldout_temporal_rollup_contract_family": {
-      "mean": 0.6271,
-      "min": 0.6271,
-      "max": 0.6271
+      "mean": 0.5372,
+      "min": 0.5372,
+      "max": 0.5372
     },
     "heldout_temporal_schema_extension_family": {
-      "mean": 0.552,
-      "min": 0.552,
-      "max": 0.552
+      "mean": 0.4918,
+      "min": 0.4918,
+      "max": 0.4918
     }
   },
-  "adaptation_gap": 0.2009,
-  "heldout_family_gap": 0.4019
+  "adaptation_gap": 0.235,
+  "heldout_family_gap": 0.4699
 }
