@@ -33,11 +33,12 @@ SYSTEM_PROMPT = textwrap.dedent(
       4=fill_median, 5=fill_forward, 7=cast_to_int, 8=cast_to_float, 9=cast_to_string,
       10=remove_duplicates, 11=drop_outliers, 14=validate_schema, 15=commit_changes,
       16=scale_resources_up, 17=scale_resources_down, 18=prioritize_incremental_batch,
-      19=refresh_downstream_summary.
+      19=refresh_pipeline_outputs.
     - Prefer fixing missing values before integer casts.
     - Use remove_duplicates when duplicate_rate > 0.
     - Use cast_to_string to normalize mixed date formats, noisy text encodings, and whitespace drift.
     - In task 3, action 0 with target_column equal to a table name switches the active table.
+    - In task 3, use action 19 after upstream repair to recompute orders.total_price from product pricing.
     - In task 4, action 0 can also switch among orders, products, and daily_summary.
     - In task 5, action 0 can also switch among source_orders, catalog, and hourly_rollup.
     - Read dependency_alerts and commit_ready before committing on task 3.

@@ -20,7 +20,7 @@ ACTION_NAMES = {
     16: "scale_resources_up",
     17: "scale_resources_down",
     18: "prioritize_incremental_batch",
-    19: "refresh_downstream_summary",
+    19: "refresh_pipeline_outputs",
 }
 
 PARAMETER_ACTIONS = {3, 4, 5, 6, 7, 8, 9, 11, 12}

@@ -1,0 +1,2 @@
+[console_scripts]
+server = pipeline_doctor.server.app:main

@@ -121,11 +121,11 @@ def score_task4(
         expected_types["daily_summary"],
     )
 
-    base_score = (
+    data_quality = (
         (0.40 * orders_score)
         + (0.20 * products_score)
         + (0.20 * summary_score)
-    )
+    ) / 0.80
     batch_score = task4_batch_completeness_score(
         fixed_tables["orders"], ground_truth_tables["orders"], backlog_rows
     )
@@ -143,20 +143,22 @@ def score_task4(
     if downstream_stale:
         freshness_score *= 0.5
 
-    orchestration_score = (
-        0.15
-        + (0.35 * batch_score)
-        + (0.25 * freshness_score)
-        + (0.15 * summary_consistency)
+    score = round(
+        (0.45 * data_quality)
+        + (0.20 * freshness_score)
+        + (0.15 * batch_score)
         + (0.10 * resource_efficiency)
+        + (0.10 * summary_consistency),
+        4,
     )
-    score = round(base_score * orchestration_score, 4)
     return score, {
         "orders": orders_breakdown,
         "products": products_breakdown,
         "daily_summary": summary_breakdown,
         "pipeline": {
+            "data_quality": round(data_quality, 4),
             "batch_completeness": round(batch_score, 4),
+            "backlog": round(batch_score, 4),
             "freshness": round(freshness_score, 4),
             "summary_consistency": round(summary_consistency, 4),
             "resource_efficiency": round(resource_efficiency, 4),

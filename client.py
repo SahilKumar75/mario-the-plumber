@@ -13,11 +13,18 @@ from typing import Any
 from openenv.core import EnvClient
 from openenv.core.client_types import StepResult
 
-from .models import (
-    MarioThePlumberAction,
-    MarioThePlumberObservation,
-    MarioThePlumberState,
-)
+try:
+    from .models import (
+        MarioThePlumberAction,
+        MarioThePlumberObservation,
+        MarioThePlumberState,
+    )
+except ImportError:
+    from models import (
+        MarioThePlumberAction,
+        MarioThePlumberObservation,
+        MarioThePlumberState,
+    )
 
 
 class MarioThePlumberEnv(

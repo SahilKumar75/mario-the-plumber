@@ -130,12 +130,15 @@ def task3_candidate_actions(
     if observation.outlier_count > 0 and outlier_column:
         actions.append(PipelineDoctorAction(action_id=11, target_column=outlier_column))
 
+    if any("inconsistent" in alert.lower() for alert in observation.dependency_alerts):
+        actions.append(PipelineDoctorAction(action_id=19))
+
     next_stage = next_table(observation.stage)
     if next_stage:
         actions.append(PipelineDoctorAction(action_id=0, target_column=next_stage))
 
     actions.append(PipelineDoctorAction(action_id=14))
-    if observation.commit_ready or observation.current_score >= TASK_THRESHOLDS[3]:
+    if observation.commit_ready:
         actions.append(PipelineDoctorAction(action_id=15))
     return dedupe_actions(actions) or [heuristic_action]
 

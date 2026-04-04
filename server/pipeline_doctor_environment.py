@@ -210,7 +210,6 @@ class PipelineDoctorEnvironment(
         self._seed = seed
         self._split = scenario.split
         self._recent_errors = []
-        current_score = self._score()
 
         self._state = PipelineDoctorState(
             episode_id=episode_id or str(uuid4()),
@@ -218,9 +217,9 @@ class PipelineDoctorEnvironment(
             seed=seed,
             step_count=0,
             max_steps=MAX_STEPS[task_id],
-            current_score=current_score,
-            initial_score=current_score,
-            best_score=current_score,
+            current_score=0.0,
+            initial_score=0.0,
+            best_score=0.0,
             done=False,
             success=None,
             active_table=scenario.active_table,
@@ -241,6 +240,10 @@ class PipelineDoctorEnvironment(
             reward_machine_state="",
             heldout_profile_family=bool(self._scenario_meta.get("heldout_profile_family", False)),
         )
+        current_score = self._score()
+        self._state.current_score = current_score
+        self._state.initial_score = current_score
+        self._state.best_score = current_score
         self._refresh_errors()
         self._update_task_progress_state()
         self._store_episode_summary()

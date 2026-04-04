@@ -91,7 +91,7 @@ def task3_heuristic_action(
             column, info = mismatch
             return repair_action_for_mismatch(column, info)
         if only_calculation_mismatch(observation):
-            return PipelineDoctorAction(action_id=0, target_column="customers")
+            return PipelineDoctorAction(action_id=19)
 
     elif observation.stage == "customers":
         null_column = column_from_errors(error_text, "null")
@@ -117,8 +117,12 @@ def task3_heuristic_action(
         if mismatch:
             column, info = mismatch
             return repair_action_for_mismatch(column, info)
+        if any("inconsistent" in alert.lower() for alert in observation.dependency_alerts):
+            return PipelineDoctorAction(action_id=19)
         if not table_needs_attention(observation):
-            return PipelineDoctorAction(action_id=15)
+            if observation.commit_ready:
+                return PipelineDoctorAction(action_id=15)
+            return PipelineDoctorAction(action_id=19)
     return FALLBACK_ACTION
 
 
@@ -249,4 +253,6 @@ def only_calculation_mismatch(observation: PipelineDoctorObservation) -> bool:
         and observation.outlier_count == 0
         and observation.format_issues == 0
         and any("calculation mismatch" in error.lower() for error in observation.recent_errors)
+        and len(observation.dependency_alerts) == 1
+        and all("inconsistent" in alert.lower() for alert in observation.dependency_alerts)
     )

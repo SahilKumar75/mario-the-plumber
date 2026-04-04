@@ -62,7 +62,7 @@ def tasks_payload() -> dict[str, object]:
                 "16": "scale_resources_up",
                 "17": "scale_resources_down",
                 "18": "prioritize_incremental_batch",
-                "19": "refresh_downstream_summary",
+                "19": "refresh_pipeline_outputs",
             },
             "incident_signals": [
                 "incident_type",

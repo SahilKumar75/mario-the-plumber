@@ -72,15 +72,15 @@ Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4239` | `0.6512` | `0.5425` | `0.1900` | `0.3755` | `0.3603` |
-| heuristic | train | `0.9169` | `0.9250` | `0.9750` | `0.9055` | `0.8000` | `0.9789` |
-| random | eval | `0.4053` | `0.6659` | `0.5425` | `0.1931` | `0.2853` | `0.3400` |
-| heuristic | eval | `0.9089` | `0.9062` | `0.9750` | `0.8920` | `0.7925` | `0.9789` |
+| random | train | `0.4675` | `0.6259` | `0.5425` | `0.1875` | `0.6307` | `0.3508` |
+| heuristic | train | `0.8461` | `0.7913` | `0.9050` | `0.5554` | `1.0000` | `0.9789` |
+| random | eval | `0.4420` | `0.6259` | `0.5225` | `0.1881` | `0.5426` | `0.3306` |
+| heuristic | eval | `0.7668` | `0.7913` | `0.8600` | `0.2082` | `0.9958` | `0.9789` |
 
 Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
 
-- train mean: `0.9774`
-- eval mean: `0.9774`
+- train mean: `0.9771`
+- eval mean: `0.9771`
 - held-out profile family mean: `0.9767`
 
 ## Difficulty Gap
@@ -137,7 +137,7 @@ Actions:
 - `13`: reorder columns
 - `14`: validate schema
 - `15`: commit changes
-- `16-19`: resource scaling, batch prioritization, and downstream refresh
+- `16-19`: resource scaling, batch prioritization, and pipeline-output refresh
 
 ## Space Demo
 

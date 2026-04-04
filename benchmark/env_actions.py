@@ -11,10 +11,10 @@ import pandas as pd
 
 try:
     from .action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
-    from .grading import duplicate_row_count
+    from .grading import calculation_mismatch_count, duplicate_row_count
 except ImportError:
     from benchmark.action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
-    from benchmark.grading import duplicate_row_count
+    from benchmark.grading import calculation_mismatch_count, duplicate_row_count
 
 
 def apply_action(env, action) -> str:
@@ -84,7 +84,7 @@ def apply_action(env, action) -> str:
     elif action.action_id == 18:
         return prioritize_incremental_batch(env)
     elif action.action_id == 19:
-        return refresh_downstream_summary(env)
+        return refresh_pipeline_outputs(env)
 
     return ""
 
@@ -218,30 +218,50 @@ def drop_outliers(env, column: str | None) -> None:
 
 
 def commit_changes(env) -> None:
-    if env._task_id == 4 or env._task_id == 5 or env._task_id != 3:
-        return
-    if not task3_commit_ready(env):
-        return
+    return
+
+
+def refresh_pipeline_outputs(env) -> str:
+    if env._task_id == 3:
+        return refresh_task3_order_totals(env)
+    return refresh_downstream_summary(env)
+
+
+def refresh_task3_order_totals(env) -> str:
+    if env._task_id != 3:
+        raise ValueError("order total refresh is only available in task 3")
+    if not task3_dependency_refresh_ready(env):
+        raise ValueError("repair customers, products, and orders before refreshing task 3 totals")
+
     orders = env._tables["orders"].copy()
     products = env._tables["products"][["product_id", "unit_price"]].copy()
     if "product_id" not in orders.columns or "product_id" not in products.columns:
-        return
+        raise ValueError("orders/products are missing product_id for dependency refresh")
+
     orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
     products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
+    quantity = pd.to_numeric(orders["quantity"], errors="coerce")
     merged = orders.merge(products, on="product_id", how="left", suffixes=("", "_product"))
-    quantity = pd.to_numeric(merged["quantity"], errors="coerce")
-    unit_price = pd.to_numeric(merged["unit_price"], errors="coerce")
-    merged["total_price"] = (quantity * unit_price).round(2)
+    merged["total_price"] = (quantity * pd.to_numeric(merged["unit_price"], errors="coerce")).round(2)
     env._tables["orders"] = merged[orders.columns].copy()
+    return "Order totals refreshed from repaired product pricing."
+
+
+def task3_dependency_refresh_ready(env) -> bool:
+    if env._task_id != 3:
+        return False
+    return not any(
+        table_has_structural_issues(env, table_name)
+        for table_name in ("customers", "products", "orders")
+    )
 
 
 def task3_commit_ready(env) -> bool:
     if env._task_id != 3:
         return True
-    return not any(
-        table_has_structural_issues(env, table_name)
-        for table_name in ("customers", "products", "orders")
-    )
+    if not task3_dependency_refresh_ready(env):
+        return False
+    return calculation_mismatch_count(env._tables["orders"], env._tables["products"]) == 0
 
 
 def task4_commit_ready(env) -> bool:

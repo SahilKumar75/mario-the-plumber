@@ -94,12 +94,14 @@ def only_calculation_mismatch(observation: PipelineDoctorObservation) -> bool:
         and observation.outlier_count == 0
         and observation.format_issues == 0
         and has_calculation_mismatch(observation)
+        and len(observation.dependency_alerts) == 1
+        and all("inconsistent" in alert.lower() for alert in observation.dependency_alerts)
     )
 
 
 def table_should_advance(task_id: int, env, observation: PipelineDoctorObservation) -> bool:
     if task_id == 3 and only_calculation_mismatch(observation):
-        return True
+        return False
     if task_id == 4:
         if env.state.active_table == "orders":
             return observation.backlog_rows == 0 and not table_needs_attention(observation)

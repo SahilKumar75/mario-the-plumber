@@ -15,11 +15,6 @@ FROM ${BASE_IMAGE} AS builder
 
 WORKDIR /app
 
-# Ensure git is available (required for installing dependencies from VCS)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
-
 # Build argument to control whether we're building standalone or in-repo
 ARG BUILD_MODE=in-repo
 ARG ENV_NAME=mario_the_plumber
