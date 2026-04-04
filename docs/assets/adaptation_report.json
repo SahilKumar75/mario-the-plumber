@@ -40,14 +40,14 @@
     "max": 0.9834
   },
   "eval_task5": {
-    "mean": 0.9774,
-    "min": 0.9744,
+    "mean": 0.8777,
+    "min": 0.6776,
     "max": 0.9834
   },
   "heldout_profile_family_task5": {
-    "mean": 0.9767,
-    "min": 0.9744,
-    "max": 0.9789
+    "mean": 0.6776,
+    "min": 0.6776,
+    "max": 0.6776
   },
-  "adaptation_gap": 0.0
+  "adaptation_gap": 0.0997
 }

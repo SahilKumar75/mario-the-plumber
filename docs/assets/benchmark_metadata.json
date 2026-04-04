@@ -542,9 +542,9 @@
       "task_3": {
         "name": "Referential Repair and Cascading Recovery",
         "threshold": 0.75,
-        "initial_score_mean": 0.1968,
-        "initial_score_min": 0.1913,
-        "initial_score_max": 0.203,
+        "initial_score_mean": 0.324,
+        "initial_score_min": 0.203,
+        "initial_score_max": 0.5088,
         "profiles_seen": {
           "alias_and_encoding_regression": 2,
           "sentinel_reference_breakage": 4
@@ -553,9 +553,9 @@
       "task_4": {
         "name": "Incremental ETL Incident Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.2275,
-        "initial_score_min": 0.1928,
-        "initial_score_max": 0.3625,
+        "initial_score_mean": 0.4262,
+        "initial_score_min": 0.4169,
+        "initial_score_max": 0.4309,
         "profiles_seen": {
           "schema_alias_unit_regression": 2,
           "stale_summary_oncall_recovery": 4
@@ -564,7 +564,7 @@
       "task_5": {
         "name": "Temporal Rollup Recovery",
         "threshold": 0.82,
-        "initial_score_mean": 0.3446,
+        "initial_score_mean": 0.3413,
         "initial_score_min": 0.3108,
         "initial_score_max": 0.3566,
         "profiles_seen": {
@@ -599,9 +599,9 @@
       "task_3": {
         "name": "Referential Repair and Cascading Recovery",
         "threshold": 0.75,
-        "initial_score_mean": 0.1969,
-        "initial_score_min": 0.1937,
-        "initial_score_max": 0.2021,
+        "initial_score_mean": 0.2349,
+        "initial_score_min": 0.1946,
+        "initial_score_max": 0.3497,
         "profiles_seen": {
           "timezone_currency_consistency_incident": 2,
           "cascading_reference_outage": 2,
@@ -611,9 +611,9 @@
       "task_4": {
         "name": "Incremental ETL Incident Recovery",
         "threshold": 0.78,
-        "initial_score_mean": 0.2016,
-        "initial_score_min": 0.1573,
-        "initial_score_max": 0.3625,
+        "initial_score_mean": 0.3802,
+        "initial_score_min": 0.3594,
+        "initial_score_max": 0.3976,
         "profiles_seen": {
           "schema_alias_unit_regression": 2,
           "mixed_operational_recovery_incident": 2,
@@ -623,9 +623,9 @@
       "task_5": {
         "name": "Temporal Rollup Recovery",
         "threshold": 0.82,
-        "initial_score_mean": 0.3175,
-        "initial_score_min": 0.2891,
-        "initial_score_max": 0.3572,
+        "initial_score_mean": 0.3133,
+        "initial_score_min": 0.2861,
+        "initial_score_max": 0.3379,
         "profiles_seen": {
           "late_correction_backpressure_incident": 2,
           "heldout_temporal_incident_family": 2,

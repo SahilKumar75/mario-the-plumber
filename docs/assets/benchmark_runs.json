@@ -3,23 +3,23 @@
     {
       "policy": "random",
       "split": "train",
-      "average_score_mean": 0.4228,
-      "average_score_std": 0.0159,
+      "average_score_mean": 0.4973,
+      "average_score_std": 0.031,
       "task_1": 0.6459,
       "task_1_std": 0.0716,
       "task_2": 0.5425,
       "task_2_std": 0.0025,
-      "task_3": 0.19,
-      "task_3_std": 0.0037,
-      "task_4": 0.3755,
-      "task_4_std": 0.1878,
+      "task_3": 0.3001,
+      "task_3_std": 0.0311,
+      "task_4": 0.6381,
+      "task_4_std": 0.2288,
       "task_5": 0.3603,
       "task_5_std": 0.0305
     },
     {
       "policy": "heuristic",
       "split": "train",
-      "average_score_mean": 0.9131,
+      "average_score_mean": 0.9531,
       "average_score_std": 0.0015,
       "task_1": 0.9062,
       "task_1_std": 0.0188,
@@ -27,7 +27,7 @@
       "task_2_std": 0.025,
       "task_3": 0.9055,
       "task_3_std": 0.0015,
-      "task_4": 0.8,
+      "task_4": 1.0,
       "task_4_std": 0.0,
       "task_5": 0.9789,
       "task_5_std": 0.0
@@ -35,34 +35,34 @@
     {
       "policy": "random",
       "split": "eval",
-      "average_score_mean": 0.4013,
-      "average_score_std": 0.0005,
+      "average_score_mean": 0.4686,
+      "average_score_std": 0.0046,
       "task_1": 0.6659,
       "task_1_std": 0.0516,
       "task_2": 0.5225,
       "task_2_std": 0.0175,
-      "task_3": 0.1931,
-      "task_3_std": 0.0036,
-      "task_4": 0.2853,
-      "task_4_std": 0.1179,
-      "task_5": 0.34,
-      "task_5_std": 0.0779
+      "task_3": 0.2697,
+      "task_3_std": 0.0801,
+      "task_4": 0.5464,
+      "task_4_std": 0.1704,
+      "task_5": 0.3386,
+      "task_5_std": 0.0794
     },
     {
       "policy": "heuristic",
       "split": "eval",
-      "average_score_mean": 0.9089,
-      "average_score_std": 0.0057,
+      "average_score_mean": 0.9194,
+      "average_score_std": 0.0353,
       "task_1": 0.9062,
       "task_1_std": 0.0188,
       "task_2": 0.975,
       "task_2_std": 0.025,
       "task_3": 0.892,
       "task_3_std": 0.015,
-      "task_4": 0.7925,
-      "task_4_std": 0.0075,
-      "task_5": 0.9789,
-      "task_5_std": 0.0
+      "task_4": 0.9958,
+      "task_4_std": 0.0042,
+      "task_5": 0.8282,
+      "task_5_std": 0.1507
     }
   ],
   "runs": {
@@ -90,7 +90,7 @@
           },
           {
             "task_id": 3,
-            "score": 0.1937,
+            "score": 0.269,
             "steps": 2,
             "success": false,
             "scenario_profile": "alias_and_encoding_regression",
@@ -98,7 +98,7 @@
           },
           {
             "task_id": 4,
-            "score": 0.1877,
+            "score": 0.4094,
             "steps": 17,
             "success": false,
             "scenario_profile": "schema_alias_unit_regression",
@@ -113,7 +113,7 @@
             "heldout_profile_family": false
           }
         ],
-        "average_score": 0.4069
+        "average_score": 0.4663
       },
       {
         "status": "complete",
@@ -138,7 +138,7 @@
           },
           {
             "task_id": 3,
-            "score": 0.1863,
+            "score": 0.3312,
             "steps": 20,
             "success": false,
             "scenario_profile": "sentinel_reference_breakage",
@@ -146,7 +146,7 @@
           },
           {
             "task_id": 4,
-            "score": 0.5633,
+            "score": 0.8669,
             "steps": 30,
             "success": false,
             "scenario_profile": "stale_summary_oncall_recovery",
@@ -161,7 +161,7 @@
             "heldout_profile_family": false
           }
         ],
-        "average_score": 0.4387
+        "average_score": 0.5284
       }
     ],
     "heuristic:train": [
@@ -196,18 +196,18 @@
           {
             "task_id": 3,
             "score": 0.907,
-            "steps": 12,
+            "steps": 16,
             "success": true,
             "scenario_profile": "alias_and_encoding_regression",
             "heldout_profile_family": false,
             "action_sources": {
-              "heuristic": 10,
-              "auto_table_switch": 2
+              "heuristic": 13,
+              "auto_table_switch": 3
             }
           },
           {
             "task_id": 4,
-            "score": 0.8,
+            "score": 1.0,
             "steps": 15,
             "success": true,
             "scenario_profile": "schema_alias_unit_regression",
@@ -230,12 +230,12 @@
             }
           }
         ],
-        "average_score": 0.9147,
+        "average_score": 0.9547,
         "action_source_totals": {
-          "heuristic": 47,
-          "auto_table_switch": 6
+          "heuristic": 50,
+          "auto_table_switch": 7
         },
-        "runtime_seconds": 1.19
+        "runtime_seconds": 1.31
       },
       {
         "status": "complete",
@@ -268,18 +268,18 @@
           {
             "task_id": 3,
             "score": 0.904,
-            "steps": 13,
+            "steps": 17,
             "success": true,
             "scenario_profile": "sentinel_reference_breakage",
             "heldout_profile_family": false,
             "action_sources": {
-              "heuristic": 11,
-              "auto_table_switch": 2
+              "heuristic": 14,
+              "auto_table_switch": 3
             }
           },
           {
             "task_id": 4,
-            "score": 0.8,
+            "score": 1.0,
             "steps": 14,
             "success": true,
             "scenario_profile": "stale_summary_oncall_recovery",
@@ -302,12 +302,12 @@
             }
           }
         ],
-        "average_score": 0.9116,
+        "average_score": 0.9516,
         "action_source_totals": {
-          "heuristic": 47,
-          "auto_table_switch": 6
+          "heuristic": 50,
+          "auto_table_switch": 7
         },
-        "runtime_seconds": 1.1
+        "runtime_seconds": 1.23
       }
     ],
     "random:eval": [
@@ -334,7 +334,7 @@
           },
           {
             "task_id": 3,
-            "score": 0.1967,
+            "score": 0.3497,
             "steps": 2,
             "success": false,
             "scenario_profile": "timezone_currency_consistency_incident",
@@ -342,7 +342,7 @@
           },
           {
             "task_id": 4,
-            "score": 0.1674,
+            "score": 0.376,
             "steps": 17,
             "success": false,
             "scenario_profile": "schema_alias_unit_regression",
@@ -357,7 +357,7 @@
             "heldout_profile_family": false
           }
         ],
-        "average_score": 0.4009
+        "average_score": 0.4732
       },
       {
         "status": "complete",
@@ -390,7 +390,7 @@
           },
           {
             "task_id": 4,
-            "score": 0.4031,
+            "score": 0.7168,
             "steps": 30,
             "success": false,
             "scenario_profile": "mixed_operational_recovery_incident",
@@ -398,14 +398,14 @@
           },
           {
             "task_id": 5,
-            "score": 0.2622,
+            "score": 0.2592,
             "steps": 11,
             "success": false,
             "scenario_profile": "heldout_temporal_incident_family",
             "heldout_profile_family": true
           }
         ],
-        "average_score": 0.4018
+        "average_score": 0.464
       }
     ],
     "heuristic:eval": [
@@ -440,18 +440,18 @@
           {
             "task_id": 3,
             "score": 0.907,
-            "steps": 14,
+            "steps": 18,
             "success": true,
             "scenario_profile": "timezone_currency_consistency_incident",
             "heldout_profile_family": false,
             "action_sources": {
-              "heuristic": 12,
-              "auto_table_switch": 2
+              "heuristic": 15,
+              "auto_table_switch": 3
             }
           },
           {
             "task_id": 4,
-            "score": 0.8,
+            "score": 1.0,
             "steps": 15,
             "success": true,
             "scenario_profile": "schema_alias_unit_regression",
@@ -474,12 +474,12 @@
             }
           }
         ],
-        "average_score": 0.9147,
+        "average_score": 0.9547,
         "action_source_totals": {
-          "heuristic": 49,
-          "auto_table_switch": 6
+          "heuristic": 52,
+          "auto_table_switch": 7
         },
-        "runtime_seconds": 1.23
+        "runtime_seconds": 1.36
       },
       {
         "status": "complete",
@@ -512,18 +512,18 @@
           {
             "task_id": 3,
             "score": 0.877,
-            "steps": 15,
+            "steps": 19,
             "success": true,
             "scenario_profile": "cascading_reference_outage",
             "heldout_profile_family": false,
             "action_sources": {
-              "heuristic": 13,
-              "auto_table_switch": 2
+              "heuristic": 16,
+              "auto_table_switch": 3
             }
           },
           {
             "task_id": 4,
-            "score": 0.785,
+            "score": 0.9916,
             "steps": 16,
             "success": true,
             "scenario_profile": "mixed_operational_recovery_incident",
@@ -535,23 +535,23 @@
           },
           {
             "task_id": 5,
-            "score": 0.9789,
-            "steps": 18,
-            "success": true,
+            "score": 0.6776,
+            "steps": 35,
+            "success": false,
             "scenario_profile": "heldout_temporal_incident_family",
             "heldout_profile_family": true,
             "action_sources": {
-              "heuristic": 16,
+              "heuristic": 33,
               "auto_table_switch": 2
             }
           }
         ],
-        "average_score": 0.9032,
+        "average_score": 0.8842,
         "action_source_totals": {
-          "heuristic": 53,
-          "auto_table_switch": 6
+          "heuristic": 73,
+          "auto_table_switch": 7
         },
-        "runtime_seconds": 1.06
+        "runtime_seconds": 1.43
       }
     ]
   },
@@ -598,7 +598,7 @@
       "task_id": 3,
       "scenario_profile": "alias_and_encoding_regression",
       "heldout_profile_family": false,
-      "score_mean": 0.1937,
+      "score_mean": 0.269,
       "score_std": 0.0
     },
     {
@@ -607,7 +607,7 @@
       "task_id": 3,
       "scenario_profile": "sentinel_reference_breakage",
       "heldout_profile_family": false,
-      "score_mean": 0.1863,
+      "score_mean": 0.3312,
       "score_std": 0.0
     },
     {
@@ -616,7 +616,7 @@
       "task_id": 4,
       "scenario_profile": "schema_alias_unit_regression",
       "heldout_profile_family": false,
-      "score_mean": 0.1877,
+      "score_mean": 0.4094,
       "score_std": 0.0
     },
     {
@@ -625,7 +625,7 @@
       "task_id": 4,
       "scenario_profile": "stale_summary_oncall_recovery",
       "heldout_profile_family": false,
-      "score_mean": 0.5633,
+      "score_mean": 0.8669,
       "score_std": 0.0
     },
     {
@@ -706,7 +706,7 @@
       "task_id": 4,
       "scenario_profile": "schema_alias_unit_regression",
       "heldout_profile_family": false,
-      "score_mean": 0.8,
+      "score_mean": 1.0,
       "score_std": 0.0
     },
     {
@@ -715,7 +715,7 @@
       "task_id": 4,
       "scenario_profile": "stale_summary_oncall_recovery",
       "heldout_profile_family": false,
-      "score_mean": 0.8,
+      "score_mean": 1.0,
       "score_std": 0.0
     },
     {
@@ -787,7 +787,7 @@
       "task_id": 3,
       "scenario_profile": "timezone_currency_consistency_incident",
       "heldout_profile_family": false,
-      "score_mean": 0.1967,
+      "score_mean": 0.3497,
       "score_std": 0.0
     },
     {
@@ -796,7 +796,7 @@
       "task_id": 4,
       "scenario_profile": "mixed_operational_recovery_incident",
       "heldout_profile_family": false,
-      "score_mean": 0.4031,
+      "score_mean": 0.7168,
       "score_std": 0.0
     },
     {
@@ -805,7 +805,7 @@
       "task_id": 4,
       "scenario_profile": "schema_alias_unit_regression",
       "heldout_profile_family": false,
-      "score_mean": 0.1674,
+      "score_mean": 0.376,
       "score_std": 0.0
     },
     {
@@ -814,7 +814,7 @@
       "task_id": 5,
       "scenario_profile": "heldout_temporal_incident_family",
       "heldout_profile_family": true,
-      "score_mean": 0.2622,
+      "score_mean": 0.2592,
       "score_std": 0.0
     },
     {
@@ -886,7 +886,7 @@
       "task_id": 4,
       "scenario_profile": "mixed_operational_recovery_incident",
       "heldout_profile_family": false,
-      "score_mean": 0.785,
+      "score_mean": 0.9916,
       "score_std": 0.0
     },
     {
@@ -895,7 +895,7 @@
       "task_id": 4,
       "scenario_profile": "schema_alias_unit_regression",
       "heldout_profile_family": false,
-      "score_mean": 0.8,
+      "score_mean": 1.0,
       "score_std": 0.0
     },
     {
@@ -904,7 +904,7 @@
       "task_id": 5,
       "scenario_profile": "heldout_temporal_incident_family",
       "heldout_profile_family": true,
-      "score_mean": 0.9789,
+      "score_mean": 0.6776,
       "score_std": 0.0
     },
     {
@@ -942,16 +942,16 @@
     {
       "policy": "heuristic",
       "task_id": 4,
-      "train_score": 0.8,
-      "eval_score": 0.7925,
-      "gap": 0.0075
+      "train_score": 1.0,
+      "eval_score": 0.9958,
+      "gap": 0.0042
     },
     {
       "policy": "heuristic",
       "task_id": 5,
       "train_score": 0.9789,
-      "eval_score": 0.9789,
-      "gap": 0.0
+      "eval_score": 0.8282,
+      "gap": 0.1507
     },
     {
       "policy": "random",
@@ -970,23 +970,23 @@
     {
       "policy": "random",
       "task_id": 3,
-      "train_score": 0.19,
-      "eval_score": 0.1931,
-      "gap": -0.0031
+      "train_score": 0.3001,
+      "eval_score": 0.2697,
+      "gap": 0.0304
     },
     {
       "policy": "random",
       "task_id": 4,
-      "train_score": 0.3755,
-      "eval_score": 0.2853,
-      "gap": 0.0902
+      "train_score": 0.6381,
+      "eval_score": 0.5464,
+      "gap": 0.0917
     },
     {
       "policy": "random",
       "task_id": 5,
       "train_score": 0.3603,
-      "eval_score": 0.34,
-      "gap": 0.0203
+      "eval_score": 0.3386,
+      "gap": 0.0217
     }
   ],
   "runtime": {
