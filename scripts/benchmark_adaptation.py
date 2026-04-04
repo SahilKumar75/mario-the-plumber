@@ -31,6 +31,20 @@ def discover_heldout_task5_seeds(seeds: list[int]) -> list[int]:
     return heldout
 
 
+def discover_task5_eval_profiles(seeds: list[int]) -> dict[int, dict[str, object]]:
+    profiles: dict[int, dict[str, object]] = {}
+    env = PipelineDoctorEnvironment()
+    for seed in seeds:
+        observation = env.reset(seed=seed, task_id=5, split="eval")
+        manifest = env._scenario_meta.get("incident_manifest", {})
+        profiles[seed] = {
+            "profile": observation.scenario_profile,
+            "profile_family": manifest.get("profile_family", "familiar_temporal"),
+            "novelty_axes": list(manifest.get("novelty_axes", [])),
+        }
+    return profiles
+
+
 def summarize(scores: list[float]) -> dict[str, float]:
     if not scores:
         return {"mean": 0.0, "min": 0.0, "max": 0.0}
@@ -51,8 +65,11 @@ def main() -> None:
     train_scores: list[float] = []
     eval_scores: list[float] = []
     heldout_scores: list[float] = []
+    familiar_scores: list[float] = []
+    heldout_scores_by_profile: dict[str, list[float]] = {}
 
-    heldout_seeds = discover_heldout_task5_seeds(args.seeds)
+    eval_profiles = discover_task5_eval_profiles(args.seeds)
+    heldout_seeds = [seed for seed, payload in eval_profiles.items() if payload["profile_family"] == "heldout_temporal"]
 
     for seed in args.seeds:
         train_run = run_baseline(seed=seed, split="train", policy_mode=args.policy_mode, model_name=args.model_name)
@@ -61,18 +78,29 @@ def main() -> None:
         eval_task5 = next(item for item in eval_run["results"] if item["task_id"] == 5)
         train_scores.append(float(train_task5["score"]))
         eval_scores.append(float(eval_task5["score"]))
-        if seed in heldout_seeds:
-            heldout_scores.append(float(eval_task5["score"]))
+        eval_score = float(eval_task5["score"])
+        profile = str(eval_profiles[seed]["profile"])
+        if eval_profiles[seed]["profile_family"] == "heldout_temporal":
+            heldout_scores.append(eval_score)
+            heldout_scores_by_profile.setdefault(profile, []).append(eval_score)
+        else:
+            familiar_scores.append(eval_score)
 
     payload: dict[str, Any] = {
         "runtime": runtime_summary(),
         "policy_mode": args.policy_mode,
         "seeds": args.seeds,
+        "eval_task5_profiles": eval_profiles,
         "heldout_task5_seeds": heldout_seeds,
         "train_task5": summarize(train_scores),
         "eval_task5": summarize(eval_scores),
+        "familiar_eval_task5": summarize(familiar_scores),
         "heldout_profile_family_task5": summarize(heldout_scores),
+        "heldout_profile_breakdown_task5": {
+            profile: summarize(scores) for profile, scores in sorted(heldout_scores_by_profile.items())
+        },
         "adaptation_gap": round(mean(train_scores) - mean(eval_scores), 4) if train_scores and eval_scores else 0.0,
+        "heldout_family_gap": round(mean(train_scores) - mean(heldout_scores), 4) if train_scores and heldout_scores else 0.0,
     }
     print(json.dumps(payload, indent=2))
 

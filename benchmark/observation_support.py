@@ -8,8 +8,14 @@ import pandas as pd
 
 try:
     from .grading import calculation_mismatch_count, score_single_table
+    from .runtime_state import current_frame
+    from .actions.transforms import is_datetime_like_column, normalize_string_value
+    from .actions.validation import table_has_structural_issues
 except ImportError:
     from benchmark.grading import calculation_mismatch_count, score_single_table
+    from benchmark.runtime_state import current_frame
+    from benchmark.actions.transforms import is_datetime_like_column, normalize_string_value
+    from benchmark.actions.validation import table_has_structural_issues
 
 
 def missing_expected_columns(env, table_name: str) -> list[str]:
@@ -19,15 +25,18 @@ def missing_expected_columns(env, table_name: str) -> list[str]:
 
 
 def column_alias_hints(env) -> dict[str, str]:
-    current_columns = set(env._current_frame().columns)
+    current_columns = set(current_frame(env).columns)
     expected_columns = set(env._expected_types[env._state.active_table])
     aliases = {
         "signup_dt": "signup_date",
         "product_category": "category",
         "product_segment": "category",
+        "sku_id": "product_id",
         "business_date": "event_date",
         "observed_at": "event_ts",
         "window_start": "hour_bucket",
+        "gross_sales": "gross_revenue",
+        "revenue_total": "gross_revenue",
     }
     hints: dict[str, str] = {}
     for drifted_name, expected_name in aliases.items():
@@ -70,8 +79,8 @@ def format_issue_details_for_frame(env, current: pd.DataFrame) -> dict[str, int]
         column_name = column.lower()
         for value in series.dropna():
             text = str(value)
-            normalized = env._normalize_string_value(value, column)
-            if env._is_datetime_like_column(column_name):
+            normalized = normalize_string_value(env, value, column)
+            if is_datetime_like_column(column_name):
                 if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(text).strip()):
                     if column_name.endswith("_ts") or column_name.endswith("_time"):
                         if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", str(text).strip()):
@@ -88,6 +97,9 @@ def format_issue_details_for_frame(env, current: pd.DataFrame) -> dict[str, int]
 def dependency_alerts(env) -> list[str]:
     if env._task_id == 5:
         alerts: list[str] = []
+        incident_manifest = env._scenario_meta.get("incident_manifest", {})
+        affected_buckets = incident_manifest.get("affected_hour_buckets", [])
+        expected_watermark = incident_manifest.get("expected_watermark_after_replay")
         if env._state.backlog_rows > 0:
             alerts.append("late source batches still need replay into source_orders")
         if bool(env._scenario_meta.get("downstream_stale", False)):
@@ -96,6 +108,10 @@ def dependency_alerts(env) -> list[str]:
             alerts.append("freshness SLA is still violated for the temporal pipeline")
         if env._state.resource_level < env._state.required_resource_level and env._state.backlog_rows > 0:
             alerts.append("resource level is too low for late-batch replay")
+        if affected_buckets:
+            alerts.append(f"affected rollup buckets remain open: {', '.join(str(value) for value in affected_buckets[:2])}")
+        if expected_watermark:
+            alerts.append(f"replay watermark must advance to {expected_watermark}")
         return alerts[:4]
     if env._task_id == 4:
         alerts: list[str] = []
@@ -112,9 +128,9 @@ def dependency_alerts(env) -> list[str]:
     mismatch_count = calculation_mismatch_count(env._tables["orders"], env._tables["products"])
     if mismatch_count > 0:
         alerts.append("orders.total_price depends on products.unit_price and is still inconsistent")
-    if env._table_has_structural_issues("products"):
+    if table_has_structural_issues(env, "products"):
         alerts.append("products still blocks a safe task 3 commit")
-    if env._table_has_structural_issues("orders"):
+    if table_has_structural_issues(env, "orders"):
         alerts.append("orders still contains structural issues")
     return alerts[:3]
 
@@ -154,12 +170,16 @@ def workload_pressure(env) -> float:
 def orchestration_alerts(env) -> list[str]:
     if env._task_id == 5:
         alerts: list[str] = []
+        incident_manifest = env._scenario_meta.get("incident_manifest", {})
+        novelty_axes = incident_manifest.get("novelty_axes", [])
         if env._state.backlog_rows > 0 and env._state.resource_level < env._state.required_resource_level:
             alerts.append("scale resources before replaying the held-out temporal batches")
         if env._state.backlog_rows == 0 and bool(env._scenario_meta.get("downstream_stale", False)):
             alerts.append("refresh hourly_rollup after replay to close the temporal task")
         if env._state.freshness_lag_minutes > 30:
             alerts.append("bring freshness lag below the 30-minute SLA before committing")
+        if novelty_axes:
+            alerts.append(f"trace novelty axes: {', '.join(str(axis) for axis in novelty_axes[:2])}")
         return alerts[:3]
     if env._task_id != 4:
         return []

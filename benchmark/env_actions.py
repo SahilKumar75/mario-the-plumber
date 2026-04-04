@@ -1,13 +1,4 @@
-"""Action execution helpers for the Mario environment."""
-
 from __future__ import annotations
-
-from collections import Counter
-from datetime import datetime
-import json
-import re
-
-import pandas as pd
 
 try:
     from .action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
@@ -390,51 +381,78 @@ def refresh_hourly_rollup(env) -> str:
     catalog["unit_price"] = pd.to_numeric(
         catalog["unit_price"].map(normalize_numeric_value),
         errors="coerce",
+    from .actions.dispatch import apply_action
+    from .actions.orchestration import (
+        commit_changes,
+        prioritize_incremental_batch,
+        refresh_downstream_summary,
+        refresh_hourly_rollup,
+        scale_resources,
+        task3_commit_ready,
+        task4_commit_ready,
+        task5_commit_ready,
     )
-    merged = source.merge(catalog[["product_id", "unit_price"]], on="product_id", how="left")
-    merged["gross_revenue"] = merged["quantity"] * merged["unit_price"]
-    merged["hour_bucket"] = pd.to_datetime(merged["event_ts"], errors="coerce", utc=True).dt.strftime(
-        "%Y-%m-%dT%H:00:00Z"
+    from .actions.transforms import (
+        cast_column,
+        deduplicate_current_table,
+        drop_outliers,
+        fill_with_statistic,
+        handle_inspect_schema,
+        is_datetime_like_column,
+        looks_timestamp_string,
+        normalize_date_string,
+        normalize_numeric_value,
+        normalize_string_value,
+        numeric_series,
     )
-    rollup = (
-        merged.groupby("hour_bucket", as_index=False)
-        .agg(order_count=("order_id", "count"), gross_revenue=("gross_revenue", "sum"))
+    from .actions.validation import table_has_structural_issues
+except ImportError:
+    from benchmark.actions.dispatch import apply_action
+    from benchmark.actions.orchestration import (
+        commit_changes,
+        prioritize_incremental_batch,
+        refresh_downstream_summary,
+        refresh_hourly_rollup,
+        scale_resources,
+        task3_commit_ready,
+        task4_commit_ready,
+        task5_commit_ready,
     )
-    env._tables["hourly_rollup"] = rollup
-    env._state.freshness_lag_minutes = 0 if env._state.backlog_rows == 0 else max(
-        30, env._state.freshness_lag_minutes
+    from benchmark.actions.transforms import (
+        cast_column,
+        deduplicate_current_table,
+        drop_outliers,
+        fill_with_statistic,
+        handle_inspect_schema,
+        is_datetime_like_column,
+        looks_timestamp_string,
+        normalize_date_string,
+        normalize_numeric_value,
+        normalize_string_value,
+        numeric_series,
     )
-    env._scenario_meta["freshness_lag_minutes"] = env._state.freshness_lag_minutes
-    env._scenario_meta["downstream_stale"] = env._state.backlog_rows > 0
-    recent_failures = dict(env._scenario_meta.get("recent_failure_counters", {}))
-    if "rollup_refresh_failures" in recent_failures:
-        recent_failures["rollup_refresh_failures"] = 0
-        env._scenario_meta["recent_failure_counters"] = recent_failures
-    return "Hourly rollup refreshed from source_orders and catalog."
+    from benchmark.actions.validation import table_has_structural_issues
 
-
-def table_has_structural_issues(env, table_name: str) -> bool:
-    frame = env._tables[table_name]
-    if frame.isnull().sum().sum() > 0:
-        return True
-    if duplicate_row_count(frame) > 0:
-        return True
-    if env._schema_report_for_table(table_name):
-        return True
-    if env._outlier_details_for_frame(frame):
-        return True
-    if env._format_issue_details_for_frame(frame):
-        return True
-    return False
-
-
-def deduplicate_current_table(env) -> pd.DataFrame:
-    current = env._current_frame()
-    key_column = None
-    for candidate in ("transaction_id", "order_id", "customer_id", "product_id"):
-        if candidate in current.columns:
-            key_column = candidate
-            break
-    if key_column:
-        return current.drop_duplicates(subset=[key_column], keep="first").reset_index(drop=True)
-    return current.drop_duplicates().reset_index(drop=True)
+__all__ = [
+    "apply_action",
+    "cast_column",
+    "commit_changes",
+    "deduplicate_current_table",
+    "drop_outliers",
+    "fill_with_statistic",
+    "handle_inspect_schema",
+    "is_datetime_like_column",
+    "looks_timestamp_string",
+    "normalize_date_string",
+    "normalize_numeric_value",
+    "normalize_string_value",
+    "numeric_series",
+    "prioritize_incremental_batch",
+    "refresh_downstream_summary",
+    "refresh_hourly_rollup",
+    "scale_resources",
+    "table_has_structural_issues",
+    "task3_commit_ready",
+    "task4_commit_ready",
+    "task5_commit_ready",
+]

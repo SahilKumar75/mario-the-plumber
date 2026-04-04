@@ -1,4 +1,7 @@
 .git
+.github
+.ruff_cache
+.pytest_cache
 .venv
 __pycache__
 *.pyc
@@ -11,3 +14,4 @@ openenv_mario_the_plumber.egg-info
 docs/assets/*.png
 docs/assets/*.csv
 docs/assets/*.json
+mlflow.db

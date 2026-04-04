@@ -3,12 +3,12 @@
     "benchmark_version": "2.1",
     "runtime_mode": "benchmark",
     "runtime_mode_card": {
-      "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+      "summary": "Default self-contained trace-grounded benchmark episodes for ETL repair and recovery.",
       "use_case": "Scoring, automated evaluation, and baseline comparison."
     },
     "available_runtime_modes": {
       "benchmark": {
-        "summary": "Default synthetic benchmark episodes for ETL repair and recovery.",
+        "summary": "Default self-contained trace-grounded benchmark episodes for ETL repair and recovery.",
         "use_case": "Scoring, automated evaluation, and baseline comparison."
       },
       "incident": {
@@ -30,24 +30,101 @@
     5,
     6
   ],
+  "eval_task5_profiles": {
+    "1": {
+      "profile": "heldout_temporal_schema_extension_family",
+      "profile_family": "heldout_temporal",
+      "novelty_axes": [
+        "unknown_source_aliases",
+        "schema_extension",
+        "catalog_contract_drift"
+      ]
+    },
+    "2": {
+      "profile": "late_correction_backpressure_incident",
+      "profile_family": "familiar_temporal",
+      "novelty_axes": [
+        "late_correction_replay",
+        "rollup_window_alias"
+      ]
+    },
+    "3": {
+      "profile": "heldout_temporal_rollup_contract_family",
+      "profile_family": "heldout_temporal",
+      "novelty_axes": [
+        "unknown_catalog_aliases",
+        "rollup_contract_drift",
+        "backfill_pressure"
+      ]
+    },
+    "4": {
+      "profile": "schema_evolution_backfill_recovery",
+      "profile_family": "familiar_temporal",
+      "novelty_axes": [
+        "schema_alias_shift",
+        "catalog_contract_drift"
+      ]
+    },
+    "5": {
+      "profile": "heldout_temporal_correction_replay_family",
+      "profile_family": "heldout_temporal",
+      "novelty_axes": [
+        "unknown_source_aliases",
+        "late_correction_replay",
+        "catalog_contract_drift"
+      ]
+    },
+    "6": {
+      "profile": "late_correction_backpressure_incident",
+      "profile_family": "familiar_temporal",
+      "novelty_axes": [
+        "late_correction_replay",
+        "rollup_window_alias"
+      ]
+    }
+  },
   "heldout_task5_seeds": [
-    2,
-    3
+    1,
+    3,
+    5
   ],
   "train_task5": {
-    "mean": 0.9774,
-    "min": 0.9744,
-    "max": 0.9834
+    "mean": 0.9823,
+    "min": 0.9823,
+    "max": 0.9823
   },
   "eval_task5": {
-    "mean": 0.9774,
-    "min": 0.9744,
-    "max": 0.9834
+    "mean": 0.7473,
+    "min": 0.4918,
+    "max": 0.9823
+  },
+  "familiar_eval_task5": {
+    "mean": 0.9823,
+    "min": 0.9823,
+    "max": 0.9823
   },
   "heldout_profile_family_task5": {
-    "mean": 0.9767,
-    "min": 0.9744,
-    "max": 0.9789
+    "mean": 0.5124,
+    "min": 0.4918,
+    "max": 0.5372
   },
-  "adaptation_gap": 0.0
+  "heldout_profile_breakdown_task5": {
+    "heldout_temporal_correction_replay_family": {
+      "mean": 0.5081,
+      "min": 0.5081,
+      "max": 0.5081
+    },
+    "heldout_temporal_rollup_contract_family": {
+      "mean": 0.5372,
+      "min": 0.5372,
+      "max": 0.5372
+    },
+    "heldout_temporal_schema_extension_family": {
+      "mean": 0.4918,
+      "min": 0.4918,
+      "max": 0.4918
+    }
+  },
+  "adaptation_gap": 0.235,
+  "heldout_family_gap": 0.4699
 }

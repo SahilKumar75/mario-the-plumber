@@ -45,6 +45,17 @@ def runtime_summary() -> dict[str, Any]:
     }
 
 
+def benchmark_metadata_payload() -> dict[str, Any]:
+    metadata = benchmark_metadata()
+    summary = runtime_summary()
+    return {
+        **metadata,
+        "runtime_mode": summary["runtime_mode_card"],
+        "runtime_mode_name": summary["runtime_mode"],
+        "available_runtime_modes": summary["available_runtime_modes"],
+    }
+
+
 def benchmark_runs_payload() -> dict[str, Any]:
     """Return the latest benchmark artifact payload when available."""
 

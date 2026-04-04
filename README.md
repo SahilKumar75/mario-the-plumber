@@ -44,6 +44,14 @@ Validate the environment:
 openenv validate
 ```
 
+Run the regression suite:
+
+```bash
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt pytest
+./.venv/bin/python -m pytest tests -q
+```
+
 Run the baseline:
 
 ```bash
@@ -66,8 +74,6 @@ flowchart LR
 
 ## Recovery Proof
 
-![Benchmark overview](docs/assets/benchmark_overview.png)
-
 Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.py) over seeds `1 2`:
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
@@ -83,11 +89,13 @@ Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchm
 - eval mean: `0.9771`
 - held-out profile family mean: `0.9767`
 
-## Difficulty Gap
+## Benchmark Visuals
+
+![Benchmark overview](docs/assets/benchmark_overview.png)
 
 ![Difficulty gap](docs/assets/difficulty_gap.png)
 
-The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies.
+![Objective weights](docs/assets/objective_weights.png)
 
 ## Tasks
 
@@ -137,7 +145,7 @@ Actions:
 - `13`: reorder columns
 - `14`: validate schema
 - `15`: commit changes
-- `16-19`: resource scaling, batch prioritization, and pipeline-output refresh
+- `16-19`: ETL-native orchestration controls for worker scaling, replaying the priority batch, and refreshing downstream assets
 
 ## Space Demo
 
@@ -150,8 +158,6 @@ The Hugging Face Space serves the standard OpenEnv API and, when the web interfa
 - architecture notes for reviewers
 
 ## Reward and Evaluation
-
-![Objective weights](docs/assets/objective_weights.png)
 
 Mario keeps a scalar OpenEnv reward, but the ETL recovery logic is now more explicit:
 
@@ -181,6 +187,8 @@ python3 scripts/export_benchmark_metadata.py --seeds 1 2 3 4 5 6 --output docs/a
 python3 scripts/generate_visuals.py
 ./scripts/validate-live-space.sh https://sahilksingh-mario-the-plumber.hf.space
 ```
+
+JSON and CSV outputs are tracked because the docs and demo use them directly. PNG benchmark visuals are generated on demand and are not tracked.
 
 ## Baseline Modes
 
@@ -213,8 +221,13 @@ Key submission files:
 ## Project Structure
 
 - [server/pipeline_doctor_environment.py](server/pipeline_doctor_environment.py): environment lifecycle and episode orchestration
-- [server/data_generator.py](server/data_generator.py): synthetic scenario generation
+- [server/data_generator.py](server/data_generator.py): scenario dispatch into fixture-backed task generators
+- [server/incidents](server/incidents): trace-grounded incident fixtures and manifests for harder tasks
 - [benchmark/grading.py](benchmark/grading.py): deterministic scoring and reward shaping
+- [benchmark/evaluation.py](benchmark/evaluation.py): score dispatch and episode summaries
+- [benchmark/progress.py](benchmark/progress.py): subgoal progression and recovery state
+- [benchmark/task_runtime](benchmark/task_runtime): task-specific runtime progression, dependency health, and runtime diagnostics
+- [benchmark/actions](benchmark/actions): repair handlers, orchestration handlers, and commit gating
 - [benchmark/policies/engine.py](benchmark/policies/engine.py): baseline policy orchestration
 - [server/benchmark_demo.py](server/benchmark_demo.py): custom web demo
 - [server/app.py](server/app.py): OpenEnv app wiring and benchmark routes
@@ -224,7 +237,7 @@ Key submission files:
 - `drop_nulls` changes row count, so the accuracy metric strongly discourages deletion-heavy repairs.
 - `inference.py` is a benchmark baseline family, not a learned RL policy.
 - Task 5 uses a hand-authored formal subgoal structure rather than a learned task specification.
-- Mario models realistic ETL incident structure, not real schedulers, warehouses, or enterprise-scale row volume.
+- Mario is trace-grounded and self-contained, but it is still a benchmark abstraction rather than a live warehouse or scheduler integration.
 
 ## Additional Docs
 

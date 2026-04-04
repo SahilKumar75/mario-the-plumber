@@ -101,7 +101,10 @@ def only_calculation_mismatch(observation: PipelineDoctorObservation) -> bool:
 
 def table_should_advance(task_id: int, env, observation: PipelineDoctorObservation) -> bool:
     if task_id == 3 and only_calculation_mismatch(observation):
-        return False
+        return not (
+            observation.subgoal_progress.get("repair_customers", False)
+            and observation.subgoal_progress.get("repair_products", False)
+        )
     if task_id == 4:
         if env.state.active_table == "orders":
             return observation.backlog_rows == 0 and not table_needs_attention(observation)
@@ -138,4 +141,3 @@ def next_table(current_table: str, task_id: int = 3) -> str | None:
 
 def same_action(left: PipelineDoctorAction, right: PipelineDoctorAction) -> bool:
     return left.model_dump(exclude_none=True) == right.model_dump(exclude_none=True)
-

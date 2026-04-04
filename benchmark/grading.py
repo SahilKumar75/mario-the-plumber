@@ -1,5 +1,3 @@
-"""Deterministic scoring and reward helpers for PipelineDoctor."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -241,6 +239,40 @@ def score_task5(
             "data_quality": round(data_quality, 4),
         },
     }
+try:
+    from .tasks.shared import duplicate_row_count, score_single_table
+    from .tasks.task3 import calculation_mismatch_count, score_task3, task3_dependency_score
+    from .tasks.task4 import (
+        score_task4,
+        task4_batch_completeness_score,
+        task4_summary_consistency_score,
+    )
+    from .tasks.task5 import score_task5, task5_rollup_consistency_score, task5_temporal_closure_score
+except ImportError:
+    from benchmark.tasks.shared import duplicate_row_count, score_single_table
+    from benchmark.tasks.task3 import calculation_mismatch_count, score_task3, task3_dependency_score
+    from benchmark.tasks.task4 import (
+        score_task4,
+        task4_batch_completeness_score,
+        task4_summary_consistency_score,
+    )
+    from benchmark.tasks.task5 import score_task5, task5_rollup_consistency_score, task5_temporal_closure_score
+
+__all__ = [
+    "calculation_mismatch_count",
+    "compute_reward",
+    "compute_reward_breakdown",
+    "duplicate_row_count",
+    "score_single_table",
+    "score_task3",
+    "score_task4",
+    "score_task5",
+    "task3_dependency_score",
+    "task4_batch_completeness_score",
+    "task4_summary_consistency_score",
+    "task5_temporal_closure_score",
+    "task5_rollup_consistency_score",
+]
 
 
 def compute_reward(
@@ -251,8 +283,6 @@ def compute_reward(
     done: bool,
     success: bool,
 ) -> float:
-    """Reward shaping used by the environment."""
-
     reward = 0.5 * (score_after - score_before)
     reward -= 0.001
     if not action_valid:
@@ -272,8 +302,6 @@ def compute_reward_breakdown(
     done: bool,
     success: bool,
 ) -> dict[str, float]:
-    """Structured explanation of the scalar reward."""
-
     progress = round(0.5 * (score_after - score_before), 4)
     step_cost = -0.001
     invalid_penalty = -0.05 if not action_valid else 0.0
@@ -288,192 +316,3 @@ def compute_reward_breakdown(
         "terminal_penalty": terminal_penalty,
         "total": total,
     }
-
-
-def calculation_mismatch_count(
-    orders_df: pd.DataFrame,
-    products_df: pd.DataFrame,
-) -> int:
-    """Count orders whose total_price no longer matches quantity * unit_price."""
-
-    required_order_columns = {"product_id", "quantity", "total_price"}
-    required_product_columns = {"product_id", "unit_price"}
-    if not required_order_columns.issubset(orders_df.columns):
-        return 0
-    if not required_product_columns.issubset(products_df.columns):
-        return 0
-
-    orders = orders_df.copy()
-    products = products_df[["product_id", "unit_price"]].copy()
-    orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
-    orders["quantity"] = pd.to_numeric(orders["quantity"], errors="coerce")
-    orders["total_price"] = pd.to_numeric(orders["total_price"], errors="coerce")
-    products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
-    products["unit_price"] = pd.to_numeric(products["unit_price"], errors="coerce")
-    merged = orders.merge(products, on="product_id", how="left")
-    expected = (merged["quantity"] * merged["unit_price"]).round(2)
-    return int((expected.round(2) != merged["total_price"].round(2)).sum())
-
-
-def task3_dependency_score(
-    orders_df: pd.DataFrame,
-    products_df: pd.DataFrame,
-) -> float:
-    """Dependency consistency between orders.total_price and products.unit_price."""
-
-    mismatch_count = calculation_mismatch_count(orders_df, products_df)
-    if len(orders_df) == 0:
-        return 0.0
-    return max(0.0, 1.0 - (mismatch_count / len(orders_df)))
-
-
-def task4_batch_completeness_score(
-    orders_df: pd.DataFrame,
-    ground_truth_orders_df: pd.DataFrame,
-    backlog_rows: int,
-) -> float:
-    """Measure how much of the delayed incremental batch has been recovered."""
-
-    if backlog_rows <= 0:
-        return 1.0
-    recovered_ratio = min(len(orders_df) / max(len(ground_truth_orders_df), 1), 1.0)
-    backlog_penalty = min(backlog_rows / max(len(ground_truth_orders_df), 1), 1.0)
-    return max(0.0, recovered_ratio - (0.5 * backlog_penalty))
-
-
-def task4_summary_consistency_score(
-    orders_df: pd.DataFrame,
-    products_df: pd.DataFrame,
-    summary_df: pd.DataFrame,
-) -> float:
-    """Check whether the downstream daily summary matches current upstream tables."""
-
-    required_order_columns = {"order_id", "product_id", "quantity", "event_ts"}
-    required_product_columns = {"product_id", "unit_price"}
-    required_summary_columns = {"event_date", "order_count", "total_revenue"}
-    if not required_order_columns.issubset(orders_df.columns):
-        return 0.0
-    if not required_product_columns.issubset(products_df.columns):
-        return 0.0
-    if not required_summary_columns.issubset(summary_df.columns):
-        return 0.0
-
-    orders = orders_df.copy()
-    products = products_df[["product_id", "unit_price"]].copy()
-    orders["product_id"] = pd.to_numeric(orders["product_id"], errors="coerce")
-    orders["quantity"] = pd.to_numeric(orders["quantity"], errors="coerce")
-    products["product_id"] = pd.to_numeric(products["product_id"], errors="coerce")
-    products["unit_price"] = pd.to_numeric(products["unit_price"], errors="coerce")
-    orders["event_date"] = orders["event_ts"].map(_canonical_event_date)
-    merged = orders.merge(products, on="product_id", how="left")
-    merged["total_revenue"] = merged["quantity"] * merged["unit_price"]
-    expected = (
-        merged.groupby("event_date", as_index=False)
-        .agg(order_count=("order_id", "count"), total_revenue=("total_revenue", "sum"))
-        .sort_values("event_date")
-        .reset_index(drop=True)
-    )
-    actual = summary_df.copy().sort_values("event_date").reset_index(drop=True)
-    return _accuracy(expected, actual)
-
-
-def task5_rollup_consistency_score(
-    source_orders_df: pd.DataFrame,
-    catalog_df: pd.DataFrame,
-    rollup_df: pd.DataFrame,
-) -> float:
-    """Check whether the hourly rollup matches current source_orders and catalog tables."""
-
-    required_source_columns = {"order_id", "product_id", "quantity", "event_ts"}
-    required_catalog_columns = {"product_id", "unit_price"}
-    required_rollup_columns = {"hour_bucket", "order_count", "gross_revenue"}
-    if not required_source_columns.issubset(source_orders_df.columns):
-        return 0.0
-    if not required_catalog_columns.issubset(catalog_df.columns):
-        return 0.0
-    if not required_rollup_columns.issubset(rollup_df.columns):
-        return 0.0
-
-    source = source_orders_df.copy()
-    catalog = catalog_df[["product_id", "unit_price"]].copy()
-    source["product_id"] = pd.to_numeric(source["product_id"], errors="coerce")
-    source["quantity"] = pd.to_numeric(source["quantity"], errors="coerce")
-    source["event_ts"] = source["event_ts"].map(_coerce_utc_timestamp)
-    catalog["product_id"] = pd.to_numeric(catalog["product_id"], errors="coerce")
-    catalog["unit_price"] = pd.to_numeric(catalog["unit_price"], errors="coerce")
-    merged = source.merge(catalog, on="product_id", how="left")
-    merged["gross_revenue"] = merged["quantity"] * merged["unit_price"]
-    merged["hour_bucket"] = merged["event_ts"].dt.strftime("%Y-%m-%dT%H:00:00Z")
-    expected = (
-        merged.groupby("hour_bucket", as_index=False)
-        .agg(order_count=("order_id", "count"), gross_revenue=("gross_revenue", "sum"))
-        .sort_values("hour_bucket")
-        .reset_index(drop=True)
-    )
-    actual = rollup_df.copy().sort_values("hour_bucket").reset_index(drop=True)
-    if "hour_bucket" in actual.columns:
-        actual["hour_bucket"] = actual["hour_bucket"].map(_canonical_hour_bucket)
-    if "hour_bucket" in expected.columns:
-        expected["hour_bucket"] = expected["hour_bucket"].map(_canonical_hour_bucket)
-    return _accuracy(expected, actual)
-
-
-def _canonical_event_date(value: object) -> str | None:
-    if pd.isna(value):
-        return None
-    parsed = _coerce_utc_timestamp(value)
-    if pd.isna(parsed):
-        return None
-    return parsed.strftime("%Y-%m-%d")
-
-
-def _canonical_hour_bucket(value: object) -> str | None:
-    if pd.isna(value):
-        return None
-    parsed = _coerce_utc_timestamp(value)
-    if pd.isna(parsed):
-        return None
-    return parsed.strftime("%Y-%m-%dT%H:00:00Z")
-
-
-def _accuracy(fixed_df: pd.DataFrame, ground_truth_df: pd.DataFrame) -> float:
-    if list(fixed_df.columns) != list(ground_truth_df.columns):
-        return 0.0
-    if len(fixed_df) != len(ground_truth_df):
-        return 0.0
-    if len(fixed_df) == 0:
-        return 1.0
-    fixed = fixed_df.astype(object).where(fixed_df.notna(), "__nan__")
-    ground_truth = ground_truth_df.astype(object).where(ground_truth_df.notna(), "__nan__")
-    matches = (fixed == ground_truth).all(axis=1)
-    return float(matches.mean())
-
-
-def _coerce_utc_timestamp(value: object) -> pd.Timestamp:
-    if pd.isna(value):
-        return pd.NaT
-
-    text = str(value).strip()
-    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%d/%m/%Y %H:%M", "%m-%d-%Y %H:%M", "%Y-%m-%d"):
-        try:
-            parsed = datetime.strptime(text, fmt)
-            return pd.Timestamp(parsed, tz="UTC")
-        except (TypeError, ValueError):
-            continue
-
-    parsed = pd.to_datetime(text, errors="coerce", utc=True)
-    if pd.isna(parsed):
-        parsed = pd.to_datetime(text, errors="coerce")
-        if pd.isna(parsed):
-            return pd.NaT
-        if parsed.tzinfo is None:
-            return parsed.tz_localize("UTC")
-        return parsed.tz_convert("UTC")
-    return parsed
-
-
-def _primary_key_column(frame: pd.DataFrame) -> str | None:
-    for candidate in ("transaction_id", "order_id", "customer_id", "product_id"):
-        if candidate in frame.columns:
-            return candidate
-    return None
