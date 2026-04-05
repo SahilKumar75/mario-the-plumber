@@ -58,7 +58,7 @@ def health() -> dict[str, str]:
 def root() -> RedirectResponse:
     """Redirect root requests to the benchmark web UI."""
 
-    return RedirectResponse(url="/web", status_code=307)
+    return RedirectResponse(url="/docs", status_code=307)
 
 
 @app.get("/web", include_in_schema=False)
