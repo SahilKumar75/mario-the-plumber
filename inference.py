@@ -24,9 +24,38 @@ from benchmark.policies import choose_action, next_table, table_should_advance
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME")
+DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
+
+
+def _contains_non_ascii(value: str) -> bool:
+    return any(ord(character) > 127 for character in value)
+
+
+def _contains_whitespace(value: str) -> bool:
+    return any(character.isspace() for character in value)
+
+
+def _invalid_api_key_value(value: str) -> bool:
+    return _contains_non_ascii(value) or _contains_whitespace(value)
+
+
+def _resolve_runtime_llm_config(model_override: str | None) -> tuple[str | None, str | None, str]:
+    api_base_url = (os.getenv("API_BASE_URL") or DEFAULT_API_BASE_URL).strip()
+    api_key = (os.getenv("HF_TOKEN") or os.getenv("API_KEY") or "").strip()
+    selected_model = (model_override or os.getenv("MODEL_NAME") or "").strip()
+    return (api_key or None, selected_model or None, api_base_url)
+
+
+def _validate_pure_llm_config(api_key: str | None, selected_model: str | None) -> None:
+    if not api_key or not selected_model:
+        raise RuntimeError("pure-llm mode requires MODEL_NAME and HF_TOKEN/API_KEY")
+    if _invalid_api_key_value(api_key):
+        raise RuntimeError(
+            "HF_TOKEN/API_KEY contains invalid characters. "
+            "Re-export token in a clean shell; hidden Unicode (for example U+2028) often causes this."
+        )
+    if _contains_non_ascii(selected_model):
+        raise RuntimeError("MODEL_NAME contains non-ASCII characters; re-enter MODEL_NAME manually.")
 
 
 def run_baseline(
@@ -40,9 +69,11 @@ def run_baseline(
     """Run the benchmark baseline over the official Mario tasks."""
 
     started = time.perf_counter()
-    client = _build_client()
-    selected_model = model_name or MODEL_NAME
-    if policy_mode == "pure-llm" and (client is None or not selected_model):
+    api_key, selected_model, api_base_url = _resolve_runtime_llm_config(model_name)
+    if policy_mode == "pure-llm":
+        _validate_pure_llm_config(api_key, selected_model)
+    client = _build_client(api_key=api_key, selected_model=selected_model, api_base_url=api_base_url)
+    if policy_mode == "pure-llm" and client is None:
         raise RuntimeError("pure-llm mode requires MODEL_NAME and HF_TOKEN/API_KEY")
 
     results: list[dict[str, object]] = []
@@ -114,10 +145,14 @@ def run_baseline(
     }
 
 
-def _build_client() -> OpenAI | None:
-    if not API_KEY or not MODEL_NAME:
+def _build_client(*, api_key: str | None, selected_model: str | None, api_base_url: str) -> OpenAI | None:
+    if not api_key or not selected_model:
         return None
-    return OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    if _invalid_api_key_value(api_key):
+        return None
+    if _contains_non_ascii(selected_model):
+        return None
+    return OpenAI(base_url=api_base_url, api_key=api_key)
 
 
 def main() -> None:

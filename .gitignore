@@ -20,3 +20,8 @@ docs/assets/*.png
 !docs/assets/objective_weights.png
 docs/assets/*.json
 docs/assets/*.csv
+
+# Local environment secrets
+.env
+.env.*
+!.env.example
