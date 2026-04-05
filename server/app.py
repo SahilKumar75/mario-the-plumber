@@ -61,6 +61,13 @@ def root() -> RedirectResponse:
     return RedirectResponse(url="/web", status_code=307)
 
 
+@app.get("/web", include_in_schema=False)
+def web_root() -> RedirectResponse:
+    """Provide a stable web path that lands on FastAPI docs in API-only mode."""
+
+    return RedirectResponse(url="/docs", status_code=307)
+
+
 @app.get("/tasks")
 def get_tasks() -> dict[str, object]:
     """Expose the benchmark task list and action schema."""
