@@ -60,6 +60,9 @@ def initialize_episode(env, scenario, *, task_id: int, seed: int | None, episode
         time_budget_remaining=MAX_STEPS[task_id],
         truncated=False,
         done_reason="",
+        last_action_id=None,
+        repeated_action_streak=0,
+        repeated_action_tripwire=False,
         scenario_profile=str(env._scenario_meta.get("scenario_profile", "baseline")),
         started_at=datetime.now(UTC).isoformat(),
         active_subgoal="",
@@ -104,6 +107,7 @@ def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool
         success=success,
         action_id=action_id,
         task_threshold=TASK_THRESHOLDS[env._task_id],
+        consecutive_action_streak=env._state.repeated_action_streak,
     )
     reward_breakdown = compute_reward_breakdown(
         score_before,
@@ -113,6 +117,7 @@ def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool
         success=success,
         action_id=action_id,
         task_threshold=TASK_THRESHOLDS[env._task_id],
+        consecutive_action_streak=env._state.repeated_action_streak,
     )
 
     env._state.current_score = score_after

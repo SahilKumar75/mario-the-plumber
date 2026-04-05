@@ -32,6 +32,9 @@ TERMINAL_SUCCESS_BASE = 0.18
 TERMINAL_SUCCESS_PROGRESS_CAP = 0.1
 TERMINAL_FAILURE_PENALTY = -0.45
 PREMATURE_COMMIT_PENALTY = -0.25
+REPEATED_ACTION_STREAK_THRESHOLD = 3
+REPEATED_ACTION_STREAK_UNIT_PENALTY = -0.01
+REPEATED_ACTION_STREAK_MAX_PENALTY = -0.03
 
 
 def _terminal_bonus(score_before: float, score_after: float, *, done: bool, success: bool) -> float:
@@ -39,6 +42,16 @@ def _terminal_bonus(score_before: float, score_after: float, *, done: bool, succ
         return 0.0
     progress_component = max(score_after - score_before, 0.0)
     return round(TERMINAL_SUCCESS_BASE + min(progress_component, TERMINAL_SUCCESS_PROGRESS_CAP), 4)
+
+
+def _repeated_action_penalty(consecutive_action_streak: int) -> float:
+    if consecutive_action_streak <= REPEATED_ACTION_STREAK_THRESHOLD:
+        return 0.0
+    steps_over_threshold = consecutive_action_streak - REPEATED_ACTION_STREAK_THRESHOLD
+    return max(
+        REPEATED_ACTION_STREAK_MAX_PENALTY,
+        round(REPEATED_ACTION_STREAK_UNIT_PENALTY * steps_over_threshold, 4),
+    )
 
 
 def compute_reward(
@@ -50,6 +63,7 @@ def compute_reward(
     success: bool,
     action_id: int = -1,
     task_threshold: float = 1.0,
+    consecutive_action_streak: int = 1,
 ) -> float:
     reward = PROGRESS_WEIGHT * (score_after - score_before)
     reward += STEP_COST
@@ -57,6 +71,7 @@ def compute_reward(
         reward += INVALID_PENALTY
     if action_id == 15 and score_before < task_threshold:
         reward += PREMATURE_COMMIT_PENALTY
+    reward += _repeated_action_penalty(consecutive_action_streak)
     if done and success:
         reward += _terminal_bonus(score_before, score_after, done=done, success=success)
     if done and not success:
@@ -73,19 +88,31 @@ def compute_reward_breakdown(
     success: bool,
     action_id: int = -1,
     task_threshold: float = 1.0,
+    consecutive_action_streak: int = 1,
 ) -> dict[str, float]:
     progress = round(PROGRESS_WEIGHT * (score_after - score_before), 4)
     step_cost = STEP_COST
     invalid_penalty = INVALID_PENALTY if not action_valid else 0.0
     premature_commit_penalty = PREMATURE_COMMIT_PENALTY if action_id == 15 and score_before < task_threshold else 0.0
+    repeated_action_penalty = _repeated_action_penalty(consecutive_action_streak)
     terminal_bonus = _terminal_bonus(score_before, score_after, done=done, success=success)
     terminal_penalty = TERMINAL_FAILURE_PENALTY if done and not success else 0.0
-    total = round(progress + step_cost + invalid_penalty + premature_commit_penalty + terminal_bonus + terminal_penalty, 4)
+    total = round(
+        progress
+        + step_cost
+        + invalid_penalty
+        + premature_commit_penalty
+        + repeated_action_penalty
+        + terminal_bonus
+        + terminal_penalty,
+        4,
+    )
     return {
         "progress": progress,
         "step_cost": step_cost,
         "invalid_penalty": invalid_penalty,
         "premature_commit_penalty": premature_commit_penalty,
+        "repeated_action_penalty": repeated_action_penalty,
         "terminal_bonus": terminal_bonus,
         "terminal_penalty": terminal_penalty,
         "total": total,

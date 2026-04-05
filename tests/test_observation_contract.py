@@ -36,6 +36,8 @@ def test_task1_and_task2_observation_trim_hard_task_bundles() -> None:
         assert observation.drift_markers == []
         assert observation.dependency_health_summary == {}
         assert observation.adaptation_target == ""
+        assert observation.repeated_action_streak == 0
+        assert observation.repeated_action_tripwire is False
         assert observation.incident_type
         assert observation.incident_summary
         assert observation.observed_columns
@@ -55,3 +57,5 @@ def test_task3_to_task5_observation_keep_structured_recovery_fields() -> None:
         assert observation.drift_markers
         assert observation.dependency_health_summary
         assert observation.adaptation_target
+        assert observation.repeated_action_streak == 0
+        assert observation.repeated_action_tripwire is False

@@ -75,6 +75,9 @@ class PipelineDoctorEnvironment(
             time_budget_remaining=MAX_STEPS[1],
             truncated=False,
             done_reason="",
+            last_action_id=None,
+            repeated_action_streak=0,
+            repeated_action_tripwire=False,
             scenario_profile="baseline",
             started_at=datetime.now(UTC).isoformat(),
             active_subgoal="",
@@ -111,6 +114,12 @@ class PipelineDoctorEnvironment(
         action_result = ""
 
         self._state.step_count += 1
+        if self._state.last_action_id == action.action_id:
+            self._state.repeated_action_streak += 1
+        else:
+            self._state.last_action_id = action.action_id
+            self._state.repeated_action_streak = 1
+        self._state.repeated_action_tripwire = self._state.repeated_action_streak > 3
 
         try:
             action_result = self._apply_action(action)

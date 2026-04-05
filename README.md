@@ -92,7 +92,7 @@ Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.
 
 ## Exploit Resistance
 
-Mario implements four active penalty mechanisms to prevent reward hacking and Goodhart's Law shortcuts:
+Mario implements five active penalty mechanisms to prevent reward hacking and Goodhart's Law shortcuts:
 
 | Mechanism | Constant | Trigger |
 |---|---|---|
@@ -100,6 +100,7 @@ Mario implements four active penalty mechanisms to prevent reward hacking and Go
 | Invalid action penalty | `-0.06` | Action fails structural validation |
 | Terminal failure penalty | `-0.45` | Agent commits below the success threshold |
 | **Premature commit penalty** | **`-0.25`** | **Agent commits (action 15) while `score < task_threshold`** |
+| **Repeated action streak penalty** | **`-0.01` per repeat over 3 (capped at `-0.03`)** | **Same action repeated for more than 3 consecutive steps** |
 
 The premature commit penalty is a direct implementation of the reward-hacking trip wire described in Lilian Weng's 2024 survey on agent safety. An agent that blindly issues commit without assessing pipeline state receives a sustained negative shaping signal. Combined with randomised null columns per seed (Tasks 1–2) and randomised drift columns per seed (Tasks 1–2), a hardcoded action sequence that works on one seed will underperform on others — directly addressing Goodhart's Law.
 

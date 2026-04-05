@@ -98,6 +98,8 @@ def build_observation(
         recent_errors=env._recent_errors[:5],
         current_score=env._state.current_score,
         steps_taken=env._state.step_count,
+        repeated_action_streak=env._state.repeated_action_streak,
+        repeated_action_tripwire=env._state.repeated_action_tripwire,
         stage=env._state.active_table,
         available_actions=list(range(20)),
         action_result=action_result,
