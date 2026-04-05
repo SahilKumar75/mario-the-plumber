@@ -31,17 +31,19 @@ def generate_task1(
         }
     )
     broken = ground_truth.copy()
-    age_null_count = int(rng.integers(1, 3))
-    spend_null_count = 1
-    age_null_rows = rng.choice(len(broken), size=age_null_count, replace=False)
-    spend_candidates = [index for index in range(len(broken)) if index not in age_null_rows]
-    spend_null_rows = rng.choice(
-        spend_candidates,
-        size=min(spend_null_count, len(spend_candidates)),
+    numeric_cols = ["age", "monthly_spend"]
+    primary_col, secondary_col = (numeric_cols if rng.random() < 0.5 else list(reversed(numeric_cols)))
+    primary_null_count = int(rng.integers(1, 3))
+    secondary_null_count = 1
+    primary_null_rows = rng.choice(len(broken), size=primary_null_count, replace=False)
+    secondary_candidates = [i for i in range(len(broken)) if i not in primary_null_rows]
+    secondary_null_rows = rng.choice(
+        secondary_candidates,
+        size=min(secondary_null_count, len(secondary_candidates)),
         replace=False,
     )
-    broken.loc[age_null_rows, "age"] = np.nan
-    broken.loc[spend_null_rows, "monthly_spend"] = np.nan
+    broken.loc[primary_null_rows, primary_col] = float("nan")
+    broken.loc[secondary_null_rows, secondary_col] = float("nan")
 
     if profile in {"currency_contract_regression", "signup_contract_drift"} or rng.random() < 0.4:
         broken["monthly_spend"] = broken["monthly_spend"].astype(object)

@@ -102,6 +102,8 @@ def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool
         action_valid=action_valid,
         done=done,
         success=success,
+        action_id=action_id,
+        task_threshold=TASK_THRESHOLDS[env._task_id],
     )
     reward_breakdown = compute_reward_breakdown(
         score_before,
@@ -109,6 +111,8 @@ def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool
         action_valid=action_valid,
         done=done,
         success=success,
+        action_id=action_id,
+        task_threshold=TASK_THRESHOLDS[env._task_id],
     )
 
     env._state.current_score = score_after

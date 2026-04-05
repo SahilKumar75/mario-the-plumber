@@ -29,13 +29,19 @@ def generate_task2(
         }
     )
     broken = ground_truth.copy()
-    broken["age"] = broken["age"].astype(str)
-    broken["amount"] = broken["amount"].astype(str)
+    dtype_cols = ["age", "amount"]
+    primary_drift_col, secondary_drift_col = (dtype_cols if rng.random() < 0.5 else list(reversed(dtype_cols)))
+    broken[primary_drift_col] = broken[primary_drift_col].astype(str)
+    if rng.random() < 0.7:
+        broken[secondary_drift_col] = broken[secondary_drift_col].astype(str)
     broken = pd.concat([broken, broken.iloc[[1, 4]]], ignore_index=True)
+
     if profile == "outlier_currency_regression" or rng.random() < 0.3:
+        broken["amount"] = broken["amount"].astype(object)
         broken.loc[0, "amount"] = "999999.0"
     if profile in {"event_contract_breakage", "outlier_currency_regression"} or split == "eval" or rng.random() < 0.5:
-        broken["amount"] = broken["amount"].map(lambda value: f"INR {value}")
+        broken["amount"] = broken["amount"].astype(object).map(lambda value: f"INR {value}")
+
     if profile == "event_contract_breakage" or split == "eval" or rng.random() < 0.4:
         broken["event_date"] = broken["event_date"].astype(object)
         date_rows = rng.choice(len(broken), size=int(rng.integers(2, 5)), replace=False)

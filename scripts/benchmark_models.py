@@ -30,7 +30,12 @@ def run_random_baseline(seed: int, *, split: str = "train") -> dict[str, Any]:
             if env.state.done:
                 break
             action = _random_action(env, observation, rng)
-            observation = env.step(action)
+            try:
+                observation = env.step(action)
+            except (ValueError, KeyError):
+                # Random actions can trigger invalid orchestration paths;
+                # treat as a no-op and continue.
+                pass
             if env.state.done:
                 break
 

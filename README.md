@@ -81,14 +81,27 @@ flowchart LR
 
 ## Recovery Proof
 
-Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.py) over seeds `1 2`:
+Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.py) over seeds `1 2 3 4 5 6`:
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4915` | `0.6459` | `0.5425` | `0.4743` | `0.5108` | `0.2839` |
-| heuristic | train | `0.9464` | `0.9062` | `0.9750` | `0.9610` | `0.9100` | `0.9795` |
-| random | eval | `0.4809` | `0.6659` | `0.5225` | `0.5131` | `0.4549` | `0.2480` |
-| heuristic | eval | `0.8362` | `0.9062` | `0.9750` | `0.7945` | `0.7647` | `0.7407` |
+| random | train | `0.4694` | `0.6382` | `0.5242` | `0.5004` | `0.4059` | `0.2784` |
+| heuristic | train | `0.8471` | `0.8042` | `0.8908` | `0.7058` | `0.8762` | `0.9588` |
+| random | eval | `0.4139` | `0.6753` | `0.5042` | `0.3485` | `0.3351` | `0.2065` |
+| heuristic | eval | `0.7386` | `0.7850` | `0.7975` | `0.5338` | `0.8376` | `0.7389` |
+
+## Exploit Resistance
+
+Mario implements four active penalty mechanisms to prevent reward hacking and Goodhart's Law shortcuts:
+
+| Mechanism | Constant | Trigger |
+|---|---|---|
+| Step cost | `-0.004` | Every step taken (penalises padding) |
+| Invalid action penalty | `-0.06` | Action fails structural validation |
+| Terminal failure penalty | `-0.45` | Agent commits below the success threshold |
+| **Premature commit penalty** | **`-0.25`** | **Agent commits (action 15) while `score < task_threshold`** |
+
+The premature commit penalty is a direct implementation of the reward-hacking trip wire described in Lilian Weng's 2024 survey on agent safety. An agent that blindly issues commit without assessing pipeline state receives a sustained negative shaping signal. Combined with randomised null columns per seed (Tasks 1–2) and randomised drift columns per seed (Tasks 1–2), a hardcoded action sequence that works on one seed will underperform on others — directly addressing Goodhart's Law.
 
 Held-out adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
 
@@ -211,7 +224,7 @@ Generate benchmark artifacts:
 
 ```bash
 python3 -m scripts.train_trained_policy --seeds 1 2 3 4 5 6 7 8 9 10
-python3 -m scripts.benchmark_models --policies random heuristic --splits train eval --seeds 1 2 --format markdown
+python3 -m scripts.benchmark_models --policies random heuristic --splits train eval --seeds 1 2 3 4 5 6 --format markdown
 python3 -m scripts.benchmark_adaptation --policy-mode heuristic --seeds 1 2 3 4 5 6
 python3 -m scripts.export_benchmark_metadata --seeds 1 2 3 4 5 6 --output docs/assets/benchmark_metadata.json
 python3 -m scripts.generate_visuals

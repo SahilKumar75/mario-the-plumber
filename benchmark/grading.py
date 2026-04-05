@@ -31,6 +31,7 @@ INVALID_PENALTY = -0.06
 TERMINAL_SUCCESS_BASE = 0.18
 TERMINAL_SUCCESS_PROGRESS_CAP = 0.1
 TERMINAL_FAILURE_PENALTY = -0.45
+PREMATURE_COMMIT_PENALTY = -0.25
 
 
 def _terminal_bonus(score_before: float, score_after: float, *, done: bool, success: bool) -> float:
@@ -47,11 +48,15 @@ def compute_reward(
     action_valid: bool,
     done: bool,
     success: bool,
+    action_id: int = -1,
+    task_threshold: float = 1.0,
 ) -> float:
     reward = PROGRESS_WEIGHT * (score_after - score_before)
     reward += STEP_COST
     if not action_valid:
         reward += INVALID_PENALTY
+    if action_id == 15 and score_before < task_threshold:
+        reward += PREMATURE_COMMIT_PENALTY
     if done and success:
         reward += _terminal_bonus(score_before, score_after, done=done, success=success)
     if done and not success:
@@ -66,17 +71,21 @@ def compute_reward_breakdown(
     action_valid: bool,
     done: bool,
     success: bool,
+    action_id: int = -1,
+    task_threshold: float = 1.0,
 ) -> dict[str, float]:
     progress = round(PROGRESS_WEIGHT * (score_after - score_before), 4)
     step_cost = STEP_COST
     invalid_penalty = INVALID_PENALTY if not action_valid else 0.0
+    premature_commit_penalty = PREMATURE_COMMIT_PENALTY if action_id == 15 and score_before < task_threshold else 0.0
     terminal_bonus = _terminal_bonus(score_before, score_after, done=done, success=success)
     terminal_penalty = TERMINAL_FAILURE_PENALTY if done and not success else 0.0
-    total = round(progress + step_cost + invalid_penalty + terminal_bonus + terminal_penalty, 4)
+    total = round(progress + step_cost + invalid_penalty + premature_commit_penalty + terminal_bonus + terminal_penalty, 4)
     return {
         "progress": progress,
         "step_cost": step_cost,
         "invalid_penalty": invalid_penalty,
+        "premature_commit_penalty": premature_commit_penalty,
         "terminal_bonus": terminal_bonus,
         "terminal_penalty": terminal_penalty,
         "total": total,

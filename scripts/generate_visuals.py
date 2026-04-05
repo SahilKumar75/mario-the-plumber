@@ -38,6 +38,9 @@ def build_benchmark_overview() -> None:
         ("heuristic", "eval", "#0f766e"),
         ("trained", "eval", "#ea580c"),
     ]
+    # Only plot rows that actually exist in the report
+    available = {(item["policy"], item["split"]) for item in rows}
+    row_order = [(p, s, c) for p, s, c in row_order if (p, s) in available]
 
     fig, ax = plt.subplots(figsize=(11, 5.8))
     x = np.arange(len(tasks))
@@ -62,6 +65,7 @@ def build_benchmark_overview() -> None:
     plt.close(fig)
 
 
+
 def build_task_gap_chart() -> None:
     report = _load_json("benchmark_runs.json")
     metadata = _load_json("benchmark_metadata.json")
@@ -69,29 +73,44 @@ def build_task_gap_chart() -> None:
     initial_stats = metadata["initial_score_stats"]
     tasks = [1, 2, 3, 4, 5]
     labels = [f"Task {task_id}" for task_id in tasks]
+    available_policies = {(item["policy"], item["split"]) for item in rows}
 
     initial = []
-    random_eval = []
-    heuristic_eval = []
-    trained_eval = []
+    random_eval = [] if ("random", "eval") in available_policies else None
+    heuristic_eval = [] if ("heuristic", "eval") in available_policies else None
+    trained_eval = [] if ("trained", "eval") in available_policies else None
+
     for task_id in tasks:
         train_mean = initial_stats["train"][f"task_{task_id}"]["initial_score_mean"]
         eval_mean = initial_stats["eval"][f"task_{task_id}"]["initial_score_mean"]
         initial.append((train_mean + eval_mean) / 2.0)
-        random_row = next(item for item in rows if item["policy"] == "random" and item["split"] == "eval")
-        heuristic_row = next(item for item in rows if item["policy"] == "heuristic" and item["split"] == "eval")
-        trained_row = next(item for item in rows if item["policy"] == "trained" and item["split"] == "eval")
-        random_eval.append(random_row[f"task_{task_id}"])
-        heuristic_eval.append(heuristic_row[f"task_{task_id}"])
-        trained_eval.append(trained_row[f"task_{task_id}"])
+        if random_eval is not None:
+            random_row = next(item for item in rows if item["policy"] == "random" and item["split"] == "eval")
+            random_eval.append(random_row[f"task_{task_id}"])
+        if heuristic_eval is not None:
+            heuristic_row = next(item for item in rows if item["policy"] == "heuristic" and item["split"] == "eval")
+            heuristic_eval.append(heuristic_row[f"task_{task_id}"])
+        if trained_eval is not None:
+            trained_row = next(item for item in rows if item["policy"] == "trained" and item["split"] == "eval")
+            trained_eval.append(trained_row[f"task_{task_id}"])
+
+    # Count bars to compute offsets dynamically
+    bar_series = [("initial state", initial, "#cbd5e1")]
+    if random_eval is not None:
+        bar_series.append(("random (eval)", random_eval, "#94a3b8"))
+    if heuristic_eval is not None:
+        bar_series.append(("heuristic (eval)", heuristic_eval, "#0f766e"))
+    if trained_eval is not None:
+        bar_series.append(("trained (eval)", trained_eval, "#ea580c"))
 
     fig, ax = plt.subplots(figsize=(11, 5.8))
     x = np.arange(len(tasks))
-    width = 0.2
-    ax.bar(x - 1.5 * width, initial, width=width, color="#cbd5e1", label="initial state")
-    ax.bar(x - 0.5 * width, random_eval, width=width, color="#94a3b8", label="random (eval)")
-    ax.bar(x + 0.5 * width, heuristic_eval, width=width, color="#0f766e", label="heuristic (eval)")
-    ax.bar(x + 1.5 * width, trained_eval, width=width, color="#ea580c", label="trained (eval)")
+    width = 0.18
+    center_offset = (len(bar_series) - 1) / 2
+    for idx, (label, values, color) in enumerate(bar_series):
+        offset = (idx - center_offset) * width
+        ax.bar(x + offset, values, width=width, color=color, label=label)
+
     ax.set_ylim(0, 1.05)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
@@ -102,6 +121,7 @@ def build_task_gap_chart() -> None:
     fig.tight_layout()
     fig.savefig(ASSETS / "difficulty_gap.png", dpi=180, bbox_inches="tight")
     plt.close(fig)
+
 
 
 def build_objective_weights_chart() -> None:

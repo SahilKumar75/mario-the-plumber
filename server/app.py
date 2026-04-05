@@ -120,11 +120,23 @@ def grader(request: GraderRequest) -> dict[str, object]:
     return payload
 
 
-@app.post("/baseline")
-def baseline() -> dict[str, object]:
-    """Run the local submission baseline."""
+class BaselineRequest(BaseModel):
+    """Request body for the /baseline endpoint."""
 
-    return run_baseline()
+    seed: int = 42
+    split: str = "train"
+    policy_mode: str = "hybrid"
+
+
+@app.post("/baseline")
+def baseline(request: BaselineRequest) -> dict[str, object]:
+    """Run the local submission baseline with configurable seed, split, and policy mode."""
+
+    return run_baseline(
+        seed=request.seed,
+        split=request.split,
+        policy_mode=request.policy_mode,
+    )
 
 
 def main(host: str = "0.0.0.0", port: int = 8000) -> None:

@@ -147,7 +147,4 @@ def stabilize_action(
     if task_id == 3 and model_action.action_id == 15 and not observation.commit_ready:
         return heuristic_action
 
-    if task_id in (1, 2) and not is_candidate_action(model_action, candidate_actions):
-        return heuristic_action
-
     return model_action
