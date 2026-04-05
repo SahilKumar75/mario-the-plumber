@@ -42,7 +42,8 @@ app = create_app(
     PipelineDoctorAction,
     PipelineDoctorObservation,
     env_name="mario_the_plumber",
-    max_concurrent_envs=4,
+    # Force a single environment instance so reset/step state stays in one session.
+    max_concurrent_envs=1,
     gradio_builder=build_benchmark_demo,
 )
 
