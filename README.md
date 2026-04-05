@@ -118,7 +118,13 @@ The suite is designed so that realistic ETL incidents stay well above random beh
 
 ## Benchmark Visuals
 
-Benchmark visuals are generated locally with `python3 -m scripts.generate_submission_artifacts` and are intentionally not tracked in the repository.
+Benchmark visuals are generated locally with `python3 -m scripts.generate_submission_artifacts`.
+
+![Benchmark overview](docs/assets/benchmark_overview.png)
+
+![Difficulty gap](docs/assets/difficulty_gap.png)
+
+![Objective weights](docs/assets/objective_weights.png)
 
 ## Tasks
 
