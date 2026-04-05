@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import sys
+
 from openai import OpenAI
 
 from benchmark.policies.candidates import (
@@ -16,6 +19,76 @@ from models import PipelineDoctorAction, PipelineDoctorObservation
 
 TEMPERATURE = 0.0
 MAX_TOKENS = 220
+_SEEN_LLM_ERROR_SIGNATURES: set[str] = set()
+
+
+def _llm_debug_enabled() -> bool:
+    return os.getenv("MARIO_LLM_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _classify_llm_exception(exc: Exception) -> str:
+    message = str(exc).lower()
+    exception_name = type(exc).__name__.lower()
+
+    if (
+        "api_key" in message
+        or "authentication" in message
+        or "unauthorized" in message
+        or "invalid username" in message
+        or "invalid password" in message
+        or " 401" in message
+    ):
+        return "auth"
+    if "model" in message and (
+        "not found" in message
+        or "does not exist" in message
+        or "unknown" in message
+        or "unavailable" in message
+    ):
+        return "model"
+    if "rate limit" in message or "too many requests" in message or " 429" in message:
+        return "rate_limit"
+    if (
+        "timeout" in message
+        or "timed out" in message
+        or "connection" in message
+        or "connect" in message
+        or "service unavailable" in message
+        or " 503" in message
+    ):
+        return "network"
+    if "badrequest" in exception_name or "invalid request" in message or " 400" in message:
+        return "bad_request"
+    return "api"
+
+
+def _debug_log_llm_exception(
+    exc: Exception,
+    *,
+    model_name: str,
+    task_id: int,
+    step_number: int,
+    policy_mode: str,
+    error_kind: str,
+) -> None:
+    if not _llm_debug_enabled():
+        return
+
+    error_text = " ".join(str(exc).split())
+    signature = f"{error_kind}|{type(exc).__name__}|{error_text}"
+    if signature in _SEEN_LLM_ERROR_SIGNATURES:
+        return
+    _SEEN_LLM_ERROR_SIGNATURES.add(signature)
+
+    print(
+        (
+            "[MARIO_LLM_DEBUG] "
+            f"policy_mode={policy_mode} task_id={task_id} step={step_number} "
+            f"model={model_name} error_kind={error_kind} "
+            f"exception_type={type(exc).__name__} message={error_text}"
+        ),
+        file=sys.stderr,
+    )
 
 
 def choose_action(
@@ -86,10 +159,19 @@ def choose_action(
         if same_action(stabilized_action, heuristic_action):
             return stabilized_action, "heuristic_guardrail"
         return stabilized_action, "fallback"
-    except Exception:
+    except Exception as exc:
+        error_kind = _classify_llm_exception(exc)
+        _debug_log_llm_exception(
+            exc,
+            model_name=model_name,
+            task_id=task_id,
+            step_number=step_number,
+            policy_mode=policy_mode,
+            error_kind=error_kind,
+        )
         if strict_llm_mode:
-            return FALLBACK_ACTION, "llm_error"
-        return heuristic_action, "heuristic_exception"
+            return FALLBACK_ACTION, f"llm_error_{error_kind}"
+        return heuristic_action, f"heuristic_exception_{error_kind}"
 
 
 def _task5_trained_guardrail(
