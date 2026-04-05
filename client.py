@@ -38,7 +38,7 @@ class MarioThePlumberEnv(
             current_score=obs_data.get("current_score", 0.0),
             steps_taken=obs_data.get("steps_taken", 0),
             stage=obs_data.get("stage", "single"),
-            available_actions=obs_data.get("available_actions", list(range(16))),
+            available_actions=obs_data.get("available_actions", list(range(20))),
             action_result=obs_data.get("action_result", ""),
             reward=payload.get("reward", obs_data.get("reward")),
             done=payload.get("done", obs_data.get("done", False)),
