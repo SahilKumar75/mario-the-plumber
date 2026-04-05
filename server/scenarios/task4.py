@@ -8,6 +8,7 @@ from .profile_routing import select_eval_profile
 from .shared import FORMAL_TASK_SPECS, TASK_OBJECTIVE_WEIGHTS, Scenario, expected_types, patterns_for_profile, sample_profile
 
 FAMILIAR_EVAL_PROFILES = [
+    "late_batch_resource_incident",
     "schema_alias_unit_regression",
     "stale_summary_oncall_recovery",
 ]

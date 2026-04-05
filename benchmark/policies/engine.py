@@ -17,6 +17,8 @@ from models import PipelineDoctorAction, PipelineDoctorObservation
 
 TEMPERATURE = 0.0
 MAX_TOKENS = 220
+
+
 def choose_action(
     client: OpenAI | None,
     model_name: str | None,
@@ -91,6 +93,29 @@ def choose_action(
         return heuristic_action, "heuristic_exception"
 
 
+def _task5_trained_guardrail(
+    observation: PipelineDoctorObservation,
+    proposed_action: PipelineDoctorAction,
+    heuristic_action: PipelineDoctorAction,
+) -> PipelineDoctorAction:
+    if observation.stage == "source_orders" and observation.backlog_rows > 0:
+        if observation.resource_level < observation.required_resource_level and proposed_action.action_id != 16:
+            return heuristic_action
+        if observation.resource_level >= observation.required_resource_level and proposed_action.action_id not in {16, 18}:
+            return heuristic_action
+
+    if observation.stage == "hourly_rollup":
+        if (observation.downstream_stale or observation.freshness_lag_minutes > 30) and proposed_action.action_id != 19:
+            return heuristic_action
+        if observation.commit_ready and proposed_action.action_id not in {15, 19}:
+            return heuristic_action
+
+    if proposed_action.action_id == 17 and observation.resource_level <= observation.required_resource_level:
+        return heuristic_action
+
+    return proposed_action
+
+
 def stabilize_action(
     policy_mode: str,
     task_id: int,
@@ -106,6 +131,9 @@ def stabilize_action(
 
     if not action_has_required_fields(model_action):
         return heuristic_action
+
+    if policy_mode == "trained" and task_id == 5:
+        model_action = _task5_trained_guardrail(observation, model_action, heuristic_action)
 
     if task_id == 3 and heuristic_action.action_id != 14:
         return heuristic_action

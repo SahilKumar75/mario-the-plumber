@@ -15,7 +15,26 @@ def _repeat_pattern(values: list[str], size: int) -> list[str]:
 def _products_truth() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "product_id": [401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412],
+            "product_id": [
+                401,
+                402,
+                403,
+                404,
+                405,
+                406,
+                407,
+                408,
+                409,
+                410,
+                411,
+                412,
+                413,
+                414,
+                415,
+                416,
+                417,
+                418,
+            ],
             "product_name": [
                 "Valve",
                 "Sensor",
@@ -29,8 +48,33 @@ def _products_truth() -> pd.DataFrame:
                 "Pressure Gauge",
                 "Mixer",
                 "Filter",
+                "Turbine",
+                "Bypass Kit",
+                "Compressor",
+                "PLC Module",
+                "Thermal Probe",
+                "Seal Kit",
             ],
-            "unit_price": [15.0, 48.0, 73.0, 105.0, 64.0, 39.0, 57.0, 122.0, 33.0, 46.0, 88.0, 27.0],
+            "unit_price": [
+                15.0,
+                48.0,
+                73.0,
+                105.0,
+                64.0,
+                39.0,
+                57.0,
+                122.0,
+                33.0,
+                46.0,
+                88.0,
+                27.0,
+                133.0,
+                22.0,
+                97.0,
+                149.0,
+                35.0,
+                19.0,
+            ],
             "category": [
                 "hardware",
                 "iot",
@@ -44,6 +88,12 @@ def _products_truth() -> pd.DataFrame:
                 "hardware",
                 "process",
                 "ops",
+                "industrial",
+                "ops",
+                "industrial",
+                "platform",
+                "iot",
+                "hardware",
             ],
         }
     )
@@ -51,15 +101,19 @@ def _products_truth() -> pd.DataFrame:
 
 def _orders_truth(products_truth: pd.DataFrame) -> pd.DataFrame:
     batch_sizes = {
-        "b1": 8,
-        "b2": 10,
-        "b3": 7,
-        "b4": 13,
-        "b5": 11,
-        "b6": 9,
-        "b7": 14,
-        "b8": 8,
-        "b9": 12,
+        "b1": 14,
+        "b2": 16,
+        "b3": 12,
+        "b4": 20,
+        "b5": 17,
+        "b6": 15,
+        "b7": 22,
+        "b8": 13,
+        "b9": 19,
+        "b10": 16,
+        "b11": 21,
+        "b12": 14,
+        "b13": 18,
     }
     product_ids = list(products_truth["product_id"])
     start_ts = pd.Timestamp("2026-03-28T06:00:00Z")
@@ -71,7 +125,10 @@ def _orders_truth(products_truth: pd.DataFrame) -> pd.DataFrame:
             product_id = product_ids[(batch_index * 5 + offset * 3) % len(product_ids)]
             quantity = 1 + ((batch_index + 2 * offset) % 5)
             event_ts = (
-                start_ts + pd.Timedelta(minutes=15 * (order_id - 9001))
+                start_ts
+                + pd.Timedelta(
+                    minutes=12 * (order_id - 9001) + (batch_index % 3) * 4 + (offset % 4)
+                )
             ).strftime("%Y-%m-%dT%H:%M:%SZ")
             records.append(
                 {

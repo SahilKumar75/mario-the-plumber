@@ -75,6 +75,21 @@ def test_task4_heldout_replay_windows_are_uneven_and_deterministic() -> None:
     assert repeated.metadata["incident_manifest"]["pending_replay_window_row_counts"] == pending_counts
 
 
+def test_task5_temporal_fixture_has_large_uneven_replay_windows() -> None:
+    scenario = generate_scenario(task_id=5, split="eval", seed=2)
+    manifest = scenario.metadata["incident_manifest"]
+
+    replay_counts = manifest["replay_window_row_counts"]
+    visible_counts = manifest["visible_replay_window_row_counts"]
+    pending_counts = manifest["pending_replay_window_row_counts"]
+
+    assert sum(replay_counts.values()) >= 150
+    assert len(visible_counts) >= 3
+    assert len(pending_counts) >= 6
+    assert len(set(pending_counts.values())) > 1
+    assert manifest["watermark_before"] < manifest["expected_watermark_after_replay"]
+
+
 def test_collect_initial_score_stats_reports_split_and_task_coverage() -> None:
     stats = collect_initial_score_stats([1, 2])
 

@@ -68,6 +68,7 @@ SCENARIO_PROFILES: dict[int, dict[str, list[str]]] = {
             "stale_summary_oncall_recovery",
         ],
         "eval": [
+            "late_batch_resource_incident",
             "schema_alias_unit_regression",
             "stale_summary_oncall_recovery",
             "heldout_task4_batch_shape_family",
@@ -83,6 +84,7 @@ SCENARIO_PROFILES: dict[int, dict[str, list[str]]] = {
             "late_correction_backpressure_incident",
         ],
         "eval": [
+            "temporal_rollup_backfill_incident",
             "schema_evolution_backfill_recovery",
             "late_correction_backpressure_incident",
             "heldout_temporal_schema_extension_family",
