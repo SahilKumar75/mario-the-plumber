@@ -120,6 +120,7 @@ class PipelineDoctorEnvironment(
             self._state.last_action_id = action.action_id
             self._state.repeated_action_streak = 1
         self._state.repeated_action_tripwire = self._state.repeated_action_streak > 3
+        self._ensure_active_table()
 
         try:
             action_result = self._apply_action(action)
@@ -189,10 +190,26 @@ class PipelineDoctorEnvironment(
         return True
 
     def _current_frame(self) -> pd.DataFrame:
+        self._ensure_active_table()
         return self._tables[self._state.active_table]
 
     def _current_table(self) -> pd.DataFrame:
+        self._ensure_active_table()
         return self._tables[self._state.active_table]
+
+    def _ensure_active_table(self) -> None:
+        table_name = self._state.active_table
+        if table_name in self._tables:
+            active_table = table_name
+        elif self._tables:
+            active_table = next(iter(self._tables))
+            self._state.active_table = active_table
+        else:
+            active_table = table_name
+            self._tables[active_table] = pd.DataFrame()
+
+        self._expected_types.setdefault(active_table, {})
+        self._ground_truth.setdefault(active_table, pd.DataFrame())
 
     def _refresh_errors(self) -> None:
         refresh_errors(self)

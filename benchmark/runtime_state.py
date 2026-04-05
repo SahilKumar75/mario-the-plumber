@@ -6,10 +6,17 @@ def current_frame(env):
     if table_name not in env._tables:
         if env._tables:
             table_name = next(iter(env._tables))
+            env._state.active_table = table_name
         else:
             import pandas as pd
 
-            return pd.DataFrame()
+            env._tables[table_name] = pd.DataFrame()
+    if hasattr(env, "_expected_types"):
+        env._expected_types.setdefault(table_name, {})
+    if hasattr(env, "_ground_truth"):
+        import pandas as pd
+
+        env._ground_truth.setdefault(table_name, pd.DataFrame())
     return env._tables[table_name]
 
 
