@@ -6,7 +6,6 @@ from openai import OpenAI
 
 from benchmark.policies.candidates import (
     candidate_actions_for,
-    is_candidate_action,
     normalize_candidate_action,
 )
 from benchmark.policies.heuristics import FALLBACK_ACTION, heuristic_action_for
