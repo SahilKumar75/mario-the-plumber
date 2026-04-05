@@ -25,6 +25,11 @@ from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
+DEFAULT_MODEL_NAME = "nvidia/nemotron-super-49b-v1"
+API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
+MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
+HF_TOKEN = os.getenv("HF_TOKEN")
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 
 def _contains_non_ascii(value: str) -> bool:
@@ -40,9 +45,9 @@ def _invalid_api_key_value(value: str) -> bool:
 
 
 def _resolve_runtime_llm_config(model_override: str | None) -> tuple[str | None, str | None, str]:
-    api_base_url = (os.getenv("API_BASE_URL") or DEFAULT_API_BASE_URL).strip()
-    api_key = (os.getenv("HF_TOKEN") or os.getenv("API_KEY") or "").strip()
-    selected_model = (model_override or os.getenv("MODEL_NAME") or "").strip()
+    api_base_url = (os.getenv("API_BASE_URL", API_BASE_URL) or API_BASE_URL).strip()
+    api_key = (os.getenv("HF_TOKEN") or HF_TOKEN or os.getenv("API_KEY") or "").strip()
+    selected_model = (model_override or os.getenv("MODEL_NAME", MODEL_NAME) or MODEL_NAME).strip()
     return (api_key or None, selected_model or None, api_base_url)
 
 
