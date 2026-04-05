@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 try:
@@ -51,6 +52,13 @@ def health() -> dict[str, str]:
     """Lightweight health endpoint for container readiness checks."""
 
     return {"status": "healthy"}
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """Redirect root requests to the benchmark web UI."""
+
+    return RedirectResponse(url="/web", status_code=307)
 
 
 @app.get("/tasks")
