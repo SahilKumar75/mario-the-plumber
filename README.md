@@ -83,6 +83,8 @@ flowchart LR
 
 Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.py) over seeds `1 2 3 4 5 6`:
 
+For evaluator-facing reproducibility evidence (per-task spread + runtime envelope), see [Baseline reproducibility report](docs/BASELINE_REPRODUCIBILITY_REPORT.md).
+
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | random | train | `0.4694` | `0.6382` | `0.5242` | `0.5004` | `0.4059` | `0.2784` |
@@ -303,3 +305,4 @@ Key submission files:
 
 - [Benchmark architecture](docs/BENCHMARK_ARCHITECTURE.md)
 - [Reward and adaptation](docs/REWARD_STRUCTURE_AND_ADAPTATION.md)
+- [Baseline reproducibility report](docs/BASELINE_REPRODUCIBILITY_REPORT.md)
