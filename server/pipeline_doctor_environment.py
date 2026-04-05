@@ -40,7 +40,7 @@ class PipelineDoctorEnvironment(
 ):
     """Environment where agents diagnose and repair broken synthetic pipeline tables."""
 
-    SUPPORTS_CONCURRENT_SESSIONS = True
+    SUPPORTS_CONCURRENT_SESSIONS = False
 
     def __init__(self) -> None:
         self._tables: dict[str, pd.DataFrame] = {}

@@ -2,7 +2,15 @@ from __future__ import annotations
 
 
 def current_frame(env):
-    return env._tables[env._state.active_table]
+    table_name = env._state.active_table
+    if table_name not in env._tables:
+        if env._tables:
+            table_name = next(iter(env._tables))
+        else:
+            import pandas as pd
+
+            return pd.DataFrame()
+    return env._tables[table_name]
 
 
 def current_table(env):
