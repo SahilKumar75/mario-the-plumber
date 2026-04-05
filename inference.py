@@ -13,19 +13,16 @@ from collections import Counter
 import json
 import os
 import time
+from typing import Callable
+from uuid import uuid4
 
 from openai import OpenAI
 
-try:
-    from .benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
-    from .benchmark.policies import choose_action, next_table, table_should_advance
-    from .models import PipelineDoctorAction
-    from .server.pipeline_doctor_environment import PipelineDoctorEnvironment
-except ImportError:
-    from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
-    from benchmark.policies import choose_action, next_table, table_should_advance
-    from models import PipelineDoctorAction
-    from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
+from benchmark.inference_protocol import PROTOCOL_VERSION, emit_protocol_event
+from benchmark.policies import choose_action, next_table, table_should_advance
+from models import PipelineDoctorAction
+from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
@@ -38,6 +35,7 @@ def run_baseline(
     split: str = "train",
     policy_mode: str = "hybrid",
     model_name: str | None = None,
+    progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> dict[str, object]:
     """Run the benchmark baseline over the official Mario tasks."""
 
@@ -88,17 +86,18 @@ def run_baseline(
             action_sources["forced_commit"] += 1
             task_sources["forced_commit"] += 1
 
-        results.append(
-            {
-                "task_id": task_id,
-                "score": round(observation.current_score, 4),
-                "steps": env.state.step_count,
-                "success": bool(env.state.success),
-                "scenario_profile": observation.scenario_profile,
-                "heldout_profile_family": bool(observation.heldout_profile_family),
-                "action_sources": dict(task_sources),
-            }
-        )
+        task_result = {
+            "task_id": task_id,
+            "score": round(observation.current_score, 4),
+            "steps": env.state.step_count,
+            "success": bool(env.state.success),
+            "scenario_profile": observation.scenario_profile,
+            "heldout_profile_family": bool(observation.heldout_profile_family),
+            "action_sources": dict(task_sources),
+        }
+        results.append(task_result)
+        if progress_callback is not None:
+            progress_callback({"event": "task_complete", **task_result})
 
     average_score = round(
         sum(float(result["score"]) for result in results) / max(len(results), 1), 4
@@ -132,7 +131,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--policy-mode",
-        choices=["heuristic", "hybrid", "pure-llm"],
+        choices=["heuristic", "trained", "hybrid", "pure-llm"],
         default="hybrid",
         help="Baseline decision policy.",
     )
@@ -142,17 +141,46 @@ def main() -> None:
         help="Optional model override for LLM-backed modes.",
     )
     parser.add_argument(
+        "--stdout-protocol",
+        choices=["strict", "json"],
+        default="strict",
+        help=(
+            "stdout format: strict emits START/STEP/END lines for challenge parsers; "
+            "json emits a single JSON payload."
+        ),
+    )
+    parser.add_argument(
         "--seeds",
         type=int,
         nargs="+",
         help="Optional list of seeds to benchmark in sequence.",
     )
     args = parser.parse_args()
+    strict_protocol = args.stdout_protocol == "strict"
+    protocol_run_id = str(uuid4())
+
+    if strict_protocol:
+        emit_protocol_event(
+            "START",
+            {
+                "protocol_version": PROTOCOL_VERSION,
+                "run_id": protocol_run_id,
+                "policy_mode": args.policy_mode,
+                "split": args.split,
+                "seed": args.seed,
+                "seeds": args.seeds or [],
+                "model_name": args.model_name,
+            },
+        )
 
     if args.seeds:
-        payload = {
-            "status": "benchmark",
-            "runs": [
+        runs: list[dict[str, object]] = []
+        for seed in args.seeds:
+            progress_callback = None
+            if strict_protocol:
+                def progress_callback(event: dict[str, object], current_seed: int = seed) -> None:
+                    emit_protocol_event("STEP", {"seed": current_seed, **event})
+            runs.append(
                 {
                     "seed": seed,
                     **run_baseline(
@@ -160,20 +188,38 @@ def main() -> None:
                         split=args.split,
                         policy_mode=args.policy_mode,
                         model_name=args.model_name,
+                        progress_callback=progress_callback,
                     ),
                 }
-                for seed in args.seeds
-            ],
+            )
+        payload = {
+            "status": "benchmark",
+            "runs": runs,
         }
     else:
+        progress_callback = None
+        if strict_protocol:
+            def progress_callback(event: dict[str, object]) -> None:
+                emit_protocol_event("STEP", {"seed": args.seed, **event})
         payload = run_baseline(
             seed=args.seed,
             split=args.split,
             policy_mode=args.policy_mode,
             model_name=args.model_name,
+            progress_callback=progress_callback,
         )
 
-    print(json.dumps(payload, indent=2))
+    if strict_protocol:
+        emit_protocol_event(
+            "END",
+            {
+                "protocol_version": PROTOCOL_VERSION,
+                "run_id": protocol_run_id,
+                **payload,
+            },
+        )
+    else:
+        print(json.dumps(payload, indent=2))
 
 
 if __name__ == "__main__":

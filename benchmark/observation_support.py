@@ -6,16 +6,10 @@ import re
 
 import pandas as pd
 
-try:
-    from .grading import calculation_mismatch_count, score_single_table
-    from .runtime_state import current_frame
-    from .actions.transforms import is_datetime_like_column, normalize_string_value
-    from .actions.validation import table_has_structural_issues
-except ImportError:
-    from benchmark.grading import calculation_mismatch_count, score_single_table
-    from benchmark.runtime_state import current_frame
-    from benchmark.actions.transforms import is_datetime_like_column, normalize_string_value
-    from benchmark.actions.validation import table_has_structural_issues
+from benchmark.actions.transforms import is_datetime_like_column, normalize_string_value
+from benchmark.actions.validation import table_has_structural_issues
+from benchmark.grading import calculation_mismatch_count, score_single_table
+from benchmark.runtime_state import current_frame
 
 
 def missing_expected_columns(env, table_name: str) -> list[str]:

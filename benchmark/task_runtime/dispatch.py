@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-try:
-    from . import task3, task4, task5
-except ImportError:
-    from benchmark.task_runtime import task3, task4, task5
+from benchmark.task_runtime import task3, task4, task5
 
 
 def subgoal_progress_map(env) -> dict[str, bool]:

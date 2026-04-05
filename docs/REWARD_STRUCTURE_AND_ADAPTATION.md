@@ -128,7 +128,7 @@ Track A explicitly treats these as invalid benchmark wins:
 Mario now includes a direct one-shot adaptation check:
 
 ```bash
-python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 5 6
+python3 -m scripts.benchmark_adaptation --policy-mode heuristic --seeds 1 2 3 4 5 6
 ```
 
 Current local result:

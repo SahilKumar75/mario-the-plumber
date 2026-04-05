@@ -2,24 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 
-try:
-    from .scenarios import (
-        Scenario,
-        generate_task1,
-        generate_task2,
-        generate_task3,
-        generate_task4,
-        generate_task5,
-    )
-except ImportError:
-    from server.scenarios import (
-        Scenario,
-        generate_task1,
-        generate_task2,
-        generate_task3,
-        generate_task4,
-        generate_task5,
-    )
+from server.scenarios import (
+    Scenario,
+    generate_task1,
+    generate_task2,
+    generate_task3,
+    generate_task4,
+    generate_task5,
+)
 
 
 def generate_scenario(

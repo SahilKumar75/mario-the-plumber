@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-try:
-    from ..runtime_state import commit_ready
-    from ..actions.validation import table_has_structural_issues
-except ImportError:
-    from benchmark.runtime_state import commit_ready
-    from benchmark.actions.validation import table_has_structural_issues
+from benchmark.actions.validation import table_has_structural_issues
+from benchmark.runtime_state import commit_ready
 
 
 def subgoal_progress_map(env) -> dict[str, bool]:

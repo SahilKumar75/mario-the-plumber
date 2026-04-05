@@ -35,8 +35,14 @@ def test_generate_scenario_is_deterministic_by_task_split_seed(task_id: int) -> 
 
 
 def test_task5_train_and_eval_profiles_follow_heldout_split_semantics() -> None:
-    train = generate_scenario(task_id=5, split="train", seed=7)
-    eval_ = generate_scenario(task_id=5, split="eval", seed=7)
+    heldout_seed = next(
+        seed
+        for seed in range(1, 40)
+        if generate_scenario(task_id=5, split="eval", seed=seed).metadata["scenario_profile"].startswith("heldout_temporal_")
+    )
+
+    train = generate_scenario(task_id=5, split="train", seed=heldout_seed)
+    eval_ = generate_scenario(task_id=5, split="eval", seed=heldout_seed)
 
     assert not train.metadata["scenario_profile"].startswith("heldout_temporal_")
     assert eval_.metadata["scenario_profile"].startswith("heldout_temporal_")
@@ -48,6 +54,25 @@ def test_task5_train_and_eval_profiles_follow_heldout_split_semantics() -> None:
     assert eval_.metadata["incident_manifest"]["novelty_axes"]
     assert train.metadata["operational_trace_summary"]
     assert eval_.metadata["operational_trace_summary"]
+
+
+def test_task4_heldout_replay_windows_are_uneven_and_deterministic() -> None:
+    heldout_seed = next(
+        seed
+        for seed in range(1, 40)
+        if generate_scenario(task_id=4, split="eval", seed=seed).metadata["scenario_profile"].startswith("heldout_task4_")
+    )
+    heldout = generate_scenario(task_id=4, split="eval", seed=heldout_seed)
+    repeated = generate_scenario(task_id=4, split="eval", seed=heldout_seed)
+
+    manifest = heldout.metadata["incident_manifest"]
+    pending_counts = manifest["pending_replay_window_row_counts"]
+
+    assert heldout.metadata["scenario_profile"].startswith("heldout_task4_")
+    assert pending_counts
+    assert len(set(pending_counts.values())) > 1
+    assert sorted(pending_counts) == manifest["affected_batch_ids"]
+    assert repeated.metadata["incident_manifest"]["pending_replay_window_row_counts"] == pending_counts
 
 
 def test_collect_initial_score_stats_reports_split_and_task_coverage() -> None:
@@ -66,8 +91,6 @@ def test_collect_initial_score_stats_reports_split_and_task_coverage() -> None:
         "schema_evolution_backfill_recovery": 1,
         "late_correction_backpressure_incident": 1,
     }
-    assert set(eval_task5["profiles_seen"]) == {
-        "heldout_temporal_schema_extension_family",
-        "late_correction_backpressure_incident",
-    }
+    assert any(profile.startswith("heldout_temporal_") for profile in eval_task5["profiles_seen"])
+    assert any(not profile.startswith("heldout_temporal_") for profile in eval_task5["profiles_seen"])
     assert eval_task5["initial_score_mean"] >= 0.0

@@ -4,22 +4,13 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-try:
-    from ...benchmark.catalog import (
-        FORMAL_TASK_SPECS,
-        SYNTHETIC_DATA_NOTES,
-        TASK_OBJECTIVE_WEIGHTS,
-        patterns_for_profile,
-        sample_profile,
-    )
-except ImportError:
-    from benchmark.catalog import (
-        FORMAL_TASK_SPECS,
-        SYNTHETIC_DATA_NOTES,
-        TASK_OBJECTIVE_WEIGHTS,
-        patterns_for_profile,
-        sample_profile,
-    )
+from benchmark.catalog import (
+    FORMAL_TASK_SPECS,
+    SYNTHETIC_DATA_NOTES,
+    TASK_OBJECTIVE_WEIGHTS,
+    patterns_for_profile,
+    sample_profile,
+)
 
 __all__ = [
     "FORMAL_TASK_SPECS",

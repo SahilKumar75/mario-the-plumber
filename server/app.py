@@ -15,32 +15,18 @@ try:
 except Exception as exc:  # pragma: no cover
     raise ImportError("openenv-core is required to run the Mario the Plumber server.") from exc
 
-try:
-    from ..benchmark.api_payloads import (
-        adaptation_payload,
-        benchmark_metadata_payload,
-        benchmark_profiles_payload,
-        benchmark_runs_payload,
-        benchmark_tasks_payload,
-        tasks_payload,
-    )
-    from ..models import PipelineDoctorAction, PipelineDoctorObservation
-    from ..inference import run_baseline
-    from .benchmark_demo import build_benchmark_demo
-    from .pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
-except ImportError:
-    from benchmark.api_payloads import (
-        adaptation_payload,
-        benchmark_metadata_payload,
-        benchmark_profiles_payload,
-        benchmark_runs_payload,
-        benchmark_tasks_payload,
-        tasks_payload,
-    )
-    from inference import run_baseline
-    from models import PipelineDoctorAction, PipelineDoctorObservation
-    from server.benchmark_demo import build_benchmark_demo
-    from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
+from benchmark.api_payloads import (
+    adaptation_payload,
+    benchmark_metadata_payload,
+    benchmark_profiles_payload,
+    benchmark_runs_payload,
+    benchmark_tasks_payload,
+    tasks_payload,
+)
+from inference import run_baseline
+from models import PipelineDoctorAction, PipelineDoctorObservation
+from server.benchmark_demo import build_benchmark_demo
+from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 
 
 class GraderRequest(BaseModel):

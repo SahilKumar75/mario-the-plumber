@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-try:
-    from .grading import calculation_mismatch_count, duplicate_row_count
-    from .runtime_state import current_frame
-except ImportError:
-    from benchmark.grading import calculation_mismatch_count, duplicate_row_count
-    from benchmark.runtime_state import current_frame
+from benchmark.grading import calculation_mismatch_count, duplicate_row_count
+from benchmark.runtime_state import current_frame
 
 
 def schema_report(env) -> dict[str, dict[str, str]]:

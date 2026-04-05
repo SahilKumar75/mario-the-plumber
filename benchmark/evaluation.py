@@ -2,12 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-try:
-    from .catalog import TASK_THRESHOLDS
-    from .grading import score_single_table, score_task3, score_task4, score_task5
-except ImportError:
-    from benchmark.catalog import TASK_THRESHOLDS
-    from benchmark.grading import score_single_table, score_task3, score_task4, score_task5
+from benchmark.catalog import TASK_THRESHOLDS
+from benchmark.grading import score_single_table, score_task3, score_task4, score_task5
 
 
 def score(env) -> float:

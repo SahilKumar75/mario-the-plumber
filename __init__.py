@@ -6,26 +6,15 @@
 
 """Mario the Plumber OpenEnv package."""
 
-try:
-    from .client import MarioThePlumberEnv, PipelineDoctorEnv
-    from .models import (
-        MarioThePlumberAction,
-        MarioThePlumberObservation,
-        MarioThePlumberState,
-        PipelineDoctorAction,
-        PipelineDoctorObservation,
-        PipelineDoctorState,
-    )
-except ImportError:
-    from client import MarioThePlumberEnv, PipelineDoctorEnv
-    from models import (
-        MarioThePlumberAction,
-        MarioThePlumberObservation,
-        MarioThePlumberState,
-        PipelineDoctorAction,
-        PipelineDoctorObservation,
-        PipelineDoctorState,
-    )
+from client import MarioThePlumberEnv, PipelineDoctorEnv
+from models import (
+    MarioThePlumberAction,
+    MarioThePlumberObservation,
+    MarioThePlumberState,
+    PipelineDoctorAction,
+    PipelineDoctorObservation,
+    PipelineDoctorState,
+)
 
 __all__ = [
     "MarioThePlumberAction",

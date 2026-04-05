@@ -1,31 +1,21 @@
 """Custom Gradio benchmark demo for the Mario OpenEnv Space."""
 
 from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
 import gradio as gr
 
-try:
-    from ..benchmark.catalog import TASK_CARDS, benchmark_metadata
-    from ..benchmark.runtime import (
-        adaptation_payload,
-        benchmark_profiles_payload,
-        benchmark_runs_payload,
-        benchmark_tasks_payload,
-        runtime_summary,
-    )
-    from ..models import PipelineDoctorAction
-except ImportError:
-    from benchmark.catalog import TASK_CARDS, benchmark_metadata
-    from benchmark.runtime import (
-        adaptation_payload,
-        benchmark_profiles_payload,
-        benchmark_runs_payload,
-        benchmark_tasks_payload,
-        runtime_summary,
-    )
-    from models import PipelineDoctorAction
+from benchmark.catalog import TASK_CARDS, benchmark_metadata
+from benchmark.runtime import (
+    adaptation_payload,
+    benchmark_profiles_payload,
+    benchmark_runs_payload,
+    benchmark_tasks_payload,
+    runtime_summary,
+)
+from models import PipelineDoctorAction
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "docs" / "assets"

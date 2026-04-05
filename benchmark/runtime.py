@@ -7,10 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-try:
-    from .catalog import BENCHMARK_VERSION, PROFILE_DESCRIPTIONS, RUNTIME_MODES, TASK_CARDS, benchmark_metadata
-except ImportError:
-    from benchmark.catalog import BENCHMARK_VERSION, PROFILE_DESCRIPTIONS, RUNTIME_MODES, TASK_CARDS, benchmark_metadata
+from benchmark.catalog import BENCHMARK_VERSION, PROFILE_DESCRIPTIONS, RUNTIME_MODES, TASK_CARDS, benchmark_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "docs" / "assets"

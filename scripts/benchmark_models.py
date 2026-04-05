@@ -9,18 +9,13 @@ import json
 from pathlib import Path
 import random
 from statistics import mean, pstdev
-import sys
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from benchmark.runtime import runtime_summary  # noqa: E402
-from inference import run_baseline  # noqa: E402
-from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS  # noqa: E402
-from models import PipelineDoctorAction  # noqa: E402
-from server.pipeline_doctor_environment import PipelineDoctorEnvironment  # noqa: E402
+from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
+from benchmark.runtime import runtime_summary
+from inference import run_baseline
+from models import PipelineDoctorAction
+from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
 
 def run_random_baseline(seed: int, *, split: str = "train") -> dict[str, Any]:
@@ -201,8 +196,8 @@ def main() -> None:
     parser.add_argument(
         "--policies",
         nargs="+",
-        default=["random", "heuristic", "hybrid"],
-        choices=["random", "heuristic", "hybrid", "pure-llm"],
+        default=["random", "heuristic", "trained", "hybrid"],
+        choices=["random", "heuristic", "trained", "hybrid", "pure-llm"],
     )
     parser.add_argument("--model-name", default=None)
     parser.add_argument("--format", choices=["json", "markdown"], default="markdown")

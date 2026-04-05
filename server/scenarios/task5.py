@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
-try:
-    from ..incidents import load_task5_fixture
-    from ..incidents.shared import copy_tables, pack_metadata
-except ImportError:
-    from server.incidents import load_task5_fixture
-    from server.incidents.shared import copy_tables, pack_metadata
-
+from server.incidents import load_task5_fixture
+from server.incidents.shared import copy_tables, pack_metadata
+from .profile_routing import select_eval_profile
 from .shared import FORMAL_TASK_SPECS, TASK_OBJECTIVE_WEIGHTS, Scenario, expected_types, patterns_for_profile, sample_profile
 
 FAMILIAR_EVAL_PROFILES = [
@@ -30,9 +26,12 @@ def _select_task5_profile(
 ) -> str:
     if split != "eval" or seed is None:
         return sample_profile(5, split, rng)
-    profiles = HELDOUT_EVAL_PROFILES if seed % 2 else FAMILIAR_EVAL_PROFILES
-    profile_index = (seed // 2) % len(profiles)
-    return profiles[profile_index]
+    return select_eval_profile(
+        seed=seed,
+        task_id=5,
+        familiar_profiles=FAMILIAR_EVAL_PROFILES,
+        heldout_profiles=HELDOUT_EVAL_PROFILES,
+    )
 
 
 def generate_task5(

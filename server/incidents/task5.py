@@ -5,21 +5,31 @@ import pandas as pd
 from .shared import IncidentFixture
 
 
+def _repeat_pattern(values: list[str], size: int) -> list[str]:
+    if size <= 0:
+        return []
+    repeats = (size + len(values) - 1) // len(values)
+    return (values * repeats)[:size]
+
+
 def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
     catalog_truth = pd.DataFrame(
         {
-            "product_id": [601, 602, 603, 604],
-            "product_name": ["Valve", "Sensor", "Pump", "Controller"],
-            "unit_price": [18.0, 52.0, 77.0, 112.0],
-            "category": ["hardware", "iot", "hardware", "iot"],
+            "product_id": [601, 602, 603, 604, 605, 606],
+            "product_name": ["Valve", "Sensor", "Pump", "Controller", "Relay", "Actuator"],
+            "unit_price": [18.0, 52.0, 77.0, 112.0, 41.0, 68.0],
+            "category": ["hardware", "iot", "hardware", "iot", "ops", "industrial"],
         }
     )
     source_truth = pd.DataFrame(
         {
-            "order_id": [11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008, 11009, 11010, 11011, 11012, 11013, 11014],
-            "batch_id": ["t1", "t1", "t1", "t2", "t2", "t2", "t3", "t3", "t4", "t4", "t5", "t5", "t5", "t5"],
-            "product_id": [601, 602, 604, 603, 601, 602, 604, 603, 601, 604, 602, 603, 601, 604],
-            "quantity": [2, 1, 3, 2, 4, 1, 2, 3, 1, 5, 2, 4, 3, 2],
+            "order_id": [
+                11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008, 11009, 11010,
+                11011, 11012, 11013, 11014, 11015, 11016, 11017,
+            ],
+            "batch_id": ["t1", "t1", "t1", "t2", "t2", "t2", "t3", "t3", "t4", "t4", "t5", "t5", "t5", "t5", "t6", "t6", "t6"],
+            "product_id": [601, 602, 604, 603, 601, 602, 604, 603, 601, 604, 602, 603, 601, 604, 605, 606, 601],
+            "quantity": [2, 1, 3, 2, 4, 1, 2, 3, 1, 5, 2, 4, 3, 2, 1, 2, 4],
             "event_ts": [
                 "2026-03-29T10:00:00Z",
                 "2026-03-29T10:30:00Z",
@@ -35,6 +45,9 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
                 "2026-03-29T14:50:00Z",
                 "2026-03-29T15:10:00Z",
                 "2026-03-29T15:45:00Z",
+                "2026-03-29T16:05:00Z",
+                "2026-03-29T16:20:00Z",
+                "2026-03-29T16:45:00Z",
             ],
         }
     )
@@ -47,7 +60,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
         .agg(order_count=("order_id", "count"), gross_revenue=("gross_revenue", "sum"))
     )
 
-    pending_orders = source_truth[source_truth["batch_id"].isin(["t3", "t4", "t5"])].copy()
+    pending_orders = source_truth[source_truth["batch_id"].isin(["t3", "t4", "t5", "t6"])].copy()
     visible_orders = source_truth[source_truth["batch_id"].isin(["t1", "t2"])].copy()
     source_broken = visible_orders.copy()
     catalog_broken = catalog_truth.copy()
@@ -65,7 +78,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
             "2026-03-29 13:00:00+05:30",
         ]
         source_broken["gross_revenue"] = (visible_orders["gross_revenue"] * 0.83).round(2).astype(object)
-        catalog_broken["unit_price"] = ["$18.00", "$52.00", "7700 cents", "$112.00"]
+        catalog_broken["unit_price"] = _repeat_pattern(["$18.00", "$52.00", "7700 cents", "$112.00"], len(catalog_broken))
         rollup_broken.loc[:, "gross_revenue"] = (rollup_broken["gross_revenue"] * 0.88).round(2)
         rollup_broken.loc[rollup_broken.index[0], "hour_bucket"] = "29/03/2026 10:00"
     elif profile == "schema_evolution_backfill_recovery":
@@ -81,7 +94,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
             "2026-03-29 13:00:00+05:30",
         ]
         source_broken["gross_revenue"] = (visible_orders["gross_revenue"] * 0.83).round(2).astype(object)
-        catalog_broken["unit_price"] = ["$18.00", "5200 cents", "7700 cents", "$112.00"]
+        catalog_broken["unit_price"] = _repeat_pattern(["$18.00", "5200 cents", "7700 cents", "$112.00"], len(catalog_broken))
         catalog_broken = catalog_broken.rename(columns={"category": "product_segment"})
         catalog_broken.loc[1, "product_segment"] = " IoT "
         catalog_broken = pd.concat([catalog_broken, catalog_broken.iloc[[2]]], ignore_index=True)
@@ -99,7 +112,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
             "2026-03-29 13:00:00+05:30",
         ]
         source_broken["gross_revenue"] = (visible_orders["gross_revenue"] * 0.83).round(2).astype(object)
-        catalog_broken["unit_price"] = ["$18.00", "$52.00", "7700 cents", "$112.00"]
+        catalog_broken["unit_price"] = _repeat_pattern(["$18.00", "$52.00", "7700 cents", "$112.00"], len(catalog_broken))
         catalog_broken.loc[1, "category"] = " IoT "
         catalog_broken = pd.concat([catalog_broken, catalog_broken.iloc[[2]]], ignore_index=True)
         rollup_broken.loc[:, "gross_revenue"] = (rollup_broken["gross_revenue"] * 0.88).round(2)
@@ -125,7 +138,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
         ]
         source_broken["recognized_revenue_value"] = (visible_orders["gross_revenue"] * 0.77).round(2).astype(object)
         source_broken = source_broken.drop(columns=["gross_revenue"])
-        catalog_broken["unit_price"] = ["$18.00", "5200 cents", "7700 cents", "$112.00"]
+        catalog_broken["unit_price"] = _repeat_pattern(["$18.00", "5200 cents", "7700 cents", "$112.00"], len(catalog_broken))
         catalog_broken = catalog_broken.rename(columns={"category": "catalog_family_group"})
         catalog_broken.loc[1, "catalog_family_group"] = " IoT "
         catalog_broken = pd.concat([catalog_broken, catalog_broken.iloc[[2]]], ignore_index=True)
@@ -150,7 +163,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
         ]
         source_broken["booked_revenue_usd"] = (visible_orders["gross_revenue"] * 0.79).round(2).astype(object)
         source_broken = source_broken.drop(columns=["gross_revenue"])
-        catalog_broken["unit_price"] = ["$18.00", "$52.00", "7700 cents", "$112.00"]
+        catalog_broken["unit_price"] = _repeat_pattern(["$18.00", "$52.00", "7700 cents", "$112.00"], len(catalog_broken))
         catalog_broken = catalog_broken.rename(columns={"unit_price": "unit_cost_cents"})
         rollup_broken = rollup_broken.rename(
             columns={"hour_bucket": "rollup_window_start_utc", "gross_revenue": "net_sales_value"}
@@ -173,7 +186,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
         ]
         source_broken["revenue_usd_value"] = (visible_orders["gross_revenue"] * 0.76).round(2).astype(object)
         source_broken = source_broken.drop(columns=["gross_revenue"])
-        catalog_broken["unit_price"] = ["$18.00", "5200 cents", "7700 cents", "$112.00"]
+        catalog_broken["unit_price"] = _repeat_pattern(["$18.00", "5200 cents", "7700 cents", "$112.00"], len(catalog_broken))
         catalog_broken = catalog_broken.rename(columns={"category": "catalog_segment_name"})
         catalog_broken.loc[1, "catalog_segment_name"] = " IoT "
         catalog_broken = pd.concat([catalog_broken, catalog_broken.iloc[[2]]], ignore_index=True)
@@ -184,6 +197,18 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
         rollup_broken.loc[rollup_broken.index[0], "bucket_window_utc_start"] = "29/03/2026 10:00"
 
     profile_manifest = {
+        "temporal_rollup_backfill_incident": {
+            "profile_family": "familiar_temporal",
+            "novelty_axes": ["late_correction_replay", "rollup_backfill_pressure"],
+            "failed_tasks": ["replay_late_batches", "refresh_hourly_rollup"],
+            "affected_hour_buckets": ["2026-03-29T14:00:00Z", "2026-03-29T15:00:00Z"],
+            "late_correction_order_ids": [11007, 11008, 11009, 11010, 11011, 11012, 11013, 11014],
+            "watermark_before": "2026-03-29T13:00:00Z",
+            "expected_watermark_after_replay": "2026-03-29T15:45:00Z",
+            "source_contract_version": "v2-source-orders",
+            "rollup_contract_version": "v2-hourly-rollup",
+            "downstream_assets": ["hourly_rollup", "revenue_monitor"],
+        },
         "schema_evolution_backfill_recovery": {
             "profile_family": "familiar_temporal",
             "novelty_axes": ["schema_alias_shift", "catalog_contract_drift"],
@@ -262,7 +287,7 @@ def load_task5_fixture(profile: str, split: str) -> IncidentFixture:
         "freshness_lag_minutes": freshness_lag_minutes,
         "resource_level": 1,
         "required_resource_level": required_resource_level,
-        "pending_batches": 3 if backlog_rows > 0 else 0,
+        "pending_batches": int(pending_orders["batch_id"].nunique()) if backlog_rows > 0 else 0,
         "downstream_stale": True,
         "workload_pressure": 0.95 if split == "eval" else 0.8,
         "incident_manifest": {

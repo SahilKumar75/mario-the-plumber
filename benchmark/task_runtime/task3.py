@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-try:
-    from ..grading import calculation_mismatch_count
-    from ..observation_support import dependency_alerts
-    from ..actions.validation import table_has_structural_issues
-except ImportError:
-    from benchmark.grading import calculation_mismatch_count
-    from benchmark.observation_support import dependency_alerts
-    from benchmark.actions.validation import table_has_structural_issues
+from benchmark.actions.validation import table_has_structural_issues
+from benchmark.grading import calculation_mismatch_count
+from benchmark.observation_support import dependency_alerts
 
 
 def subgoal_progress_map(env) -> dict[str, bool]:

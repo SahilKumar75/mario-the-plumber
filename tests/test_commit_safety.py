@@ -42,6 +42,9 @@ def test_task4_prioritize_incremental_batch_replays_one_batch_at_a_time() -> Non
 
     initial_backlog = env.state.backlog_rows
     initial_batches = env.state.pending_batches
+    expected_first_batch = sorted(
+        env._scenario_meta["pending_orders"]["batch_id"].astype(str).unique().tolist()
+    )[0]
 
     env.step(PipelineDoctorAction(action_id=16))
     env.step(PipelineDoctorAction(action_id=16))
@@ -51,7 +54,7 @@ def test_task4_prioritize_incremental_batch_replays_one_batch_at_a_time() -> Non
     assert env.state.backlog_rows < initial_backlog
     assert env.state.backlog_rows > 0
     assert env.state.pending_batches == initial_batches - 1
-    assert env._scenario_meta["last_replayed_batch_id"] == "b3"
+    assert env._scenario_meta["last_replayed_batch_id"] == expected_first_batch
 
 
 def test_task5_prioritize_incremental_batch_replays_one_batch_at_a_time() -> None:
@@ -60,6 +63,9 @@ def test_task5_prioritize_incremental_batch_replays_one_batch_at_a_time() -> Non
 
     initial_backlog = env.state.backlog_rows
     initial_batches = env.state.pending_batches
+    expected_first_batch = sorted(
+        env._scenario_meta["pending_orders"]["batch_id"].astype(str).unique().tolist()
+    )[0]
 
     env.step(PipelineDoctorAction(action_id=16))
     env.step(PipelineDoctorAction(action_id=16))
@@ -69,4 +75,4 @@ def test_task5_prioritize_incremental_batch_replays_one_batch_at_a_time() -> Non
     assert env.state.backlog_rows < initial_backlog
     assert env.state.backlog_rows > 0
     assert env.state.pending_batches == initial_batches - 1
-    assert env._scenario_meta["last_replayed_batch_id"] == "t3"
+    assert env._scenario_meta["last_replayed_batch_id"] == expected_first_batch

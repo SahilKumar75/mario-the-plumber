@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-try:
-    from .catalog import FORMAL_TASK_SPECS
-    from .observation_support import missing_expected_columns
-    from .task_runtime.dispatch import dependency_health_summary as runtime_dependency_health_summary
-    from .task_runtime.dispatch import subgoal_progress_map as runtime_subgoal_progress_map
-except ImportError:
-    from benchmark.catalog import FORMAL_TASK_SPECS
-    from benchmark.observation_support import missing_expected_columns
-    from benchmark.task_runtime.dispatch import dependency_health_summary as runtime_dependency_health_summary
-    from benchmark.task_runtime.dispatch import subgoal_progress_map as runtime_subgoal_progress_map
+from benchmark.catalog import FORMAL_TASK_SPECS
+from benchmark.observation_support import missing_expected_columns
+from benchmark.task_runtime.dispatch import dependency_health_summary as runtime_dependency_health_summary
+from benchmark.task_runtime.dispatch import subgoal_progress_map as runtime_subgoal_progress_map
 
 
 def task_progress_bundle(env) -> tuple[dict[str, bool], list[str], str, str]:

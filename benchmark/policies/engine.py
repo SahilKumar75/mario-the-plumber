@@ -4,37 +4,16 @@ from __future__ import annotations
 
 from openai import OpenAI
 
-try:
-    from ...models import PipelineDoctorAction, PipelineDoctorObservation
-except ImportError:
-    from models import PipelineDoctorAction, PipelineDoctorObservation
-
-try:
-    from .candidates import (
-        candidate_actions_for,
-        is_candidate_action,
-        normalize_candidate_action,
-    )
-    from .heuristics import FALLBACK_ACTION, heuristic_action_for
-    from .prompts import SYSTEM_PROMPT, build_user_prompt, parse_action
-    from .utils import (
-        action_has_required_fields,
-        same_action,
-        table_needs_attention,
-    )
-except ImportError:
-    from benchmark.policies.candidates import (
-        candidate_actions_for,
-        is_candidate_action,
-        normalize_candidate_action,
-    )
-    from benchmark.policies.heuristics import FALLBACK_ACTION, heuristic_action_for
-    from benchmark.policies.prompts import SYSTEM_PROMPT, build_user_prompt, parse_action
-    from benchmark.policies.utils import (
-        action_has_required_fields,
-        same_action,
-        table_needs_attention,
-    )
+from benchmark.policies.candidates import (
+    candidate_actions_for,
+    is_candidate_action,
+    normalize_candidate_action,
+)
+from benchmark.policies.heuristics import FALLBACK_ACTION, heuristic_action_for
+from benchmark.policies.prompts import SYSTEM_PROMPT, build_user_prompt, parse_action
+from benchmark.policies.trained import trained_action_for
+from benchmark.policies.utils import action_has_required_fields, same_action, table_needs_attention
+from models import PipelineDoctorAction, PipelineDoctorObservation
 
 TEMPERATURE = 0.0
 MAX_TOKENS = 220
@@ -52,6 +31,26 @@ def choose_action(
 
     if policy_mode == "heuristic":
         return heuristic_action, "heuristic"
+    if policy_mode == "trained":
+        trained_action = trained_action_for(
+            task_id,
+            observation,
+            fallback_action=heuristic_action,
+        )
+        normalized_action = normalize_candidate_action(trained_action, candidate_actions)
+        stabilized_action = stabilize_action(
+            policy_mode,
+            task_id,
+            observation,
+            normalized_action,
+            heuristic_action,
+            candidate_actions,
+        )
+        if same_action(stabilized_action, normalized_action):
+            return stabilized_action, "trained"
+        if same_action(stabilized_action, heuristic_action):
+            return stabilized_action, "trained_guardrail"
+        return stabilized_action, "trained_fallback"
     if client is None or not model_name:
         return heuristic_action, "heuristic_no_client"
 

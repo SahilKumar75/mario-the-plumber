@@ -76,7 +76,7 @@ log "Repo:     $REPO_DIR"
 log "Ping URL: $PING_URL"
 printf "\n"
 
-log "${BOLD}Step 1/3: Pinging HF Space${NC} ($PING_URL/reset) ..."
+log "${BOLD}Step 1/4: Pinging HF Space${NC} ($PING_URL/reset) ..."
 CURL_OUTPUT=$(portable_mktemp "validate-curl")
 CLEANUP_FILES+=("$CURL_OUTPUT")
 HTTP_CODE=$(curl -s -o "$CURL_OUTPUT" -w "%{http_code}" -X POST \
@@ -95,7 +95,7 @@ else
   stop_at "Step 1"
 fi
 
-log "${BOLD}Step 2/3: Running docker build${NC} ..."
+log "${BOLD}Step 2/4: Running docker build${NC} ..."
 if ! command -v docker &>/dev/null; then
   fail "docker command not found"
   stop_at "Step 2"
@@ -125,7 +125,7 @@ else
   stop_at "Step 2"
 fi
 
-log "${BOLD}Step 3/3: Running openenv validate${NC} ..."
+log "${BOLD}Step 3/4: Running openenv validate${NC} ..."
 if ! command -v openenv &>/dev/null; then
   fail "openenv command not found"
   stop_at "Step 3"
@@ -143,7 +143,102 @@ else
   stop_at "Step 3"
 fi
 
+log "${BOLD}Step 4/4: Verifying inference stdout protocol${NC} ..."
+if command -v python3 &>/dev/null; then
+  PYTHON_CMD="python3"
+elif command -v python &>/dev/null; then
+  PYTHON_CMD="python"
+else
+  fail "python command not found"
+  stop_at "Step 4"
+fi
+
+INFERENCE_STDOUT=$(portable_mktemp "validate-inference")
+CLEANUP_FILES+=("$INFERENCE_STDOUT")
+INFERENCE_OK=false
+(
+  cd "$REPO_DIR" &&
+  "$PYTHON_CMD" -m inference --seed 1 --split eval --policy-mode heuristic >"$INFERENCE_STDOUT" 2>&1
+) && INFERENCE_OK=true
+
+if [ "$INFERENCE_OK" != true ]; then
+  fail "inference protocol run failed"
+  tail -20 "$INFERENCE_STDOUT"
+  stop_at "Step 4"
+fi
+
+PROTO_CHECK_OK=false
+PROTO_CHECK_OUTPUT=$("$PYTHON_CMD" - "$INFERENCE_STDOUT" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as handle:
+  lines = [line.strip() for line in handle if line.strip()]
+
+if not lines:
+  raise SystemExit("inference output is empty")
+
+start = None
+end = None
+steps = []
+
+for raw in lines:
+  if " " not in raw:
+    raise SystemExit(f"malformed protocol line: {raw}")
+  tag, payload_blob = raw.split(" ", 1)
+  if tag not in {"START", "STEP", "END"}:
+    raise SystemExit(f"unknown protocol tag: {tag}")
+  try:
+    payload = json.loads(payload_blob)
+  except json.JSONDecodeError as exc:
+    raise SystemExit(f"invalid JSON payload for tag {tag}: {exc}") from exc
+  if not isinstance(payload, dict):
+    raise SystemExit(f"payload for {tag} must be an object")
+
+  if tag == "START":
+    if start is not None:
+      raise SystemExit("multiple START lines found")
+    if end is not None:
+      raise SystemExit("START appeared after END")
+    start = payload
+  elif tag == "STEP":
+    if start is None:
+      raise SystemExit("STEP appeared before START")
+    if end is not None:
+      raise SystemExit("STEP appeared after END")
+    steps.append(payload)
+  else:
+    if start is None:
+      raise SystemExit("END appeared before START")
+    if end is not None:
+      raise SystemExit("multiple END lines found")
+    end = payload
+
+if start is None or end is None:
+  raise SystemExit("protocol missing START or END")
+
+task_ids = sorted({int(step.get("task_id")) for step in steps if "task_id" in step})
+if task_ids != [1, 2, 3, 4, 5]:
+  raise SystemExit(f"expected STEP task coverage [1,2,3,4,5], got {task_ids}")
+
+if end.get("status") != "complete":
+  raise SystemExit(f"END payload status must be complete, got {end.get('status')!r}")
+
+print(f"steps={len(steps)} tasks={task_ids}")
+PY
+) && PROTO_CHECK_OK=true
+
+if [ "$PROTO_CHECK_OK" = true ]; then
+  pass "inference stdout protocol is parser-compliant"
+  [ -n "$PROTO_CHECK_OUTPUT" ] && log "  $PROTO_CHECK_OUTPUT"
+else
+  fail "inference stdout protocol check failed"
+  printf "%s\n" "$PROTO_CHECK_OUTPUT"
+  stop_at "Step 4"
+fi
+
 printf "\n${BOLD}========================================${NC}\n"
-printf "${GREEN}${BOLD}  All 3/3 checks passed!${NC}\n"
+printf "${GREEN}${BOLD}  All 4/4 checks passed!${NC}\n"
 printf "${GREEN}${BOLD}  Your submission is ready to submit.${NC}\n"
 printf "${BOLD}========================================${NC}\n\n"

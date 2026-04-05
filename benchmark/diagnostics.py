@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-try:
-    from .inspection import structural_mismatch_errors
-    from .observation_support import dependency_alerts, orchestration_alerts
-    from .task_runtime.dispatch import runtime_errors
-except ImportError:
-    from benchmark.inspection import structural_mismatch_errors
-    from benchmark.observation_support import dependency_alerts, orchestration_alerts
-    from benchmark.task_runtime.dispatch import runtime_errors
+from benchmark.inspection import structural_mismatch_errors
+from benchmark.observation_support import dependency_alerts, orchestration_alerts
+from benchmark.task_runtime.dispatch import runtime_errors
 
 
 def refresh_errors(env) -> None:

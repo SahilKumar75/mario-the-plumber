@@ -3,25 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 from pathlib import Path
-import sys
 import tempfile
 
 import mlflow
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-INFERENCE = importlib.import_module("inference")
-MODEL_NAME = INFERENCE.MODEL_NAME
-run_baseline = INFERENCE.run_baseline
-try:
-    BENCHMARK_VERSION = importlib.import_module("benchmark.catalog").BENCHMARK_VERSION
-except ImportError:
-    BENCHMARK_VERSION = "unknown"
+from benchmark.catalog import BENCHMARK_VERSION
+from inference import MODEL_NAME, run_baseline
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--policy-mode",
-        choices=["heuristic", "hybrid", "pure-llm"],
+        choices=["heuristic", "trained", "hybrid", "pure-llm"],
         default="hybrid",
         help="Baseline policy mode to evaluate.",
     )

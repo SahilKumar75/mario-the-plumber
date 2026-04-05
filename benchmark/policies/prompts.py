@@ -6,15 +6,8 @@ import json
 import re
 import textwrap
 
-try:
-    from ...models import PipelineDoctorAction, PipelineDoctorObservation
-except ImportError:
-    from models import PipelineDoctorAction, PipelineDoctorObservation
-
-try:
-    from ..catalog import TASK_THRESHOLDS
-except ImportError:
-    from benchmark.catalog import TASK_THRESHOLDS
+from benchmark.catalog import TASK_THRESHOLDS
+from models import PipelineDoctorAction, PipelineDoctorObservation
 
 JSON_PATTERN = re.compile(r"\{.*\}", re.DOTALL)
 

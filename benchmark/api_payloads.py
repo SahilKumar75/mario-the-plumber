@@ -2,38 +2,21 @@
 
 from __future__ import annotations
 
-try:
-    from .catalog import (
-        MAX_STEPS,
-        TASK_DIFFICULTY,
-        TASK_CARDS,
-        TASK_NAMES,
-        TASK_THRESHOLDS,
-        benchmark_metadata,
-    )
-    from .runtime import (
-        adaptation_payload,
-        benchmark_profiles_payload,
-        benchmark_runs_payload,
-        benchmark_tasks_payload,
-        runtime_summary,
-    )
-except ImportError:
-    from benchmark.catalog import (
-        MAX_STEPS,
-        TASK_DIFFICULTY,
-        TASK_CARDS,
-        TASK_NAMES,
-        TASK_THRESHOLDS,
-        benchmark_metadata,
-    )
-    from benchmark.runtime import (
-        adaptation_payload,
-        benchmark_profiles_payload,
-        benchmark_runs_payload,
-        benchmark_tasks_payload,
-        runtime_summary,
-    )
+from benchmark.catalog import (
+    MAX_STEPS,
+    TASK_DIFFICULTY,
+    TASK_CARDS,
+    TASK_NAMES,
+    TASK_THRESHOLDS,
+    benchmark_metadata,
+)
+from benchmark.runtime import (
+    adaptation_payload,
+    benchmark_profiles_payload,
+    benchmark_runs_payload,
+    benchmark_tasks_payload,
+    runtime_summary,
+)
 
 
 def tasks_payload() -> dict[str, object]:

@@ -7,15 +7,10 @@ import argparse
 import json
 from pathlib import Path
 from statistics import mean
-import sys
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from benchmark.catalog import TASK_NAMES, TASK_THRESHOLDS, benchmark_metadata  # noqa: E402
-from benchmark.runtime import runtime_summary  # noqa: E402
-from server.pipeline_doctor_environment import PipelineDoctorEnvironment  # noqa: E402
+from benchmark.catalog import TASK_NAMES, TASK_THRESHOLDS, benchmark_metadata
+from benchmark.runtime import runtime_summary
+from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
 
 def collect_initial_score_stats(seeds: list[int]) -> dict[str, object]:

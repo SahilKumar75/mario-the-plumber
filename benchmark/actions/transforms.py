@@ -6,10 +6,7 @@ import re
 
 import pandas as pd
 
-try:
-    from ..runtime_state import current_frame
-except ImportError:
-    from benchmark.runtime_state import current_frame
+from benchmark.runtime_state import current_frame
 
 
 def handle_inspect_schema(env, action) -> str:

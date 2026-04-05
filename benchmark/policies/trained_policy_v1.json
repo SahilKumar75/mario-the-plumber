@@ -1,0 +1,735 @@
+{
+  "version": "1.0",
+  "algorithm": "behavior_cloning_count_table",
+  "training_split": "train",
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40
+  ],
+  "signature_counts": {
+    "1": 10,
+    "2": 12,
+    "3": 13,
+    "4": 21,
+    "5": 31
+  },
+  "samples_collected": 2948,
+  "task_policies": {
+    "1": {
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "age"
+        },
+        "count": 20
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 14
+        },
+        "count": 130
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "signup_dt",
+          "new_name": "signup_date"
+        },
+        "count": 25
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "age"
+        },
+        "count": 17
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "monthly_spend"
+        },
+        "count": 9
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "age"
+        },
+        "count": 9
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 14
+        },
+        "count": 55
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "monthly_spend"
+        },
+        "count": 5
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "age"
+        },
+        "count": 10
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 1, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 15
+        },
+        "count": 10
+      }
+    },
+    "2": {
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 2, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 10
+        },
+        "count": 16
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "age"
+        },
+        "count": 16
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 8,
+          "target_column": "amount"
+        },
+        "count": 16
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 15
+        },
+        "count": 16
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 1, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 10
+        },
+        "count": 5
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "age"
+        },
+        "count": 9
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 8,
+          "target_column": "amount"
+        },
+        "count": 9
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 14
+        },
+        "count": 109
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "age"
+        },
+        "count": 15
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 8,
+          "target_column": "amount"
+        },
+        "count": 15
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 14
+        },
+        "count": 189
+      },
+      "{\"active_subgoal\": \"\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 1, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"single\", \"task_id\": 2, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 10
+        },
+        "count": 9
+      }
+    },
+    "3": {
+      "{\"active_subgoal\": \"repair_customers\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 2, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 3, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "order_date"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"repair_customers\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 3, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "customer_id"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"repair_customers\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 3, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "quantity"
+        },
+        "count": 436
+      },
+      "{\"active_subgoal\": \"repair_customers\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 3, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 0,
+          "target_column": "customers"
+        },
+        "count": 22
+      },
+      "{\"active_subgoal\": \"repair_customers\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 1, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"customers\", \"task_id\": 3, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "email"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"repair_customers\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"customers\", \"task_id\": 3, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "age"
+        },
+        "count": 22
+      },
+      "{\"active_subgoal\": \"repair_products\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"customers\", \"task_id\": 3, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 0,
+          "target_column": "products"
+        },
+        "count": 22
+      },
+      "{\"active_subgoal\": \"repair_products\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 1, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 3, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "product_category",
+          "new_name": "category"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"repair_products\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 1, \"format_bucket\": 1, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 3, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 10
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"repair_products\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 1, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 3, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "category"
+        },
+        "count": 22
+      },
+      "{\"active_subgoal\": \"repair_products\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 3, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 3,
+          "target_column": "unit_price"
+        },
+        "count": 22
+      },
+      "{\"active_subgoal\": \"commit_pipeline\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 3, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 15
+        },
+        "count": 22
+      },
+      "{\"active_subgoal\": \"repair_customers\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 3, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "order_date"
+        },
+        "count": 10
+      }
+    },
+    "4": {
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 6, \"resource_gap\": 2, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "event_time",
+          "new_name": "event_ts"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 6, \"resource_gap\": 2, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 16
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 6, \"resource_gap\": 1, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 16
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 6, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 5, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 1, \"pending_batches\": 3, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 1, \"pending_batches\": 2, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 1, \"pending_batches\": 1, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 1, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "event_ts"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 1, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 11,
+          "target_column": "revenue"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "product_id"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"normalize_orders_stream\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "quantity"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"refresh_daily_summary\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"orders\", \"task_id\": 4, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 0,
+          "target_column": "products"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"refresh_daily_summary\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 4, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "product_segment",
+          "new_name": "category"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"refresh_daily_summary\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 1, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 4, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "category"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"refresh_daily_summary\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 4, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 8,
+          "target_column": "unit_price"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"refresh_daily_summary\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"products\", \"task_id\": 4, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 0,
+          "target_column": "daily_summary"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"refresh_daily_summary\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"daily_summary\", \"task_id\": 4, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 19
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"commit_recovery\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 0, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"daily_summary\", \"task_id\": 4, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 15
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"refresh_daily_summary\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"daily_summary\", \"task_id\": 4, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "business_date",
+          "new_name": "event_date"
+        },
+        "count": 18
+      }
+    },
+    "5": {
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 2, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "observed_at",
+          "new_name": "event_ts"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 2, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 16
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 1, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 16
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 3, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 2, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 1, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "event_ts"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "product_id"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 7,
+          "target_column": "quantity"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 3,
+          "target_column": "gross_revenue"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 0,
+          "target_column": "catalog"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"reconcile_schema_aliases\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 1, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"catalog\", \"task_id\": 5, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "product_segment",
+          "new_name": "category"
+        },
+        "count": 12
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 1, \"format_bucket\": 1, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"catalog\", \"task_id\": 5, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 10
+        },
+        "count": 30
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 1, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"catalog\", \"task_id\": 5, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "category"
+        },
+        "count": 30
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"catalog\", \"task_id\": 5, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 8,
+          "target_column": "unit_price"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"refresh_temporal_rollup\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"catalog\", \"task_id\": 5, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 0,
+          "target_column": "hourly_rollup"
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"refresh_temporal_rollup\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"hourly_rollup\", \"task_id\": 5, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 19
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"commit_temporal_pipeline\", \"backlog_present\": 0, \"commit_ready\": 1, \"dependency_alerts\": 1, \"downstream_stale\": 0, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"hourly_rollup\", \"task_id\": 5, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 15
+        },
+        "count": 40
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 2, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 16
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 1, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 16
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 4, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 3, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 2, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 1, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 1, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 18
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 3, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 9,
+          "target_column": "event_ts"
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 3}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "product_id"
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 2}": {
+        "action": {
+          "metadata": {},
+          "action_id": 4,
+          "target_column": "quantity"
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 3,
+          "target_column": "gross_revenue"
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"repair_catalog_and_source_quality\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"source_orders\", \"task_id\": 5, \"type_bucket\": 0}": {
+        "action": {
+          "metadata": {},
+          "action_id": 0,
+          "target_column": "catalog"
+        },
+        "count": 28
+      },
+      "{\"active_subgoal\": \"refresh_temporal_rollup\", \"backlog_present\": 0, \"commit_ready\": 0, \"dependency_alerts\": 1, \"downstream_stale\": 1, \"duplicate_bin\": 0, \"format_bucket\": 0, \"missing_bin\": 0, \"outlier_bucket\": 0, \"pending_batches\": 0, \"resource_gap\": 0, \"stage\": \"hourly_rollup\", \"task_id\": 5, \"type_bucket\": 1}": {
+        "action": {
+          "metadata": {},
+          "action_id": 12,
+          "target_column": "window_start",
+          "new_name": "hour_bucket"
+        },
+        "count": 18
+      }
+    }
+  }
+}

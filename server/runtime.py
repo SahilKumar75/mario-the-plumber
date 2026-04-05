@@ -6,16 +6,10 @@ from uuid import uuid4
 
 import pandas as pd
 
-try:
-    from ..benchmark.action_metadata import ACTION_NAMES
-    from ..benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
-    from ..benchmark.grading import compute_reward, compute_reward_breakdown
-    from ..models import PipelineDoctorState
-except ImportError:
-    from benchmark.action_metadata import ACTION_NAMES
-    from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
-    from benchmark.grading import compute_reward, compute_reward_breakdown
-    from models import PipelineDoctorState
+from benchmark.action_metadata import ACTION_NAMES
+from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
+from benchmark.grading import compute_reward, compute_reward_breakdown
+from models import PipelineDoctorState
 
 
 @dataclass(slots=True)

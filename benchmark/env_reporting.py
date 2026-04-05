@@ -2,53 +2,60 @@
 
 from __future__ import annotations
 
-try:
-    from .catalog import SYNTHETIC_DATA_NOTES, TASK_CARDS, TASK_OBJECTIVE_WEIGHTS
-    from .evaluation import objective_breakdown
-    from .inspection import format_issue_count, outlier_count, schema_report
-    from .observation_support import (
-        column_alias_hints,
-        dependency_alerts,
-        missing_expected_columns,
-        orchestration_alerts,
-        table_health,
-        workload_pressure,
-    )
-    from .progress import (
-        backlog_age_minutes,
-        dependency_health_summary,
-        drift_markers,
-        recent_failure_counters,
-        sla_severity,
-        task_progress_bundle,
-    )
-    from .runtime_state import commit_ready, current_frame
-except ImportError:
-    from benchmark.catalog import SYNTHETIC_DATA_NOTES, TASK_CARDS, TASK_OBJECTIVE_WEIGHTS
-    from benchmark.evaluation import objective_breakdown
-    from benchmark.inspection import format_issue_count, outlier_count, schema_report
-    from benchmark.observation_support import (
-        column_alias_hints,
-        dependency_alerts,
-        missing_expected_columns,
-        orchestration_alerts,
-        table_health,
-        workload_pressure,
-    )
-    from benchmark.progress import (
-        backlog_age_minutes,
-        dependency_health_summary,
-        drift_markers,
-        recent_failure_counters,
-        sla_severity,
-        task_progress_bundle,
-    )
-    from benchmark.runtime_state import commit_ready, current_frame
+from benchmark.catalog import SYNTHETIC_DATA_NOTES, TASK_CARDS, TASK_OBJECTIVE_WEIGHTS
+from benchmark.evaluation import objective_breakdown
+from benchmark.inspection import format_issue_count, outlier_count, schema_report
+from benchmark.observation_support import (
+    column_alias_hints,
+    dependency_alerts,
+    missing_expected_columns,
+    orchestration_alerts,
+    table_health,
+    workload_pressure,
+)
+from benchmark.progress import (
+    backlog_age_minutes,
+    dependency_health_summary,
+    drift_markers,
+    recent_failure_counters,
+    sla_severity,
+    task_progress_bundle,
+)
+from benchmark.runtime_state import commit_ready, current_frame
+from models import PipelineDoctorObservation
 
-try:
-    from ..models import PipelineDoctorObservation
-except ImportError:
-    from models import PipelineDoctorObservation
+
+def _task_sensitive_context(
+    env,
+    *,
+    subgoal_progress: dict[str, bool],
+    subgoal_order: list[str],
+    active_subgoal: str,
+    reward_machine_state: str,
+) -> dict[str, object]:
+    if env._task_id >= 3:
+        return {
+            "recent_failure_counters": recent_failure_counters(env),
+            "drift_markers": drift_markers(env),
+            "dependency_health_summary": dependency_health_summary(env),
+            "tradeoff_weights": dict(TASK_OBJECTIVE_WEIGHTS.get(env._task_id, {})),
+            "subgoal_progress": subgoal_progress,
+            "subgoal_order": subgoal_order,
+            "active_subgoal": active_subgoal,
+            "reward_machine_state": reward_machine_state,
+            "adaptation_target": str(env._scenario_meta.get("adaptation_target", "")),
+        }
+    return {
+        "recent_failure_counters": {},
+        "drift_markers": [],
+        "dependency_health_summary": {},
+        "tradeoff_weights": {},
+        "subgoal_progress": {},
+        "subgoal_order": [],
+        "active_subgoal": "",
+        "reward_machine_state": "",
+        "adaptation_target": "",
+    }
 
 
 def build_observation(
@@ -66,6 +73,13 @@ def build_observation(
     schema_report_payload = schema_report(env)
     alias_hints = column_alias_hints(env)
     subgoal_progress, subgoal_order, active_subgoal, reward_machine_state = task_progress_bundle(env)
+    context = _task_sensitive_context(
+        env,
+        subgoal_progress=subgoal_progress,
+        subgoal_order=subgoal_order,
+        active_subgoal=active_subgoal,
+        reward_machine_state=reward_machine_state,
+    )
     task_card = TASK_CARDS.get(env._task_id, {})
     format_issues = format_issue_count(env)
     return PipelineDoctorObservation(
@@ -102,9 +116,9 @@ def build_observation(
         pending_batches=env._state.pending_batches,
         downstream_stale=bool(env._scenario_meta.get("downstream_stale", False)),
         orchestration_alerts=orchestration_alerts(env),
-        recent_failure_counters=recent_failure_counters(env),
-        drift_markers=drift_markers(env),
-        dependency_health_summary=dependency_health_summary(env),
+        recent_failure_counters=context["recent_failure_counters"],
+        drift_markers=context["drift_markers"],
+        dependency_health_summary=context["dependency_health_summary"],
         observed_columns=list(current.columns),
         missing_expected_columns=missing_expected_columns(env, env._state.active_table),
         column_alias_hints=alias_hints,
@@ -120,12 +134,12 @@ def build_observation(
         synthetic_data_notes=list(env._scenario_meta.get("synthetic_data_notes", SYNTHETIC_DATA_NOTES)),
         reward_breakdown=dict(env._last_reward_breakdown),
         objective_breakdown=objective_breakdown(env),
-        tradeoff_weights=dict(TASK_OBJECTIVE_WEIGHTS.get(env._task_id, {})),
-        subgoal_progress=subgoal_progress,
-        subgoal_order=subgoal_order,
-        active_subgoal=active_subgoal,
-        reward_machine_state=reward_machine_state,
-        adaptation_target=str(env._scenario_meta.get("adaptation_target", "")),
+        tradeoff_weights=context["tradeoff_weights"],
+        subgoal_progress=context["subgoal_progress"],
+        subgoal_order=context["subgoal_order"],
+        active_subgoal=context["active_subgoal"],
+        reward_machine_state=context["reward_machine_state"],
+        adaptation_target=context["adaptation_target"],
         heldout_profile_family=bool(env._scenario_meta.get("heldout_profile_family", False)),
         reward=reward,
         done=done,

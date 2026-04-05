@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-try:
-    from ..grading import task5_rollup_consistency_score, task5_temporal_closure_score
-    from ..observation_support import missing_expected_columns
-    from ..runtime_state import commit_ready
-    from ..actions.validation import table_has_structural_issues
-except ImportError:
-    from benchmark.grading import task5_rollup_consistency_score, task5_temporal_closure_score
-    from benchmark.observation_support import missing_expected_columns
-    from benchmark.runtime_state import commit_ready
-    from benchmark.actions.validation import table_has_structural_issues
+from benchmark.actions.validation import table_has_structural_issues
+from benchmark.grading import task5_rollup_consistency_score, task5_temporal_closure_score
+from benchmark.observation_support import missing_expected_columns
+from benchmark.runtime_state import commit_ready
 
 
 def subgoal_progress_map(env) -> dict[str, bool]:

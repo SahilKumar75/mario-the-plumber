@@ -28,4 +28,4 @@ def test_valid_step_consumes_budget_without_ending_episode() -> None:
     assert env.state.step_count == 1
     assert env.state.time_budget_remaining == env.state.max_steps - 1
     assert observation.action_result
-    assert observation.reward_breakdown["step_cost"] == -0.001
+    assert observation.reward_breakdown["step_cost"] == -0.004

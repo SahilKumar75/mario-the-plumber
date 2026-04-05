@@ -4,33 +4,17 @@ from __future__ import annotations
 
 import json
 
-try:
-    from ...models import PipelineDoctorAction, PipelineDoctorObservation
-except ImportError:
-    from models import PipelineDoctorAction, PipelineDoctorObservation
-
-try:
-    from ..catalog import TASK_THRESHOLDS
-    from .heuristics import FALLBACK_ACTION
-    from .utils import (
-        alias_fix_action,
-        column_from_errors,
-        first_schema_mismatch,
-        next_table,
-        repair_action_for_mismatch,
-        table_needs_attention,
-    )
-except ImportError:
-    from benchmark.catalog import TASK_THRESHOLDS
-    from benchmark.policies.heuristics import FALLBACK_ACTION
-    from benchmark.policies.utils import (
-        alias_fix_action,
-        column_from_errors,
-        first_schema_mismatch,
-        next_table,
-        repair_action_for_mismatch,
-        table_needs_attention,
-    )
+from benchmark.catalog import TASK_THRESHOLDS
+from benchmark.policies.heuristics import FALLBACK_ACTION
+from benchmark.policies.utils import (
+    alias_fix_action,
+    column_from_errors,
+    first_schema_mismatch,
+    next_table,
+    repair_action_for_mismatch,
+    table_needs_attention,
+)
+from models import PipelineDoctorAction, PipelineDoctorObservation
 
 
 def candidate_actions_for(

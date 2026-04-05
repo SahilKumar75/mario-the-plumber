@@ -33,17 +33,20 @@ def build_benchmark_overview() -> None:
     row_order = [
         ("random", "train", "#94a3b8"),
         ("heuristic", "train", "#2563eb"),
+        ("trained", "train", "#7c3aed"),
         ("random", "eval", "#cbd5e1"),
         ("heuristic", "eval", "#0f766e"),
+        ("trained", "eval", "#ea580c"),
     ]
 
     fig, ax = plt.subplots(figsize=(11, 5.8))
     x = np.arange(len(tasks))
-    width = 0.18
+    width = 0.13
+    center_offset = (len(row_order) - 1) / 2
 
     for idx, (policy, split, color) in enumerate(row_order):
         row = next(item for item in rows if item["policy"] == policy and item["split"] == split)
-        offset = (idx - 1.5) * width
+        offset = (idx - center_offset) * width
         values = [row[task] for task in tasks]
         ax.bar(x + offset, values, width=width, color=color, label=f"{policy}-{split}")
 
@@ -70,28 +73,32 @@ def build_task_gap_chart() -> None:
     initial = []
     random_eval = []
     heuristic_eval = []
+    trained_eval = []
     for task_id in tasks:
         train_mean = initial_stats["train"][f"task_{task_id}"]["initial_score_mean"]
         eval_mean = initial_stats["eval"][f"task_{task_id}"]["initial_score_mean"]
         initial.append((train_mean + eval_mean) / 2.0)
         random_row = next(item for item in rows if item["policy"] == "random" and item["split"] == "eval")
         heuristic_row = next(item for item in rows if item["policy"] == "heuristic" and item["split"] == "eval")
+        trained_row = next(item for item in rows if item["policy"] == "trained" and item["split"] == "eval")
         random_eval.append(random_row[f"task_{task_id}"])
         heuristic_eval.append(heuristic_row[f"task_{task_id}"])
+        trained_eval.append(trained_row[f"task_{task_id}"])
 
     fig, ax = plt.subplots(figsize=(11, 5.8))
     x = np.arange(len(tasks))
-    width = 0.24
-    ax.bar(x - width, initial, width=width, color="#cbd5e1", label="initial state")
-    ax.bar(x, random_eval, width=width, color="#94a3b8", label="random (eval)")
-    ax.bar(x + width, heuristic_eval, width=width, color="#0f766e", label="heuristic (eval)")
+    width = 0.2
+    ax.bar(x - 1.5 * width, initial, width=width, color="#cbd5e1", label="initial state")
+    ax.bar(x - 0.5 * width, random_eval, width=width, color="#94a3b8", label="random (eval)")
+    ax.bar(x + 0.5 * width, heuristic_eval, width=width, color="#0f766e", label="heuristic (eval)")
+    ax.bar(x + 1.5 * width, trained_eval, width=width, color="#ea580c", label="trained (eval)")
     ax.set_ylim(0, 1.05)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel("Average score")
     ax.set_title("Incident Difficulty Gap by Task")
     ax.grid(axis="y", alpha=0.18)
-    ax.legend(frameon=False, ncol=3)
+    ax.legend(frameon=False, ncol=4)
     fig.tight_layout()
     fig.savefig(ASSETS / "difficulty_gap.png", dpi=180, bbox_inches="tight")
     plt.close(fig)

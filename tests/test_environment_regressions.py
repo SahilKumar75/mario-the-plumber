@@ -62,16 +62,21 @@ def test_task3_commit_requires_dependency_repair_and_action_19_restores_it() -> 
 
 def test_task4_commit_stays_blocked_while_incident_pressure_remains() -> None:
     env = PipelineDoctorEnvironment()
-    env.reset(task_id=4, split="eval", seed=7)
+    env.reset(task_id=4, split="eval", seed=2)
 
     assert env._task4_commit_ready() is False
 
-    for action_id in (16, 16, 18, 18, 19):
-        env.step(PipelineDoctorAction(action_id=action_id))
+    env.step(PipelineDoctorAction(action_id=16))
+    env.step(PipelineDoctorAction(action_id=16))
+    while env.state.backlog_rows > 0:
+        env.step(PipelineDoctorAction(action_id=18))
+    env.step(PipelineDoctorAction(action_id=19))
 
     assert env.state.backlog_rows == 0
+    assert env.state.pending_batches == 0
     assert env.state.freshness_lag_minutes == 0
     assert env.state.resource_level == 3
+    assert env._recent_errors
     assert env._task4_commit_ready() is False
 
     commit_observation = env.step(PipelineDoctorAction(action_id=15))
@@ -87,12 +92,19 @@ def test_task5_commit_stays_blocked_until_temporal_recovery_is_complete() -> Non
     assert observation.scenario_profile.startswith("heldout_temporal_")
     assert env._task5_commit_ready() is False
 
-    for action_id in (16, 16, 18, 18, 18, 19):
-        env.step(PipelineDoctorAction(action_id=action_id))
+    env.step(PipelineDoctorAction(action_id=16))
+    env.step(PipelineDoctorAction(action_id=16))
+    while env.state.backlog_rows > 0:
+        env.step(PipelineDoctorAction(action_id=18))
+    refresh = env.step(PipelineDoctorAction(action_id=19))
 
     assert env.state.backlog_rows == 0
-    assert env.state.freshness_lag_minutes > 0
+    assert env.state.pending_batches == 0
+    assert env.state.freshness_lag_minutes == 0
     assert env.state.resource_level == 3
+    assert refresh.action_result.startswith("invalid:")
+    assert env._scenario_meta.get("downstream_stale") is True
+    assert refresh.dependency_alerts
     assert env._task5_commit_ready() is False
 
     commit_observation = env.step(PipelineDoctorAction(action_id=15))

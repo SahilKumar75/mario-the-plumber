@@ -2,27 +2,14 @@
 
 from __future__ import annotations
 
-try:
-    from ...models import PipelineDoctorAction, PipelineDoctorObservation
-except ImportError:
-    from models import PipelineDoctorAction, PipelineDoctorObservation
-
-try:
-    from ..utils import (
-        alias_fix_action,
-        column_from_errors,
-        first_schema_mismatch,
-        repair_action_for_mismatch,
-        table_needs_attention,
-    )
-except ImportError:
-    from benchmark.policies.utils import (
-        alias_fix_action,
-        column_from_errors,
-        first_schema_mismatch,
-        repair_action_for_mismatch,
-        table_needs_attention,
-    )
+from benchmark.policies.utils import (
+    alias_fix_action,
+    column_from_errors,
+    first_schema_mismatch,
+    repair_action_for_mismatch,
+    table_needs_attention,
+)
+from models import PipelineDoctorAction, PipelineDoctorObservation
 
 FALLBACK_ACTION = PipelineDoctorAction(action_id=14)
 
@@ -149,6 +136,9 @@ def task4_heuristic_action(
         format_column = column_from_errors(error_text, "format mismatch")
         if format_column:
             return PipelineDoctorAction(action_id=9, target_column=format_column)
+        if observation.outlier_count > 0:
+            outlier_column = column_from_errors(error_text, "outlier") or "revenue"
+            return PipelineDoctorAction(action_id=11, target_column=outlier_column)
         if mismatch:
             column, info = mismatch
             return repair_action_for_mismatch(column, info)

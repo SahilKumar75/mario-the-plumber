@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-try:
-    from ..grading import duplicate_row_count
-    from ..inspection import format_issue_details_for_frame, outlier_details_for_frame, schema_report_for_table
-except ImportError:
-    from benchmark.grading import duplicate_row_count
-    from benchmark.inspection import format_issue_details_for_frame, outlier_details_for_frame, schema_report_for_table
+from benchmark.grading import duplicate_row_count
+from benchmark.inspection import format_issue_details_for_frame, outlier_details_for_frame, schema_report_for_table
 
 
 def table_has_structural_issues(env, table_name: str) -> bool:

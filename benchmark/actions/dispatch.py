@@ -2,43 +2,23 @@ from __future__ import annotations
 
 import json
 
-try:
-    from ..action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
-    from .orchestration import (
-        commit_changes,
-        prioritize_incremental_batch,
-        refresh_downstream_summary,
-        scale_resources,
-    )
-    from .transforms import (
-        cast_column,
-        deduplicate_current_table,
-        drop_outliers,
-        fill_with_statistic,
-        handle_inspect_schema,
-        validate_parameter_action,
-        normalize_string_value,
-    )
-except ImportError:
-    from benchmark.action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
-    from benchmark.actions.orchestration import (
-        commit_changes,
-        prioritize_incremental_batch,
-        refresh_downstream_summary,
-        scale_resources,
-    )
-    from benchmark.actions.transforms import (
-        cast_column,
-        deduplicate_current_table,
-        drop_outliers,
-        fill_with_statistic,
-        handle_inspect_schema,
-        validate_parameter_action,
-        normalize_string_value,
-    )
-    from benchmark.runtime_state import current_frame, current_table
-else:
-    from ..runtime_state import current_frame, current_table
+from benchmark.action_metadata import ACTION_NAMES, PARAMETER_ACTIONS
+from benchmark.actions.orchestration import (
+    commit_changes,
+    prioritize_incremental_batch,
+    refresh_downstream_summary,
+    scale_resources,
+)
+from benchmark.actions.transforms import (
+    cast_column,
+    deduplicate_current_table,
+    drop_outliers,
+    fill_with_statistic,
+    handle_inspect_schema,
+    normalize_string_value,
+    validate_parameter_action,
+)
+from benchmark.runtime_state import current_frame, current_table
 
 
 def apply_action(env, action) -> str:
@@ -54,6 +34,12 @@ def apply_action(env, action) -> str:
         return json.dumps(rows, default=str)
     if action.action_id in PARAMETER_ACTIONS and not action.target_column:
         raise ValueError("missing required parameter target_column")
+    if (
+        action.action_id in PARAMETER_ACTIONS
+        and action.action_id not in {12, 13}
+        and action.target_column not in current_frame(env).columns
+    ):
+        raise ValueError(f"target column '{action.target_column}' is not present in the active table")
     if action.action_id in {12, 13}:
         validate_parameter_action(action, list(current_frame(env).columns))
 
@@ -86,6 +72,11 @@ def apply_action(env, action) -> str:
         env._tables[env._state.active_table] = current_frame(env).rename(
             columns={action.target_column: action.new_name}
         )
+        pending_orders = env._scenario_meta.get("pending_orders")
+        if hasattr(pending_orders, "rename") and action.target_column in pending_orders.columns:
+            env._scenario_meta["pending_orders"] = pending_orders.rename(
+                columns={action.target_column: action.new_name}
+            )
     elif action.action_id == 13:
         env._tables[env._state.active_table] = current_frame(env)[action.column_order].copy()
     elif action.action_id == 14:

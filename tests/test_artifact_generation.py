@@ -17,8 +17,10 @@ def test_generate_visuals_smoke(tmp_path) -> None:
                 "rows": [
                     {"policy": "random", "split": "train", "task_1": 0.1, "task_2": 0.2, "task_3": 0.3, "task_4": 0.4, "task_5": 0.5},
                     {"policy": "heuristic", "split": "train", "task_1": 0.8, "task_2": 0.8, "task_3": 0.8, "task_4": 0.8, "task_5": 0.8},
+                    {"policy": "trained", "split": "train", "task_1": 0.7, "task_2": 0.7, "task_3": 0.7, "task_4": 0.7, "task_5": 0.7},
                     {"policy": "random", "split": "eval", "task_1": 0.1, "task_2": 0.2, "task_3": 0.3, "task_4": 0.4, "task_5": 0.5},
                     {"policy": "heuristic", "split": "eval", "task_1": 0.7, "task_2": 0.7, "task_3": 0.7, "task_4": 0.7, "task_5": 0.7},
+                    {"policy": "trained", "split": "eval", "task_1": 0.6, "task_2": 0.6, "task_3": 0.6, "task_4": 0.6, "task_5": 0.6},
                 ]
             }
         ),

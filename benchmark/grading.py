@@ -1,23 +1,13 @@
 from __future__ import annotations
 
-try:
-    from .tasks.shared import duplicate_row_count, score_single_table
-    from .tasks.task3 import calculation_mismatch_count, score_task3, task3_dependency_score
-    from .tasks.task4 import (
-        score_task4,
-        task4_batch_completeness_score,
-        task4_summary_consistency_score,
-    )
-    from .tasks.task5 import score_task5, task5_rollup_consistency_score, task5_temporal_closure_score
-except ImportError:
-    from benchmark.tasks.shared import duplicate_row_count, score_single_table
-    from benchmark.tasks.task3 import calculation_mismatch_count, score_task3, task3_dependency_score
-    from benchmark.tasks.task4 import (
-        score_task4,
-        task4_batch_completeness_score,
-        task4_summary_consistency_score,
-    )
-    from benchmark.tasks.task5 import score_task5, task5_rollup_consistency_score, task5_temporal_closure_score
+from benchmark.tasks.shared import duplicate_row_count, score_single_table
+from benchmark.tasks.task3 import calculation_mismatch_count, score_task3, task3_dependency_score
+from benchmark.tasks.task4 import (
+    score_task4,
+    task4_batch_completeness_score,
+    task4_summary_consistency_score,
+)
+from benchmark.tasks.task5 import score_task5, task5_rollup_consistency_score, task5_temporal_closure_score
 
 __all__ = [
     "calculation_mismatch_count",
@@ -35,6 +25,20 @@ __all__ = [
     "task5_rollup_consistency_score",
 ]
 
+PROGRESS_WEIGHT = 0.9
+STEP_COST = -0.004
+INVALID_PENALTY = -0.06
+TERMINAL_SUCCESS_BASE = 0.18
+TERMINAL_SUCCESS_PROGRESS_CAP = 0.1
+TERMINAL_FAILURE_PENALTY = -0.45
+
+
+def _terminal_bonus(score_before: float, score_after: float, *, done: bool, success: bool) -> float:
+    if not done or not success:
+        return 0.0
+    progress_component = max(score_after - score_before, 0.0)
+    return round(TERMINAL_SUCCESS_BASE + min(progress_component, TERMINAL_SUCCESS_PROGRESS_CAP), 4)
+
 
 def compute_reward(
     score_before: float,
@@ -44,14 +48,14 @@ def compute_reward(
     done: bool,
     success: bool,
 ) -> float:
-    reward = 0.5 * (score_after - score_before)
-    reward -= 0.001
+    reward = PROGRESS_WEIGHT * (score_after - score_before)
+    reward += STEP_COST
     if not action_valid:
-        reward -= 0.05
+        reward += INVALID_PENALTY
     if done and success:
-        reward += 1.0
+        reward += _terminal_bonus(score_before, score_after, done=done, success=success)
     if done and not success:
-        reward -= 0.5
+        reward += TERMINAL_FAILURE_PENALTY
     return round(reward, 4)
 
 
@@ -63,11 +67,11 @@ def compute_reward_breakdown(
     done: bool,
     success: bool,
 ) -> dict[str, float]:
-    progress = round(0.5 * (score_after - score_before), 4)
-    step_cost = -0.001
-    invalid_penalty = -0.05 if not action_valid else 0.0
-    terminal_bonus = 1.0 if done and success else 0.0
-    terminal_penalty = -0.5 if done and not success else 0.0
+    progress = round(PROGRESS_WEIGHT * (score_after - score_before), 4)
+    step_cost = STEP_COST
+    invalid_penalty = INVALID_PENALTY if not action_valid else 0.0
+    terminal_bonus = _terminal_bonus(score_before, score_after, done=done, success=success)
+    terminal_penalty = TERMINAL_FAILURE_PENALTY if done and not success else 0.0
     total = round(progress + step_cost + invalid_penalty + terminal_bonus + terminal_penalty, 4)
     return {
         "progress": progress,

@@ -2,16 +2,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-try:
-    from .transforms import normalize_date_string, normalize_numeric_value
-    from .validation import table_has_structural_issues
-    from ..grading import task3_dependency_score, task5_rollup_consistency_score, task5_temporal_closure_score
-    from ..observation_support import workload_pressure
-except ImportError:
-    from benchmark.actions.transforms import normalize_date_string, normalize_numeric_value
-    from benchmark.actions.validation import table_has_structural_issues
-    from benchmark.grading import task3_dependency_score, task5_rollup_consistency_score, task5_temporal_closure_score
-    from benchmark.observation_support import workload_pressure
+from benchmark.actions.transforms import normalize_date_string, normalize_numeric_value
+from benchmark.actions.validation import table_has_structural_issues
+from benchmark.grading import task3_dependency_score, task5_rollup_consistency_score, task5_temporal_closure_score
+from benchmark.observation_support import workload_pressure
 
 
 def commit_changes(env) -> None:

@@ -14,46 +14,23 @@ from uuid import uuid4
 import pandas as pd
 from openenv.core.env_server.interfaces import Environment
 
-try:
-    from ..benchmark.actions.dispatch import apply_action
-    from ..benchmark.actions.orchestration import (
-        commit_changes,
-        task3_commit_ready,
-        task4_commit_ready,
-        task5_commit_ready,
-    )
-    from ..benchmark.actions.validation import table_has_structural_issues
-    from ..benchmark.catalog import (
-        MAX_STEPS,
-    )
-    from ..benchmark.diagnostics import refresh_errors
-    from ..benchmark.evaluation import score, store_episode_summary
-    from ..benchmark.observation_support import workload_pressure
-    from ..benchmark.env_reporting import build_observation
-    from ..benchmark.progress import update_task_progress_state
-    from ..models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-    from .data_generator import generate_scenario
-    from .runtime import initialize_episode, resolve_step
-except ImportError:
-    from benchmark.actions.dispatch import apply_action
-    from benchmark.actions.orchestration import (
-        commit_changes,
-        task3_commit_ready,
-        task4_commit_ready,
-        task5_commit_ready,
-    )
-    from benchmark.actions.validation import table_has_structural_issues
-    from benchmark.catalog import (
-        MAX_STEPS,
-    )
-    from benchmark.diagnostics import refresh_errors
-    from benchmark.evaluation import score, store_episode_summary
-    from benchmark.observation_support import workload_pressure
-    from benchmark.env_reporting import build_observation
-    from benchmark.progress import update_task_progress_state
-    from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-    from server.data_generator import generate_scenario
-    from server.runtime import initialize_episode, resolve_step
+from benchmark.actions.dispatch import apply_action
+from benchmark.actions.orchestration import (
+    commit_changes,
+    task3_commit_ready,
+    task4_commit_ready,
+    task5_commit_ready,
+)
+from benchmark.actions.validation import table_has_structural_issues
+from benchmark.catalog import MAX_STEPS
+from benchmark.diagnostics import refresh_errors
+from benchmark.env_reporting import build_observation
+from benchmark.evaluation import score, store_episode_summary
+from benchmark.observation_support import workload_pressure
+from benchmark.progress import update_task_progress_state
+from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
+from server.data_generator import generate_scenario
+from server.runtime import initialize_episode, resolve_step
 
 EPISODE_SUMMARIES: dict[str, dict[str, object]] = {}
 

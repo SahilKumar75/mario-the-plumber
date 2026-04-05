@@ -55,7 +55,14 @@ python3 -m venv .venv
 Run the baseline:
 
 ```bash
-python3 inference.py --policy-mode heuristic --split eval --seed 42
+python3 -m inference --policy-mode heuristic --split eval --seed 42
+```
+
+The inference CLI emits strict `START` / `STEP` / `END` protocol lines by default for submission parsers.
+If you need legacy single-JSON output, add:
+
+```bash
+python3 -m inference --policy-mode heuristic --split eval --seed 42 --stdout-protocol json
 ```
 
 ## Environment Loop
@@ -78,32 +85,40 @@ Current local sweep from [scripts/benchmark_models.py](scripts/benchmark_models.
 
 | Policy | Split | Avg Score | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| random | train | `0.4807` | `0.6459` | `0.5425` | `0.3721` | `0.5424` | `0.3003` |
-| heuristic | train | `0.9607` | `0.9062` | `0.9750` | `0.9396` | `1.0000` | `0.9823` |
-| random | eval | `0.4403` | `0.6659` | `0.5225` | `0.3006` | `0.4480` | `0.2643` |
-| heuristic | eval | `0.9067` | `0.9062` | `0.9750` | `0.9153` | `1.0000` | `0.7370` |
+| random | train | `0.4915` | `0.6459` | `0.5425` | `0.4743` | `0.5108` | `0.2839` |
+| heuristic | train | `0.9464` | `0.9062` | `0.9750` | `0.9610` | `0.9100` | `0.9795` |
+| random | eval | `0.4809` | `0.6659` | `0.5225` | `0.5131` | `0.4549` | `0.2480` |
+| heuristic | eval | `0.8362` | `0.9062` | `0.9750` | `0.7945` | `0.7647` | `0.7407` |
 
-Held-out Task 5 adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
+Held-out adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
 
-- train mean: `0.9823`
-- eval mean: `0.7473`
-- familiar eval mean: `0.9823`
-- held-out profile family mean: `0.5124`
-- held-out family gap: `0.4699`
-- held-out profile breakdown:
+- Task 3 train mean: `0.9536`
+- Task 3 eval mean: `0.8331`
+- Task 3 familiar eval mean: `0.9437`
+- Task 3 held-out profile family mean: `0.7225`
+- Task 3 held-out family gap: `0.2311`
+
+- Task 4 train mean: `0.9100`
+- Task 4 eval mean: `0.7706`
+- Task 4 familiar eval mean: `0.9100`
+- Task 4 held-out profile family mean: `0.6312`
+- Task 4 held-out family gap: `0.2788`
+
+- Task 5 train mean: `0.9795`
+- Task 5 eval mean: `0.7509`
+- Task 5 familiar eval mean: `0.9795`
+- Task 5 held-out profile family mean: `0.5222`
+- Task 5 held-out family gap: `0.4573`
+- Task 5 held-out profile breakdown:
   - `heldout_temporal_schema_extension_family`: `0.4918`
-  - `heldout_temporal_rollup_contract_family`: `0.5372`
-  - `heldout_temporal_correction_replay_family`: `0.5081`
+  - `heldout_temporal_rollup_contract_family`: `0.5466`
+  - `heldout_temporal_correction_replay_family`: `0.5181`
 
-The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies. Task 5 now measures temporal closure explicitly and held-out profiles require recovery over unseen replay-window and rollup-contract patterns.
+The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies. Tasks 3-5 now expose explicit held-out recovery families. Task 3 tests unfamiliar referential-repair variants, Task 4 separates familiar orchestration from unseen incremental recovery shapes, and Task 5 still carries the strongest temporal adaptation pressure.
 
 ## Benchmark Visuals
 
-![Benchmark overview](docs/assets/benchmark_overview.png)
-
-![Difficulty gap](docs/assets/difficulty_gap.png)
-
-![Objective weights](docs/assets/objective_weights.png)
+Benchmark visuals are generated locally with `python3 -m scripts.generate_submission_artifacts` and are intentionally not tracked in the repository.
 
 ## Tasks
 
@@ -189,20 +204,37 @@ These signals make the ETL incident fixer easier to audit without changing the s
 Generate benchmark artifacts:
 
 ```bash
-python3 scripts/benchmark_models.py --policies random heuristic --splits train eval --seeds 1 2 --format markdown
-python3 scripts/benchmark_adaptation.py --policy-mode heuristic --seeds 1 2 3 4 5 6
-python3 scripts/export_benchmark_metadata.py --seeds 1 2 3 4 5 6 --output docs/assets/benchmark_metadata.json
-python3 scripts/generate_visuals.py
+python3 -m scripts.train_trained_policy --seeds 1 2 3 4 5 6 7 8 9 10
+python3 -m scripts.benchmark_models --policies random heuristic --splits train eval --seeds 1 2 --format markdown
+python3 -m scripts.benchmark_adaptation --policy-mode heuristic --seeds 1 2 3 4 5 6
+python3 -m scripts.export_benchmark_metadata --seeds 1 2 3 4 5 6 --output docs/assets/benchmark_metadata.json
+python3 -m scripts.generate_visuals
 ./scripts/validate-live-space.sh https://sahilksingh-mario-the-plumber.hf.space
 ```
 
-JSON and CSV outputs are tracked because the docs and demo use them directly. PNG benchmark visuals are generated on demand and are not tracked.
+Benchmark outputs and visuals are generated on demand for release/submission. Use:
+
+```bash
+python3 -m scripts.generate_submission_artifacts
+```
+
+The demo and benchmark routes degrade gracefully when generated assets are absent.
+
+## CI
+
+GitHub Actions validates:
+
+- `ruff check .`
+- `pytest tests -q`
+- `openenv validate`
+- `docker build -f server/Dockerfile .`
 
 ## Baseline Modes
 
 [inference.py](inference.py) supports:
 
 - `heuristic`
+- `trained`
 - `hybrid`
 - `pure-llm`
 

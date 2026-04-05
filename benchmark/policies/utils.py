@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-try:
-    from ...models import PipelineDoctorAction, PipelineDoctorObservation
-except ImportError:
-    from models import PipelineDoctorAction, PipelineDoctorObservation
+from models import PipelineDoctorAction, PipelineDoctorObservation
 
 
 def action_has_required_fields(action: PipelineDoctorAction) -> bool:
