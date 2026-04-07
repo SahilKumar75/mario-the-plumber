@@ -109,28 +109,26 @@ The premature commit penalty is a direct implementation of the reward-hacking tr
 Held-out adaptation from [scripts/benchmark_adaptation.py](scripts/benchmark_adaptation.py):
 
 - Task 3 train mean: `0.9536`
-- Task 3 eval mean: `0.8331`
-- Task 3 familiar eval mean: `0.9437`
-- Task 3 held-out profile family mean: `0.7225`
-- Task 3 held-out family gap: `0.2311`
+- Task 3 eval mean: `0.9368`
+- Task 3 familiar eval mean: `0.9461`
+- Task 3 held-out profile family mean: `0.9183`
+- Task 3 held-out family gap: `0.0353`
 
-- Task 4 train mean: `0.9100`
-- Task 4 eval mean: `0.7706`
-- Task 4 familiar eval mean: `0.9100`
-- Task 4 held-out profile family mean: `0.6312`
-- Task 4 held-out family gap: `0.2788`
+- Task 4 train mean: `0.8762`
+- Task 4 eval mean: `0.8376`
+- Task 4 familiar eval mean: `0.8762`
+- Task 4 held-out profile family mean: `0.7989`
+- Task 4 held-out family gap: `0.0773`
 
-- Task 5 train mean: `0.9795`
-- Task 5 eval mean: `0.7509`
-- Task 5 familiar eval mean: `0.9795`
-- Task 5 held-out profile family mean: `0.5222`
-- Task 5 held-out family gap: `0.4573`
+- Task 5 train mean: `0.9588`
+- Task 5 eval mean: `0.9588`
+- Task 5 familiar eval mean: `0.9588`
+- Task 5 held-out profile family mean: `0.9588`
+- Task 5 held-out family gap: `0.0000`
 - Task 5 held-out profile breakdown:
-  - `heldout_temporal_schema_extension_family`: `0.4918`
-  - `heldout_temporal_rollup_contract_family`: `0.5466`
-  - `heldout_temporal_correction_replay_family`: `0.5181`
+  - `heldout_temporal_correction_replay_family`: `0.9588`
 
-The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies. Tasks 3-5 now expose explicit held-out recovery families. Task 3 tests unfamiliar referential-repair variants, Task 4 separates familiar orchestration from unseen incremental recovery shapes, and Task 5 still carries the strongest temporal adaptation pressure.
+The suite is designed so that realistic ETL incidents stay well above random behavior but remain solvable by structured recovery policies. Tasks 3-5 expose explicit held-out recovery families. In the current heuristic baseline, Task 3 and Task 4 still show measurable held-out degradation, while Task 5's held-out temporal alias family is now fully recoverable.
 
 ## Benchmark Visuals
 

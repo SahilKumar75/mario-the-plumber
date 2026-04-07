@@ -3,6 +3,7 @@ from __future__ import annotations
 from benchmark.api_payloads import tasks_payload
 from benchmark.grading import score_task4
 from benchmark.api_payloads import benchmark_metadata_payload
+from benchmark.policies.heuristics import heuristic_action_for
 from models import PipelineDoctorAction
 from server.data_generator import generate_scenario
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
@@ -111,6 +112,46 @@ def test_task5_commit_stays_blocked_until_temporal_recovery_is_complete() -> Non
     assert commit_observation.done is True
     assert commit_observation.done_reason == "commit_failure"
     assert env.state.success is False
+
+
+def test_task5_train_temporal_refresh_allows_commit_after_full_recovery() -> None:
+    env = PipelineDoctorEnvironment()
+    observation = env.reset(task_id=5, split="train", seed=42)
+
+    env.step(PipelineDoctorAction(action_id=16))
+    env.step(PipelineDoctorAction(action_id=16))
+    while env.state.backlog_rows > 0:
+        env.step(PipelineDoctorAction(action_id=18))
+
+    observation = env.step(PipelineDoctorAction(action_id=9, target_column="event_ts"))
+    observation = env.step(PipelineDoctorAction(action_id=4, target_column="product_id"))
+    observation = env.step(PipelineDoctorAction(action_id=4, target_column="quantity"))
+    observation = env.step(PipelineDoctorAction(action_id=3, target_column="gross_revenue"))
+    observation = env.step(PipelineDoctorAction(action_id=0, target_column="catalog"))
+    observation = env.step(PipelineDoctorAction(action_id=3, target_column="unit_price"))
+    observation = env.step(PipelineDoctorAction(action_id=0, target_column="hourly_rollup"))
+    observation = env.step(PipelineDoctorAction(action_id=19))
+
+    assert observation.commit_ready is True
+    commit_observation = env.step(PipelineDoctorAction(action_id=15))
+
+    assert commit_observation.done is True
+    assert commit_observation.done_reason == "commit_success"
+    assert env.state.success is True
+
+
+def test_task5_eval_heldout_alias_family_is_recoverable_with_heuristic_policy() -> None:
+    env = PipelineDoctorEnvironment()
+    observation = env.reset(task_id=5, split="eval", seed=42)
+
+    assert observation.scenario_profile == "heldout_temporal_correction_replay_family"
+
+    while not env.state.done:
+        observation = env.step(heuristic_action_for(5, observation))
+
+    assert env.state.done_reason == "commit_success"
+    assert env.state.success is True
+    assert observation.current_score >= 0.82
 
 
 def test_observation_contract_includes_incident_and_recovery_fields() -> None:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from benchmark.catalog import (
     MAX_STEPS,
     TASK_DIFFICULTY,
@@ -19,19 +21,45 @@ from benchmark.runtime import (
 )
 
 
+def _grader_url() -> str:
+    """Return the public grader URL, preferring an explicit base URL when set."""
+
+    base_url = os.getenv("MARIO_PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if not base_url:
+        return "/grader"
+    return f"{base_url}/grader"
+
+
+def _task_payload(task_id: int) -> dict[str, object]:
+    grader = {
+        "type": "http",
+        "url": _grader_url(),
+        "method": "POST",
+        "content_type": "application/json",
+        "payload_schema": {
+            "task_id": task_id,
+            "episode_id": "<episode_id>",
+        },
+    }
+    return {
+        "task_id": task_id,
+        "name": TASK_NAMES[task_id],
+        "difficulty": TASK_DIFFICULTY[task_id],
+        "success_threshold": TASK_THRESHOLDS[task_id],
+        "max_steps": MAX_STEPS[task_id],
+        "task_card": TASK_CARDS[task_id],
+        # Keep both nested and flat compatibility fields because external validators
+        # sometimes check only one of these shapes when counting grader-backed tasks.
+        "grader": grader,
+        "graders": [grader],
+        "grader_url": grader["url"],
+        "grader_method": grader["method"],
+    }
+
+
 def tasks_payload() -> dict[str, object]:
     return {
-        "tasks": [
-            {
-                "task_id": task_id,
-                "name": TASK_NAMES[task_id],
-                "difficulty": TASK_DIFFICULTY[task_id],
-                "success_threshold": TASK_THRESHOLDS[task_id],
-                "max_steps": MAX_STEPS[task_id],
-                "task_card": TASK_CARDS[task_id],
-            }
-            for task_id in sorted(TASK_NAMES)
-        ],
+        "tasks": [_task_payload(task_id) for task_id in sorted(TASK_NAMES)],
         "action_schema": {
             "action_id": "int (0-19, required)",
             "target_column": (

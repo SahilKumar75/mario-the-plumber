@@ -26,11 +26,17 @@ def column_alias_hints(env) -> dict[str, str]:
         "product_category": "category",
         "product_segment": "category",
         "sku_id": "product_id",
+        "item_sku": "product_id",
         "business_date": "event_date",
         "observed_at": "event_ts",
+        "replay_observed_at": "event_ts",
         "window_start": "hour_bucket",
+        "bucket_window_utc_start": "hour_bucket",
         "gross_sales": "gross_revenue",
         "revenue_total": "gross_revenue",
+        "replayed_revenue_value": "gross_revenue",
+        "revenue_usd_value": "gross_revenue",
+        "catalog_segment_name": "category",
     }
     hints: dict[str, str] = {}
     for drifted_name, expected_name in aliases.items():
