@@ -14,12 +14,11 @@ import json
 import os
 import time
 from typing import Callable
-from uuid import uuid4
 
 from openai import OpenAI
 
 from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
-from benchmark.inference_protocol import PROTOCOL_VERSION, emit_protocol_event
+from benchmark.inference_protocol import PROTOCOL_VERSION
 from benchmark.policies import choose_action, next_table, table_should_advance
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
@@ -160,6 +159,38 @@ def _build_client(*, api_key: str | None, selected_model: str | None, api_base_u
     return OpenAI(base_url=api_base_url, api_key=api_key)
 
 
+def _protocol_model_label(policy_mode: str, model_name_override: str | None) -> str:
+    if model_name_override:
+        return model_name_override
+    if policy_mode == "pure-llm":
+        return (os.getenv("MODEL_NAME", MODEL_NAME) or MODEL_NAME).strip() or "unknown"
+    return policy_mode
+
+
+def _emit_bracket_start(*, policy_mode: str, model_name_override: str | None) -> None:
+    model_label = _protocol_model_label(policy_mode, model_name_override)
+    print(
+        f"[START] task=mario_the_plumber env=benchmark model={model_label} protocol={PROTOCOL_VERSION}",
+        flush=True,
+    )
+
+
+def _emit_bracket_step(*, step: int, reward: float, done: bool, error: str | None) -> None:
+    error_value = "null" if not error else str(error)
+    print(
+        f"[STEP] step={step} reward={reward:.2f} done={str(done).lower()} error={error_value}",
+        flush=True,
+    )
+
+
+def _emit_bracket_end(*, success: bool, steps: int, score: float, rewards: list[float]) -> None:
+    rewards_blob = ",".join(f"{value:.2f}" for value in rewards) if rewards else "0.00"
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_blob}",
+        flush=True,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Mario the Plumber baseline.")
     parser.add_argument("--seed", type=int, default=42, help="Seed for one benchmark run.")
@@ -185,7 +216,7 @@ def main() -> None:
         choices=["strict", "json"],
         default="strict",
         help=(
-            "stdout format: strict emits START/STEP/END lines for challenge parsers; "
+            "stdout format: strict emits [START]/[STEP]/[END] key=value lines for challenge parsers; "
             "json emits a single JSON payload."
         ),
     )
@@ -197,29 +228,28 @@ def main() -> None:
     )
     args = parser.parse_args()
     strict_protocol = args.stdout_protocol == "strict"
-    protocol_run_id = str(uuid4())
+    protocol_rewards: list[float] = []
+    protocol_step_count = 0
+
+    def record_protocol_step(event: dict[str, object]) -> None:
+        nonlocal protocol_step_count
+        if event.get("event") != "task_complete":
+            return
+        protocol_step_count += 1
+        reward = float(event.get("score", 0.0))
+        protocol_rewards.append(reward)
+        _emit_bracket_step(step=protocol_step_count, reward=reward, done=False, error=None)
 
     if strict_protocol:
-        emit_protocol_event(
-            "START",
-            {
-                "protocol_version": PROTOCOL_VERSION,
-                "run_id": protocol_run_id,
-                "policy_mode": args.policy_mode,
-                "split": args.split,
-                "seed": args.seed,
-                "seeds": args.seeds or [],
-                "model_name": args.model_name,
-            },
-        )
+        _emit_bracket_start(policy_mode=args.policy_mode, model_name_override=args.model_name)
 
     if args.seeds:
         runs: list[dict[str, object]] = []
         for seed in args.seeds:
             progress_callback = None
             if strict_protocol:
-                def progress_callback(event: dict[str, object], current_seed: int = seed) -> None:
-                    emit_protocol_event("STEP", {"seed": current_seed, **event})
+                def progress_callback(event: dict[str, object]) -> None:
+                    record_protocol_step(event)
             runs.append(
                 {
                     "seed": seed,
@@ -240,7 +270,7 @@ def main() -> None:
         progress_callback = None
         if strict_protocol:
             def progress_callback(event: dict[str, object]) -> None:
-                emit_protocol_event("STEP", {"seed": args.seed, **event})
+                record_protocol_step(event)
         payload = run_baseline(
             seed=args.seed,
             split=args.split,
@@ -250,13 +280,35 @@ def main() -> None:
         )
 
     if strict_protocol:
-        emit_protocol_event(
-            "END",
-            {
-                "protocol_version": PROTOCOL_VERSION,
-                "run_id": protocol_run_id,
-                **payload,
-            },
+        if not protocol_rewards:
+            if isinstance(payload.get("results"), list):
+                protocol_rewards = [float(item.get("score", 0.0)) for item in payload["results"]]
+            elif isinstance(payload.get("runs"), list):
+                for run in payload["runs"]:
+                    protocol_rewards.extend(float(item.get("score", 0.0)) for item in run.get("results", []))
+
+        if "average_score" in payload:
+            protocol_score = float(payload.get("average_score", 0.0))
+        elif protocol_rewards:
+            protocol_score = float(sum(protocol_rewards) / len(protocol_rewards))
+        else:
+            protocol_score = 0.0
+
+        if isinstance(payload.get("results"), list):
+            protocol_success = all(bool(item.get("success")) for item in payload["results"])
+        elif isinstance(payload.get("runs"), list):
+            protocol_success = all(
+                all(bool(item.get("success")) for item in run.get("results", []))
+                for run in payload["runs"]
+            )
+        else:
+            protocol_success = payload.get("status") in {"complete", "benchmark"}
+
+        _emit_bracket_end(
+            success=bool(protocol_success),
+            steps=len(protocol_rewards),
+            score=protocol_score,
+            rewards=protocol_rewards,
         )
     else:
         print(json.dumps(payload, indent=2))

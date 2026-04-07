@@ -179,6 +179,24 @@ with open(path, encoding="utf-8") as handle:
 if not lines:
   raise SystemExit("inference output is empty")
 
+has_bracket_tags = any(
+  line.startswith("[START]") or line.startswith("[STEP]") or line.startswith("[END]")
+  for line in lines
+)
+
+if has_bracket_tags:
+  start_count = sum(1 for line in lines if line.startswith("[START]"))
+  step_count = sum(1 for line in lines if line.startswith("[STEP]"))
+  end_count = sum(1 for line in lines if line.startswith("[END]"))
+  if start_count != 1:
+    raise SystemExit(f"expected exactly one [START] line, got {start_count}")
+  if end_count != 1:
+    raise SystemExit(f"expected exactly one [END] line, got {end_count}")
+  if step_count < 1:
+    raise SystemExit("expected at least one [STEP] line")
+  print(f"steps={step_count} mode=bracket")
+  raise SystemExit(0)
+
 start = None
 end = None
 steps = []
