@@ -27,7 +27,6 @@ from benchmark.api_payloads import (
     benchmark_runs_payload,
     benchmark_tasks_payload,
     public_tasks_payload,
-    tasks_payload,
 )
 from benchmark.catalog import TASK_THRESHOLDS
 from benchmark.evaluation import breakdown_payload, objective_breakdown, score
@@ -184,7 +183,7 @@ def _preview_grade(task_id: int | str) -> dict[str, object]:
     if task_id not in TASK_THRESHOLDS:
         raise HTTPException(status_code=404, detail=f"unknown task_id {task_id}")
     env = PipelineDoctorEnvironment()
-    observation = env.reset(seed=42, task_id=task_id, split="train")
+    env.reset(seed=42, task_id=task_id, split="train")
     preview_score = round(float(score(env)), 4)
     return {
         "task_id": task_id,
