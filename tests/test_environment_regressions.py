@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from benchmark.api_payloads import benchmark_metadata_payload
 from benchmark.api_payloads import tasks_payload
 from benchmark.grading import score_task4
-from benchmark.api_payloads import benchmark_metadata_payload
 from benchmark.policies.heuristics import heuristic_action_for
+from graders import grade_episode
 from models import PipelineDoctorAction
 from server.app import app
 from server.data_generator import generate_scenario
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from tasks.task_bank import list_task_ids
 
 
 def test_reset_and_step_lifecycle_invariants() -> None:
@@ -240,16 +242,13 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
 
     assert len(tasks) >= 3
     assert sum(1 for task in tasks if task["grader"] is True) >= 3
-    assert tasks[0] == {
-        "id": "task_1",
-        "description": (
-            "An upstream ingestion job landed a customer batch with missing values "
-            "and a light contract regression after a feed formatter changed."
-        ),
-        "max_steps": 10,
-        "difficulty": "easy",
-        "grader": True,
-    }
+    assert tasks[0]["id"] == "task_1"
+    assert tasks[0]["name"] == "Ingestion Contract Repair"
+    assert tasks[0]["difficulty"] == "easy"
+    assert tasks[0]["max_steps"] == 10
+    assert tasks[0]["success_threshold"] == 0.85
+    assert tasks[0]["grade_endpoint"] == "/grade/task_1"
+    assert tasks[0]["grader"] is True
 
     for task in tasks[:3]:
         grade_response = client.get(f"/grade/{task['id']}")
@@ -257,6 +256,22 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
         grade_payload = grade_response.json()
         assert 0.0 <= grade_payload["score"] <= 1.0
         assert 0.0 <= grade_payload["reward"] <= 1.0
+        assert grade_payload["grader_mode"] == "live"
+        assert grade_payload["success"] is True
+
+
+def test_root_task_registry_and_grader_modules_expose_five_live_tasks() -> None:
+    client = TestClient(app)
+    task_ids = list_task_ids()
+
+    assert task_ids == ["task_1", "task_2", "task_3", "task_4", "task_5"]
+
+    for task_id in task_ids:
+        payload = grade_episode(task_id, split="eval", seed=42)
+        assert 0.0 <= payload["score"] <= 1.0
+        assert 0.0 <= payload["reward"] <= 1.0
+        assert payload["grader_mode"] == "live"
+        assert payload["success"] is True
 
     reset_response = client.post("/reset", json={"task_id": "task_2", "seed": 42})
     assert reset_response.status_code == 200

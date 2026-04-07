@@ -26,15 +26,13 @@ from benchmark.api_payloads import (
     benchmark_profiles_payload,
     benchmark_runs_payload,
     benchmark_tasks_payload,
-    public_tasks_payload,
 )
-from benchmark.catalog import TASK_THRESHOLDS
-from benchmark.evaluation import breakdown_payload, objective_breakdown, score
-from benchmark.task_ids import parse_task_id
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation
 from server.benchmark_demo import build_benchmark_demo
-from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
+from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from graders import grade_episode
+from tasks.task_bank import list_internal_task_ids, tasks_payload
 
 
 class GraderRequest(BaseModel):
@@ -49,7 +47,6 @@ app = create_app(
     PipelineDoctorAction,
     PipelineDoctorObservation,
     env_name="mario_the_plumber",
-    # Force a single environment instance so reset/step state stays in one session.
     max_concurrent_envs=1,
     gradio_builder=build_benchmark_demo,
 )
@@ -97,8 +94,8 @@ def _install_openapi_overrides() -> None:
                 {"type": "integer", "minimum": 1.0, "maximum": 5.0},
                 {
                     "type": "string",
-                    "enum": [str(task_id) for task_id in sorted(TASK_THRESHOLDS)]
-                    + [f"task_{task_id}" for task_id in sorted(TASK_THRESHOLDS)],
+                    "enum": [str(task_id) for task_id in list_internal_task_ids()]
+                    + [f"task_{task_id}" for task_id in list_internal_task_ids()],
                 },
             ],
             "title": "Task Id",
@@ -147,16 +144,16 @@ def web_root() -> RedirectResponse:
 
 @app.get("/tasks")
 def get_tasks() -> dict[str, object]:
-    """Expose a validator-friendly task list with simple ids and grader flags."""
+    """Expose the canonical validator-facing task list."""
 
-    return public_tasks_payload()
+    return tasks_payload()
 
 
 @app.get("/validate")
 def validate() -> dict[str, object]:
     """Expose hackathon-friendly validation checks for task/grader discovery."""
 
-    tasks = public_tasks_payload()["tasks"]
+    tasks = tasks_payload()["tasks"]
     route_paths = _route_paths()
     checks = {
         "openenv_yaml": Path("openenv.yaml").exists(),
@@ -174,28 +171,6 @@ def validate() -> dict[str, object]:
         "env_name": "mario_the_plumber",
         "version": "2.1",
     }
-
-
-def _preview_grade(task_id: int | str) -> dict[str, object]:
-    """Run a deterministic task preview so graders can be validated without session state."""
-
-    task_id = parse_task_id(task_id)
-    if task_id not in TASK_THRESHOLDS:
-        raise HTTPException(status_code=404, detail=f"unknown task_id {task_id}")
-    env = PipelineDoctorEnvironment()
-    env.reset(seed=42, task_id=task_id, split="train")
-    preview_score = round(float(score(env)), 4)
-    return {
-        "task_id": task_id,
-        "score": preview_score,
-        "reward": preview_score,
-        "success_threshold": TASK_THRESHOLDS[task_id],
-        "success": bool(preview_score >= TASK_THRESHOLDS[task_id]),
-        "breakdown": _jsonify(breakdown_payload(env)),
-        "objective_breakdown": _jsonify(objective_breakdown(env)),
-        "grader_mode": "preview",
-    }
-
 
 @app.get("/benchmark-metadata")
 def get_benchmark_metadata() -> dict[str, object]:
@@ -241,27 +216,22 @@ def get_benchmark_adaptation() -> dict[str, object]:
 
 @app.post("/grader")
 def grader(request: GraderRequest) -> dict[str, object]:
-    """Return the latest stored episode summary for a finished episode."""
+    """Return a stored episode grade when available, else a deterministic live grade."""
 
-    if not request.episode_id:
-        return _preview_grade(request.task_id)
-
-    payload = EPISODE_SUMMARIES.get(request.episode_id)
-    if payload is None:
-        preview = _preview_grade(request.task_id)
-        return {
-            **preview,
-            "episode_id": request.episode_id,
-            "error": "episode_id not found; returned deterministic preview grade instead",
-        }
-    return payload
+    try:
+        return grade_episode(request.task_id, episode_id=request.episode_id, split="eval", seed=42)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/grade/{task_id}")
 def grade_task(task_id: str) -> dict[str, object]:
-    """Return a deterministic per-task grade payload for external validators."""
+    """Return a deterministic per-task live grade payload for external validators."""
 
-    return _preview_grade(task_id)
+    try:
+        return grade_episode(task_id, split="eval", seed=42)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 class BaselineRequest(BaseModel):

@@ -2,111 +2,11 @@ spec_version: 1
 name: mario_the_plumber
 type: space
 runtime: fastapi
-app: server.app:app
+app: app:app
 port: 8000
 tasks:
-  - id: task_1
-    task_id: task_1
-    name: Ingestion Contract Repair
-    difficulty: easy
-    description: Stabilize a customer-ingestion batch after missing values and light contract drift.
-    max_steps: 10
-    success_threshold: 0.85
-    grader: true
-    grade_endpoint: /grade/task_1
-    graders:
-      - type: http
-        url: /grade/task_1
-        method: GET
-    episode_grader:
-      type: http
-      url: /grader
-      method: POST
-      content_type: application/json
-      payload_schema:
-        task_id: task_1
-        episode_id: "<episode_id>"
-  - id: task_2
-    task_id: task_2
-    name: Validation and Event Stabilization
-    difficulty: medium
-    description: Recover an event table after retries, duplicates, and validation regressions.
-    max_steps: 15
-    success_threshold: 0.8
-    grader: true
-    grade_endpoint: /grade/task_2
-    graders:
-      - type: http
-        url: /grade/task_2
-        method: GET
-    episode_grader:
-      type: http
-      url: /grader
-      method: POST
-      content_type: application/json
-      payload_schema:
-        task_id: task_2
-        episode_id: "<episode_id>"
-  - id: task_3
-    task_id: task_3
-    name: Referential Repair and Cascading Recovery
-    difficulty: hard
-    description: Restore customer, product, and order tables after cross-table dependency breakage.
-    max_steps: 25
-    success_threshold: 0.75
-    grader: true
-    grade_endpoint: /grade/task_3
-    graders:
-      - type: http
-        url: /grade/task_3
-        method: GET
-    episode_grader:
-      type: http
-      url: /grader
-      method: POST
-      content_type: application/json
-      payload_schema:
-        task_id: task_3
-        episode_id: "<episode_id>"
-  - id: task_4
-    task_id: task_4
-    name: Incremental ETL Incident Recovery
-    difficulty: hard
-    description: Recover a broken incremental ETL pipeline under backlog, freshness, and resource pressure.
-    max_steps: 30
-    success_threshold: 0.78
-    grader: true
-    grade_endpoint: /grade/task_4
-    graders:
-      - type: http
-        url: /grade/task_4
-        method: GET
-    episode_grader:
-      type: http
-      url: /grader
-      method: POST
-      content_type: application/json
-      payload_schema:
-        task_id: task_4
-        episode_id: "<episode_id>"
-  - id: task_5
-    task_id: task_5
-    name: Temporal Rollup Recovery
-    difficulty: hard
-    description: Restore a temporal ETL pipeline after schema evolution, late corrections, and stale rollups.
-    max_steps: 35
-    success_threshold: 0.82
-    grader: true
-    grade_endpoint: /grade/task_5
-    graders:
-      - type: http
-        url: /grade/task_5
-        method: GET
-    episode_grader:
-      type: http
-      url: /grader
-      method: POST
-      content_type: application/json
-      payload_schema:
-        task_id: task_5
-        episode_id: "<episode_id>"
+  - task_1
+  - task_2
+  - task_3
+  - task_4
+  - task_5

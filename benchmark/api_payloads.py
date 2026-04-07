@@ -40,10 +40,11 @@ def _grader_url() -> str:
 def _grade_url(task_id: int) -> str:
     """Return the task-local grade endpoint used by external validators."""
 
+    task_alias = public_task_id(task_id)
     base_url = _base_url()
     if not base_url:
-        return f"/grade/{task_id}"
-    return f"{base_url}/grade/{task_id}"
+        return f"/grade/{task_alias}"
+    return f"{base_url}/grade/{task_alias}"
 
 
 def _task_payload(task_id: int) -> dict[str, object]:
@@ -63,8 +64,9 @@ def _task_payload(task_id: int) -> dict[str, object]:
         "method": "GET",
     }
     return {
-        "id": task_id,
-        "task_id": task_id,
+        "id": public_task_id(task_id),
+        "task_id": public_task_id(task_id),
+        "internal_task_id": task_id,
         "name": TASK_NAMES[task_id],
         "difficulty": TASK_DIFFICULTY[task_id],
         "description": str(TASK_CARDS[task_id].get("incident_description", TASK_CARDS[task_id].get("objective", ""))),

@@ -17,11 +17,12 @@ from typing import Callable
 
 from openai import OpenAI
 
-from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
+from benchmark.catalog import MAX_STEPS
 from benchmark.inference_protocol import PROTOCOL_VERSION
 from benchmark.policies import choose_action, next_table, table_should_advance
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from tasks.task_bank import list_internal_task_ids
 
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_MODEL_NAME = "nvidia/nemotron-super-49b-v1"
@@ -83,7 +84,7 @@ def run_baseline(
     results: list[dict[str, object]] = []
     action_sources: Counter[str] = Counter()
 
-    for task_id in sorted(TASK_THRESHOLDS):
+    for task_id in list_internal_task_ids():
         env = PipelineDoctorEnvironment()
         observation = env.reset(seed=seed, task_id=task_id, split=split)
         task_sources: Counter[str] = Counter()

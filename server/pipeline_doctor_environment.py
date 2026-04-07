@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pandas as pd
 from openenv.core.env_server.interfaces import Environment
+from openenv.core.env_server.types import EnvironmentMetadata
 
 from benchmark.actions.dispatch import apply_action
 from benchmark.actions.orchestration import (
@@ -220,8 +221,17 @@ class PipelineDoctorEnvironment(
         return score(self)
 
     def _store_episode_summary(self) -> None:
-        self.EPISODE_SUMMARIES = self._episode_summaries
         store_episode_summary(self)
+
+    def get_metadata(self) -> EnvironmentMetadata:
+        """Return concrete environment metadata instead of the generic base placeholder."""
+
+        return EnvironmentMetadata(
+            name="mario_the_plumber",
+            description="Benchmark environment for repairing broken ETL pipelines across five graded tasks.",
+            version="2.1",
+            author="Team SST",
+        )
 
     def _table_has_structural_issues(self, table_name: str) -> bool:
         return table_has_structural_issues(self, table_name)
