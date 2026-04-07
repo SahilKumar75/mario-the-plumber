@@ -19,6 +19,7 @@ from benchmark.runtime import (
     benchmark_tasks_payload,
     runtime_summary,
 )
+from benchmark.task_ids import public_task_id
 
 
 def _base_url() -> str:
@@ -83,6 +84,25 @@ def _task_payload(task_id: int) -> dict[str, object]:
     }
 
 
+def _public_task_payload(task_id: int) -> dict[str, object]:
+    return {
+        "id": public_task_id(task_id),
+        "description": str(
+            TASK_CARDS[task_id].get(
+                "incident_description",
+                TASK_CARDS[task_id].get("objective", ""),
+            )
+        ),
+        "max_steps": MAX_STEPS[task_id],
+        "difficulty": TASK_DIFFICULTY[task_id],
+        "grader": True,
+    }
+
+
+def public_tasks_payload() -> dict[str, object]:
+    return {"tasks": [_public_task_payload(task_id) for task_id in sorted(TASK_NAMES)]}
+
+
 def tasks_payload() -> dict[str, object]:
     return {
         "tasks": [_task_payload(task_id) for task_id in sorted(TASK_NAMES)],
@@ -137,5 +157,6 @@ __all__ = [
     "benchmark_profiles_payload",
     "benchmark_runs_payload",
     "benchmark_tasks_payload",
+    "public_tasks_payload",
     "tasks_payload",
 ]

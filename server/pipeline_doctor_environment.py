@@ -28,6 +28,7 @@ from benchmark.env_reporting import build_observation
 from benchmark.evaluation import score, store_episode_summary
 from benchmark.observation_support import workload_pressure
 from benchmark.progress import update_task_progress_state
+from benchmark.task_ids import parse_task_id
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
 from server.data_generator import generate_scenario
 from server.runtime import initialize_episode, resolve_step
@@ -89,12 +90,13 @@ class PipelineDoctorEnvironment(
         self,
         seed: int | None = None,
         episode_id: str | None = None,
-        task_id: int = 1,
+        task_id: int | str = 1,
         split: str = "train",
         **_: object,
     ) -> PipelineDoctorObservation:
         """Reset the environment to a fresh synthetic scenario."""
 
+        task_id = parse_task_id(task_id)
         scenario = generate_scenario(task_id=task_id, seed=seed, split=split)
         initialize_episode(self, scenario, task_id=task_id, seed=seed, episode_id=episode_id)
         self._store_episode_summary()

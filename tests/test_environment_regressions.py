@@ -240,14 +240,26 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
 
     assert len(tasks) >= 3
     assert sum(1 for task in tasks if task["grader"] is True) >= 3
-    assert all(task["grade_endpoint"] == f"/grade/{task['task_id']}" for task in tasks)
+    assert tasks[0] == {
+        "id": "task_1",
+        "description": (
+            "An upstream ingestion job landed a customer batch with missing values "
+            "and a light contract regression after a feed formatter changed."
+        ),
+        "max_steps": 10,
+        "difficulty": "easy",
+        "grader": True,
+    }
 
     for task in tasks[:3]:
-        grade_response = client.get(task["grade_endpoint"])
+        grade_response = client.get(f"/grade/{task['id']}")
         assert grade_response.status_code == 200
         grade_payload = grade_response.json()
         assert 0.0 <= grade_payload["score"] <= 1.0
         assert 0.0 <= grade_payload["reward"] <= 1.0
+
+    reset_response = client.post("/reset", json={"task_id": "task_2", "seed": 42})
+    assert reset_response.status_code == 200
 
     validate_response = client.get("/validate")
     assert validate_response.status_code == 200
@@ -255,3 +267,8 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
     assert validate_payload["valid"] is True
     assert validate_payload["checks"]["min_3_tasks"] is True
     assert validate_payload["checks"]["all_tasks_have_graders"] is True
+
+    openapi_schema = client.get("/openapi.json").json()
+    reset_props = openapi_schema["components"]["schemas"]["ResetRequest"]["properties"]
+    assert "task_id" in reset_props
+    assert "split" in reset_props

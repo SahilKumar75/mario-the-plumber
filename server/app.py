@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import HTTPException
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -25,10 +26,12 @@ from benchmark.api_payloads import (
     benchmark_profiles_payload,
     benchmark_runs_payload,
     benchmark_tasks_payload,
+    public_tasks_payload,
     tasks_payload,
 )
 from benchmark.catalog import TASK_THRESHOLDS
 from benchmark.evaluation import breakdown_payload, objective_breakdown, score
+from benchmark.task_ids import parse_task_id
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation
 from server.benchmark_demo import build_benchmark_demo
@@ -38,7 +41,7 @@ from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctor
 class GraderRequest(BaseModel):
     """Lookup payload for the /grader endpoint."""
 
-    task_id: int
+    task_id: int | str
     episode_id: str | None = None
 
 
@@ -74,6 +77,54 @@ def _route_paths() -> set[str]:
     return {route.path for route in app.routes if hasattr(route, "path")}
 
 
+def _install_openapi_overrides() -> None:
+    """Advertise task selection explicitly in the generated /reset schema."""
+
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        components = schema.setdefault("components", {}).setdefault("schemas", {})
+        reset_request = components.setdefault("ResetRequest", {})
+        properties = reset_request.setdefault("properties", {})
+        properties["task_id"] = {
+            "anyOf": [
+                {"type": "integer", "minimum": 1.0, "maximum": 5.0},
+                {
+                    "type": "string",
+                    "enum": [str(task_id) for task_id in sorted(TASK_THRESHOLDS)]
+                    + [f"task_{task_id}" for task_id in sorted(TASK_THRESHOLDS)],
+                },
+            ],
+            "title": "Task Id",
+            "description": "Task selector supporting integer ids (1-5) and aliases like task_1.",
+        }
+        properties["split"] = {
+            "type": "string",
+            "enum": ["train", "eval"],
+            "title": "Split",
+            "description": "Scenario split used for the reset.",
+            "default": "train",
+        }
+        reset_request["examples"] = [
+            {"task_id": "task_1", "seed": 42, "split": "train"},
+            {"task_id": 2, "seed": 42, "split": "eval"},
+        ]
+        app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
+
+
+_install_openapi_overrides()
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Lightweight health endpoint for container readiness checks."""
@@ -97,16 +148,16 @@ def web_root() -> RedirectResponse:
 
 @app.get("/tasks")
 def get_tasks() -> dict[str, object]:
-    """Expose the benchmark task list and action schema."""
+    """Expose a validator-friendly task list with simple ids and grader flags."""
 
-    return tasks_payload()
+    return public_tasks_payload()
 
 
 @app.get("/validate")
 def validate() -> dict[str, object]:
     """Expose hackathon-friendly validation checks for task/grader discovery."""
 
-    tasks = tasks_payload()["tasks"]
+    tasks = public_tasks_payload()["tasks"]
     route_paths = _route_paths()
     checks = {
         "openenv_yaml": Path("openenv.yaml").exists(),
@@ -126,9 +177,10 @@ def validate() -> dict[str, object]:
     }
 
 
-def _preview_grade(task_id: int) -> dict[str, object]:
+def _preview_grade(task_id: int | str) -> dict[str, object]:
     """Run a deterministic task preview so graders can be validated without session state."""
 
+    task_id = parse_task_id(task_id)
     if task_id not in TASK_THRESHOLDS:
         raise HTTPException(status_code=404, detail=f"unknown task_id {task_id}")
     env = PipelineDoctorEnvironment()
@@ -137,7 +189,7 @@ def _preview_grade(task_id: int) -> dict[str, object]:
     return {
         "task_id": task_id,
         "score": preview_score,
-        "reward": round(float(observation.reward), 4),
+        "reward": preview_score,
         "success_threshold": TASK_THRESHOLDS[task_id],
         "success": bool(preview_score >= TASK_THRESHOLDS[task_id]),
         "breakdown": _jsonify(breakdown_payload(env)),
@@ -207,7 +259,7 @@ def grader(request: GraderRequest) -> dict[str, object]:
 
 
 @app.get("/grade/{task_id}")
-def grade_task(task_id: int) -> dict[str, object]:
+def grade_task(task_id: str) -> dict[str, object]:
     """Return a deterministic per-task grade payload for external validators."""
 
     return _preview_grade(task_id)
