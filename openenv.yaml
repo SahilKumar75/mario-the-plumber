@@ -6,51 +6,36 @@ app: app:app
 port: 8000
 tasks:
   - id: task_1
-    name: Ingestion Contract Repair
     difficulty: easy
-    description: An upstream ingestion job landed a customer batch with missing values and a light contract regression after a feed formatter changed.
     max_steps: 10
     grader:
       type: llm
-      prompt_template: "Score task_1 from 0.0 to 1.0 based on whether the agent restores ingestion-table validity, consistency, and accuracy."
-    grade_endpoint: /grade/task_1
+      prompt_template: "Score the agent's performance for task_1 from 0.0 to 1.0."
 
   - id: task_2
-    name: Validation and Event Stabilization
     difficulty: medium
-    description: A retry path and weak validation rules produced duplicate transaction events and malformed values before the table reached downstream checks.
     max_steps: 15
     grader:
       type: llm
-      prompt_template: "Score task_2 from 0.0 to 1.0 based on duplicate removal, schema repair, and downstream-ready event quality."
-    grade_endpoint: /grade/task_2
+      prompt_template: "Score the agent's performance for task_2 from 0.0 to 1.0."
 
   - id: task_3
-    name: Referential Repair and Cascading Recovery
     difficulty: hard
-    description: A multi-source contract regression corrupted customer, product, and order tables together, causing downstream joins and total-price checks to fail.
     max_steps: 25
     grader:
       type: llm
-      prompt_template: "Score task_3 from 0.0 to 1.0 based on cross-table repair quality, dependency consistency, and safe pipeline recovery."
-    grade_endpoint: /grade/task_3
+      prompt_template: "Score the agent's performance for task_3 from 0.0 to 1.0."
 
   - id: task_4
-    name: Incremental ETL Incident Recovery
     difficulty: hard
-    description: An incremental load failed midstream, leaving late batches unprocessed, daily summaries stale, and the recovery worker under pressure.
     max_steps: 30
     grader:
       type: llm
-      prompt_template: "Score task_4 from 0.0 to 1.0 based on backlog recovery, freshness restoration, and summary consistency under resource pressure."
-    grade_endpoint: /grade/task_4
+      prompt_template: "Score the agent's performance for task_4 from 0.0 to 1.0."
 
   - id: task_5
-    name: Temporal Rollup Recovery
     difficulty: hard
-    description: A temporal pipeline absorbed schema evolution and late source corrections without a complete replay, leaving rollups stale and freshness guarantees broken.
     max_steps: 35
     grader:
       type: llm
-      prompt_template: "Score task_5 from 0.0 to 1.0 based on temporal backfill recovery, rollup consistency, freshness, and final recovery quality."
-    grade_endpoint: /grade/task_5
+      prompt_template: "Score the agent's performance for task_5 from 0.0 to 1.0."
