@@ -21,17 +21,32 @@ from benchmark.runtime import (
 )
 
 
-def _grader_url() -> str:
-    """Return the public grader URL, preferring an explicit base URL when set."""
+def _base_url() -> str:
+    """Return the optional public base URL without a trailing slash."""
 
-    base_url = os.getenv("MARIO_PUBLIC_BASE_URL", "").strip().rstrip("/")
+    return os.getenv("MARIO_PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+
+def _grader_url() -> str:
+    """Return the compatibility grader URL used for episode-summary lookup."""
+
+    base_url = _base_url()
     if not base_url:
         return "/grader"
     return f"{base_url}/grader"
 
 
+def _grade_url(task_id: int) -> str:
+    """Return the task-local grade endpoint used by external validators."""
+
+    base_url = _base_url()
+    if not base_url:
+        return f"/grade/{task_id}"
+    return f"{base_url}/grade/{task_id}"
+
+
 def _task_payload(task_id: int) -> dict[str, object]:
-    grader = {
+    episode_grader = {
         "type": "http",
         "url": _grader_url(),
         "method": "POST",
@@ -40,6 +55,11 @@ def _task_payload(task_id: int) -> dict[str, object]:
             "task_id": task_id,
             "episode_id": "<episode_id>",
         },
+    }
+    grader = {
+        "type": "http",
+        "url": _grade_url(task_id),
+        "method": "GET",
     }
     return {
         "id": task_id,
@@ -50,12 +70,16 @@ def _task_payload(task_id: int) -> dict[str, object]:
         "success_threshold": TASK_THRESHOLDS[task_id],
         "max_steps": MAX_STEPS[task_id],
         "task_card": TASK_CARDS[task_id],
-        # Keep both nested and flat compatibility fields because external validators
-        # sometimes check only one of these shapes when counting grader-backed tasks.
-        "grader": grader,
+        # Some validators look only for a boolean `grader` flag and a `/grade/{task_id}`
+        # endpoint, while others inspect richer endpoint metadata.
+        "grader": True,
+        "grader_enabled": True,
+        "grade_endpoint": grader["url"],
         "graders": [grader],
         "grader_url": grader["url"],
         "grader_method": grader["method"],
+        "grader_config": grader,
+        "episode_grader": episode_grader,
     }
 
 

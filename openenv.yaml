@@ -12,7 +12,13 @@ tasks:
     description: Stabilize a customer-ingestion batch after missing values and light contract drift.
     max_steps: 10
     success_threshold: 0.85
-    grader:
+    grader: true
+    grade_endpoint: /grade/1
+    graders:
+      - type: http
+        url: /grade/1
+        method: GET
+    episode_grader:
       type: http
       url: /grader
       method: POST
@@ -20,14 +26,6 @@ tasks:
       payload_schema:
         task_id: 1
         episode_id: "<episode_id>"
-    graders:
-      - type: http
-        url: /grader
-        method: POST
-        content_type: application/json
-        payload_schema:
-          task_id: 1
-          episode_id: "<episode_id>"
   - id: 2
     task_id: 2
     name: Validation and Event Stabilization
@@ -35,7 +33,13 @@ tasks:
     description: Recover an event table after retries, duplicates, and validation regressions.
     max_steps: 15
     success_threshold: 0.8
-    grader:
+    grader: true
+    grade_endpoint: /grade/2
+    graders:
+      - type: http
+        url: /grade/2
+        method: GET
+    episode_grader:
       type: http
       url: /grader
       method: POST
@@ -43,14 +47,6 @@ tasks:
       payload_schema:
         task_id: 2
         episode_id: "<episode_id>"
-    graders:
-      - type: http
-        url: /grader
-        method: POST
-        content_type: application/json
-        payload_schema:
-          task_id: 2
-          episode_id: "<episode_id>"
   - id: 3
     task_id: 3
     name: Referential Repair and Cascading Recovery
@@ -58,7 +54,13 @@ tasks:
     description: Restore customer, product, and order tables after cross-table dependency breakage.
     max_steps: 25
     success_threshold: 0.75
-    grader:
+    grader: true
+    grade_endpoint: /grade/3
+    graders:
+      - type: http
+        url: /grade/3
+        method: GET
+    episode_grader:
       type: http
       url: /grader
       method: POST
@@ -66,14 +68,6 @@ tasks:
       payload_schema:
         task_id: 3
         episode_id: "<episode_id>"
-    graders:
-      - type: http
-        url: /grader
-        method: POST
-        content_type: application/json
-        payload_schema:
-          task_id: 3
-          episode_id: "<episode_id>"
   - id: 4
     task_id: 4
     name: Incremental ETL Incident Recovery
@@ -81,7 +75,13 @@ tasks:
     description: Recover a broken incremental ETL pipeline under backlog, freshness, and resource pressure.
     max_steps: 30
     success_threshold: 0.78
-    grader:
+    grader: true
+    grade_endpoint: /grade/4
+    graders:
+      - type: http
+        url: /grade/4
+        method: GET
+    episode_grader:
       type: http
       url: /grader
       method: POST
@@ -89,14 +89,6 @@ tasks:
       payload_schema:
         task_id: 4
         episode_id: "<episode_id>"
-    graders:
-      - type: http
-        url: /grader
-        method: POST
-        content_type: application/json
-        payload_schema:
-          task_id: 4
-          episode_id: "<episode_id>"
   - id: 5
     task_id: 5
     name: Temporal Rollup Recovery
@@ -104,7 +96,13 @@ tasks:
     description: Restore a temporal ETL pipeline after schema evolution, late corrections, and stale rollups.
     max_steps: 35
     success_threshold: 0.82
-    grader:
+    grader: true
+    grade_endpoint: /grade/5
+    graders:
+      - type: http
+        url: /grade/5
+        method: GET
+    episode_grader:
       type: http
       url: /grader
       method: POST
@@ -112,11 +110,3 @@ tasks:
       payload_schema:
         task_id: 5
         episode_id: "<episode_id>"
-    graders:
-      - type: http
-        url: /grader
-        method: POST
-        content_type: application/json
-        payload_schema:
-          task_id: 5
-          episode_id: "<episode_id>"

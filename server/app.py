@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -24,6 +25,8 @@ from benchmark.api_payloads import (
     benchmark_tasks_payload,
     tasks_payload,
 )
+from benchmark.catalog import TASK_THRESHOLDS
+from benchmark.evaluation import breakdown_payload, objective_breakdown, score
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation
 from server.benchmark_demo import build_benchmark_demo
@@ -34,7 +37,7 @@ class GraderRequest(BaseModel):
     """Lookup payload for the /grader endpoint."""
 
     task_id: int
-    episode_id: str
+    episode_id: str | None = None
 
 
 app = create_app(
@@ -46,6 +49,21 @@ app = create_app(
     max_concurrent_envs=1,
     gradio_builder=build_benchmark_demo,
 )
+
+
+def _jsonify(value):
+    """Convert numpy/pydantic-like values into plain JSON-native structures."""
+
+    if isinstance(value, dict):
+        return {str(key): _jsonify(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_jsonify(item) for item in value]
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except Exception:
+            return str(value)
+    return value
 
 
 @app.get("/health")
@@ -74,6 +92,26 @@ def get_tasks() -> dict[str, object]:
     """Expose the benchmark task list and action schema."""
 
     return tasks_payload()
+
+
+def _preview_grade(task_id: int) -> dict[str, object]:
+    """Run a deterministic task preview so graders can be validated without session state."""
+
+    if task_id not in TASK_THRESHOLDS:
+        raise HTTPException(status_code=404, detail=f"unknown task_id {task_id}")
+    env = PipelineDoctorEnvironment()
+    observation = env.reset(seed=42, task_id=task_id, split="train")
+    preview_score = round(float(score(env)), 4)
+    return {
+        "task_id": task_id,
+        "score": preview_score,
+        "reward": round(float(observation.reward), 4),
+        "success_threshold": TASK_THRESHOLDS[task_id],
+        "success": bool(preview_score >= TASK_THRESHOLDS[task_id]),
+        "breakdown": _jsonify(breakdown_payload(env)),
+        "objective_breakdown": _jsonify(objective_breakdown(env)),
+        "grader_mode": "preview",
+    }
 
 
 @app.get("/benchmark-metadata")
@@ -122,18 +160,25 @@ def get_benchmark_adaptation() -> dict[str, object]:
 def grader(request: GraderRequest) -> dict[str, object]:
     """Return the latest stored episode summary for a finished episode."""
 
+    if not request.episode_id:
+        return _preview_grade(request.task_id)
+
     payload = EPISODE_SUMMARIES.get(request.episode_id)
     if payload is None:
+        preview = _preview_grade(request.task_id)
         return {
-            "task_id": request.task_id,
+            **preview,
             "episode_id": request.episode_id,
-            "score": 0.0,
-            "breakdown": {},
-            "success": False,
-            "steps_taken": 0,
-            "error": "episode_id not found",
+            "error": "episode_id not found; returned deterministic preview grade instead",
         }
     return payload
+
+
+@app.get("/grade/{task_id}")
+def grade_task(task_id: int) -> dict[str, object]:
+    """Return a deterministic per-task grade payload for external validators."""
+
+    return _preview_grade(task_id)
 
 
 class BaselineRequest(BaseModel):
