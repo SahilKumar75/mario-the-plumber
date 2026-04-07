@@ -42,9 +42,11 @@ def _task_payload(task_id: int) -> dict[str, object]:
         },
     }
     return {
+        "id": task_id,
         "task_id": task_id,
         "name": TASK_NAMES[task_id],
         "difficulty": TASK_DIFFICULTY[task_id],
+        "description": str(TASK_CARDS[task_id].get("incident_description", TASK_CARDS[task_id].get("objective", ""))),
         "success_threshold": TASK_THRESHOLDS[task_id],
         "max_steps": MAX_STEPS[task_id],
         "task_card": TASK_CARDS[task_id],
