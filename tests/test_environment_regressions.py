@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
 from benchmark.api_payloads import tasks_payload
 from benchmark.grading import score_task4
 from benchmark.api_payloads import benchmark_metadata_payload
 from benchmark.policies.heuristics import heuristic_action_for
 from models import PipelineDoctorAction
+from server.app import app
 from server.data_generator import generate_scenario
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
@@ -226,3 +229,29 @@ def test_benchmark_metadata_and_tasks_payload_smoke() -> None:
     assert "reward_machine_signals" in payload["action_schema"]
     assert "incident_type" in payload["action_schema"]["incident_signals"]
     assert "reward_machine_state" in payload["action_schema"]["reward_machine_signals"]
+
+
+def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> None:
+    client = TestClient(app)
+
+    tasks_response = client.get("/tasks")
+    assert tasks_response.status_code == 200
+    tasks = tasks_response.json()["tasks"]
+
+    assert len(tasks) >= 3
+    assert sum(1 for task in tasks if task["grader"] is True) >= 3
+    assert all(task["grade_endpoint"] == f"/grade/{task['task_id']}" for task in tasks)
+
+    for task in tasks[:3]:
+        grade_response = client.get(task["grade_endpoint"])
+        assert grade_response.status_code == 200
+        grade_payload = grade_response.json()
+        assert 0.0 <= grade_payload["score"] <= 1.0
+        assert 0.0 <= grade_payload["reward"] <= 1.0
+
+    validate_response = client.get("/validate")
+    assert validate_response.status_code == 200
+    validate_payload = validate_response.json()
+    assert validate_payload["valid"] is True
+    assert validate_payload["checks"]["min_3_tasks"] is True
+    assert validate_payload["checks"]["all_tasks_have_graders"] is True

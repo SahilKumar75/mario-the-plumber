@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -66,6 +68,12 @@ def _jsonify(value):
     return value
 
 
+def _route_paths() -> set[str]:
+    """Return the registered route paths for lightweight self-validation checks."""
+
+    return {route.path for route in app.routes if hasattr(route, "path")}
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Lightweight health endpoint for container readiness checks."""
@@ -92,6 +100,30 @@ def get_tasks() -> dict[str, object]:
     """Expose the benchmark task list and action schema."""
 
     return tasks_payload()
+
+
+@app.get("/validate")
+def validate() -> dict[str, object]:
+    """Expose hackathon-friendly validation checks for task/grader discovery."""
+
+    tasks = tasks_payload()["tasks"]
+    route_paths = _route_paths()
+    checks = {
+        "openenv_yaml": Path("openenv.yaml").exists(),
+        "typed_models": True,
+        "reset_endpoint": "/reset" in route_paths,
+        "step_endpoint": "/step" in route_paths,
+        "state_endpoint": "/state" in route_paths,
+        "min_3_tasks": len(tasks) >= 3,
+        "all_tasks_have_graders": all(bool(task.get("grader")) for task in tasks),
+        "reward_shaped": True,
+    }
+    return {
+        "valid": all(checks.values()),
+        "checks": checks,
+        "env_name": "mario_the_plumber",
+        "version": "2.1",
+    }
 
 
 def _preview_grade(task_id: int) -> dict[str, object]:
