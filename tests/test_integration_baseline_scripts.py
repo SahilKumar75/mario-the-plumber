@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from benchmark.inference_protocol import PROTOCOL_VERSION, parse_protocol_lines
+from benchmark.inference_protocol import PROTOCOL_VERSION
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,33 +26,48 @@ def _run_json_command(*args: str) -> dict[str, object]:
     return json.loads(_run_command(*args))
 
 
-def test_inference_cli_heuristic_eval_smoke() -> None:
-    transcript = parse_protocol_lines(
-        _run_command(
-            "-m",
-            "inference",
-            "--seed",
-            "1",
-            "--split",
-            "eval",
-            "--policy-mode",
-            "heuristic",
-        ).splitlines()
-    )
-    payload = transcript["end"]
+def _parse_bracket_protocol_line(line: str) -> tuple[str, dict[str, str]]:
+    raw = line.strip()
+    if not raw.startswith("[") or "]" not in raw:
+        raise ValueError(f"malformed bracket protocol line: {raw}")
+    tag, _, tail = raw[1:].partition("]")
+    payload: dict[str, str] = {}
+    for token in tail.strip().split():
+        if "=" not in token:
+            continue
+        key, value = token.split("=", 1)
+        payload[key] = value
+    return tag, payload
 
-    assert transcript["start"]["protocol_version"] == PROTOCOL_VERSION
-    assert transcript["start"]["run_id"]
-    assert len(transcript["steps"]) == 5
-    assert sorted({int(step["task_id"]) for step in transcript["steps"]}) == [1, 2, 3, 4, 5]
-    assert all(step.get("event") == "task_complete" for step in transcript["steps"])
-    assert payload["protocol_version"] == PROTOCOL_VERSION
-    assert payload["run_id"] == transcript["start"]["run_id"]
-    assert payload["status"] == "complete"
-    assert payload["policy_mode"] == "heuristic"
-    assert payload["scenario_split"] == "eval"
-    assert len(payload["results"]) == 5
-    assert all("scenario_profile" in result for result in payload["results"])
+
+def test_inference_cli_heuristic_eval_smoke() -> None:
+    lines = _run_command(
+        "-m",
+        "inference",
+        "--seed",
+        "1",
+        "--split",
+        "eval",
+        "--policy-mode",
+        "heuristic",
+    ).splitlines()
+    protocol = [_parse_bracket_protocol_line(line) for line in lines if line.strip()]
+
+    assert protocol[0][0] == "START"
+    assert protocol[0][1]["protocol"] == PROTOCOL_VERSION
+    assert protocol[0][1]["env"] == "benchmark"
+    assert protocol[0][1]["task"] == "mario_the_plumber"
+
+    steps = [payload for tag, payload in protocol if tag == "STEP"]
+    assert len(steps) == 5
+    assert [int(step["step"]) for step in steps] == [1, 2, 3, 4, 5]
+    assert all("reward" in step for step in steps)
+    assert all(step.get("error") == "null" for step in steps)
+
+    end_payload = next(payload for tag, payload in protocol if tag == "END")
+    assert int(end_payload["steps"]) == 5
+    assert "score" in end_payload
+    assert "success" in end_payload
 
 
 def test_inference_cli_json_fallback_mode() -> None:
