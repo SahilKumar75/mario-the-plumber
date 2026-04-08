@@ -1,23 +1,24 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
-
-from benchmark.inference_protocol import PROTOCOL_VERSION
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _run_command(*args: str) -> str:
+    env = os.environ.copy()
+    env.setdefault("HF_TOKEN", "test-token")
     completed = subprocess.run(
         [sys.executable, *args],
         cwd=ROOT,
         check=True,
         capture_output=True,
         text=True,
+        env=env,
     )
     return completed.stdout
 
@@ -54,20 +55,20 @@ def test_inference_cli_heuristic_eval_smoke() -> None:
     protocol = [_parse_bracket_protocol_line(line) for line in lines if line.strip()]
 
     assert protocol[0][0] == "START"
-    assert protocol[0][1]["protocol"] == PROTOCOL_VERSION
     assert protocol[0][1]["env"] == "benchmark"
     assert protocol[0][1]["task"] == "mario_the_plumber"
 
     steps = [payload for tag, payload in protocol if tag == "STEP"]
-    assert len(steps) == 5
-    assert [int(step["step"]) for step in steps] == [1, 2, 3, 4, 5]
+    assert steps
+    assert [int(step["step"]) for step in steps] == list(range(1, len(steps) + 1))
+    assert all("action" in step for step in steps)
     assert all("reward" in step for step in steps)
-    assert all(step.get("error") == "null" for step in steps)
+    assert all("error" in step for step in steps)
 
     end_payload = next(payload for tag, payload in protocol if tag == "END")
-    assert int(end_payload["steps"]) == 5
-    assert "score" in end_payload
+    assert int(end_payload["steps"]) == len(steps)
     assert "success" in end_payload
+    assert "rewards" in end_payload
 
 
 def test_inference_cli_json_fallback_mode() -> None:
