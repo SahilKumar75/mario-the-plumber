@@ -78,6 +78,15 @@ def _tasks() -> list[dict[str, object]]:
     return task_payloads()
 
 
+def _validator_grade_payload(payload: dict[str, object]) -> dict[str, float]:
+    score = float(payload.get("score", 0.0))
+    reward = float(payload.get("reward", score))
+    return {
+        "score": score,
+        "reward": reward,
+    }
+
+
 def _install_openapi_overrides() -> None:
     def custom_openapi():
         if app.openapi_schema:
@@ -246,7 +255,9 @@ def get_benchmark_adaptation() -> dict[str, object]:
 @app.post("/grader")
 def grader(request: GraderRequest) -> dict[str, object]:
     try:
-        return grade_episode(request.task_id, episode_id=request.episode_id, split="eval", seed=42)
+        return _validator_grade_payload(
+            grade_episode(request.task_id, episode_id=request.episode_id, split="eval", seed=42)
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -254,7 +265,7 @@ def grader(request: GraderRequest) -> dict[str, object]:
 @app.get("/grade/{task_id}")
 def grade_task(task_id: str) -> dict[str, object]:
     try:
-        return grade_episode(task_id, split="eval", seed=42)
+        return _validator_grade_payload(grade_episode(task_id, split="eval", seed=42))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

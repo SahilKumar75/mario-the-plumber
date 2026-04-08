@@ -25,6 +25,12 @@ def _assert_nested_scores_strictly_inside_open_interval(value) -> None:
         assert 0.0 < value < 1.0
 
 
+def _assert_minimal_validator_grade_payload(payload: dict[str, object]) -> None:
+    assert set(payload) == {"score", "reward"}
+    assert 0.0 < float(payload["score"]) < 1.0
+    assert 0.0 < float(payload["reward"]) < 1.0
+
+
 def test_reset_and_step_lifecycle_invariants() -> None:
     fresh_env = PipelineDoctorEnvironment()
     fresh_observation = fresh_env.reset(task_id=4, split="eval", seed=7)
@@ -265,12 +271,7 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
         grade_response = client.get(f"/grade/{task['id']}")
         assert grade_response.status_code == 200
         grade_payload = grade_response.json()
-        assert 0.0 < grade_payload["score"] < 1.0
-        assert 0.0 < grade_payload["reward"] < 1.0
-        _assert_nested_scores_strictly_inside_open_interval(grade_payload["breakdown"])
-        _assert_nested_scores_strictly_inside_open_interval(grade_payload["objective_breakdown"])
-        assert grade_payload["grader_mode"] in {"live", "live-fallback"}
-        assert grade_payload["success"] is True
+        _assert_minimal_validator_grade_payload(grade_payload)
 
 
 def test_root_task_registry_and_grader_modules_expose_five_live_tasks() -> None:
@@ -290,6 +291,10 @@ def test_root_task_registry_and_grader_modules_expose_five_live_tasks() -> None:
 
     reset_response = client.post("/reset", json={"task_id": "task_2", "seed": 42})
     assert reset_response.status_code == 200
+
+    grader_response = client.post("/grader", json={"task_id": "task_1"})
+    assert grader_response.status_code == 200
+    _assert_minimal_validator_grade_payload(grader_response.json())
 
     validate_response = client.get("/validate")
     assert validate_response.status_code == 200
