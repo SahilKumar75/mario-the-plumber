@@ -263,7 +263,7 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
     assert tasks[0]["name"] == "Ingestion Contract Repair"
     assert tasks[0]["difficulty"] == "easy"
     assert tasks[0]["grade_endpoint"] == "/grade/task_1"
-    assert tasks[0]["grader"] == {"type": "http", "endpoint": "/grade/task_1"}
+    assert tasks[0]["grader"] == "/grade/task_1"
 
     for task in tasks[:3]:
         grade_response = client.get(f"/grade/{task['id']}")
