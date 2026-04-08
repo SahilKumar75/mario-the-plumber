@@ -8,7 +8,7 @@ from benchmark.policies.heuristics import heuristic_action_for
 from benchmark.task_ids import parse_task_id, public_task_id
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
-from tasks.task_bank import get_task
+from tasks.common import build_task_definition
 
 MIN_VALIDATOR_SCORE = 0.0001
 MAX_VALIDATOR_SCORE = 0.9999
@@ -50,7 +50,7 @@ def _strict_validator_metrics(value):
 
 
 def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, object]) -> dict[str, object]:
-    task = get_task(public_task_id(task_id))
+    task = build_task_definition(public_task_id(task_id))
     score = _strict_validator_score(float(payload.get("score", 0.0)))
     success = bool(payload.get("success", False))
     return {
@@ -71,7 +71,7 @@ def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, 
 
 
 def grade_env(env: PipelineDoctorEnvironment, *, grader_mode: str, episode_id: str | None = None) -> dict[str, object]:
-    task = get_task(public_task_id(env.state.task_id))
+    task = build_task_definition(public_task_id(env.state.task_id))
     score = _strict_validator_score(float(env.state.current_score))
     return {
         "task_id": task.internal_id,
@@ -164,3 +164,22 @@ def grade_episode(
     if episode_id and result.get("episode_id") is None:
         result["episode_id"] = episode_id
     return result
+
+
+def validator_grade_payload(
+    task_ref: int | str,
+    *,
+    episode_id: str | None = None,
+    seed: int = 42,
+    split: str = "train",
+) -> dict[str, object]:
+    """Return a minimal validator-facing grade payload with only open-interval scores."""
+
+    task_id = parse_task_id(task_ref)
+    result = grade_episode(task_id, episode_id=episode_id, seed=seed, split=split)
+    score = _strict_validator_score(float(result.get("score", 0.0)))
+    reward = _strict_validator_score(float(result.get("reward", score)))
+    return {
+        "score": score,
+        "reward": reward,
+    }

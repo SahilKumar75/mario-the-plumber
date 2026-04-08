@@ -21,6 +21,8 @@ from benchmark.runtime import (
 )
 from benchmark.task_ids import public_task_id
 
+VALIDATOR_TASK_IDS = (1, 2, 3)
+
 
 def _base_url() -> str:
     """Return the optional public base URL without a trailing slash."""
@@ -75,7 +77,7 @@ def _task_payload(task_id: int) -> dict[str, object]:
         "task_card": TASK_CARDS[task_id],
         # Some validators look only for a boolean `grader` flag and a `/grade/{task_id}`
         # endpoint, while others inspect richer endpoint metadata.
-        "grader": True,
+        "grader": grader["url"],
         "grader_enabled": True,
         "grade_endpoint": grader["url"],
         "graders": [grader],
@@ -97,17 +99,17 @@ def _public_task_payload(task_id: int) -> dict[str, object]:
         ),
         "max_steps": MAX_STEPS[task_id],
         "difficulty": TASK_DIFFICULTY[task_id],
-        "grader": True,
+        "grader": _grade_url(task_id),
     }
 
 
 def public_tasks_payload() -> dict[str, object]:
-    return {"tasks": [_public_task_payload(task_id) for task_id in sorted(TASK_NAMES)]}
+    return {"tasks": [_public_task_payload(task_id) for task_id in VALIDATOR_TASK_IDS]}
 
 
 def tasks_payload() -> dict[str, object]:
     return {
-        "tasks": [_task_payload(task_id) for task_id in sorted(TASK_NAMES)],
+        "tasks": [_task_payload(task_id) for task_id in VALIDATOR_TASK_IDS],
         "action_schema": {
             "action_id": "int (0-19, required)",
             "target_column": (
@@ -161,4 +163,5 @@ __all__ = [
     "benchmark_tasks_payload",
     "public_tasks_payload",
     "tasks_payload",
+    "VALIDATOR_TASK_IDS",
 ]

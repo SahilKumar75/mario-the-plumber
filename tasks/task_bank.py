@@ -6,12 +6,10 @@ from tasks.common import TaskDefinition, task_payload
 from tasks.task1 import TASK as TASK_1
 from tasks.task2 import TASK as TASK_2
 from tasks.task3 import TASK as TASK_3
-from tasks.task4 import TASK as TASK_4
-from tasks.task5 import TASK as TASK_5
 
 TASKS: dict[str, TaskDefinition] = {
     task.id: task
-    for task in (TASK_1, TASK_2, TASK_3, TASK_4, TASK_5)
+    for task in (TASK_1, TASK_2, TASK_3)
 }
 
 

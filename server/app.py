@@ -20,6 +20,7 @@ from openenv.core.env_server.types import EnvironmentMetadata, HealthResponse, H
 from pydantic import BaseModel
 
 from benchmark.api_payloads import (
+    VALIDATOR_TASK_IDS,
     adaptation_payload,
     benchmark_metadata_payload,
     benchmark_profiles_payload,
@@ -28,7 +29,7 @@ from benchmark.api_payloads import (
 )
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-from graders import grade_episode
+from graders import validator_grade_payload
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 from tasks.task_bank import list_internal_task_ids, task_payloads
 
@@ -48,7 +49,7 @@ class ResetRequest(BaseModel):
 class GraderRequest(BaseModel):
     """Lookup payload for the /grader endpoint."""
 
-    task_id: int | str
+    task_id: int | str = "task_1"
     episode_id: str | None = None
 
 
@@ -103,7 +104,7 @@ def _install_openapi_overrides() -> None:
         properties = reset_request.setdefault("properties", {})
         properties["task_id"] = {
             "anyOf": [
-                {"type": "integer", "minimum": 1.0, "maximum": 5.0},
+                {"type": "integer", "minimum": 1.0, "maximum": float(max(VALIDATOR_TASK_IDS))},
                 {
                     "type": "string",
                     "enum": [str(task_id) for task_id in list_internal_task_ids()]
@@ -111,7 +112,7 @@ def _install_openapi_overrides() -> None:
                 },
             ],
             "title": "Task Id",
-            "description": "Task selector supporting integer ids (1-5) and aliases like task_1.",
+            "description": "Task selector supporting integer ids and aliases like task_1.",
         }
         properties["split"] = {
             "type": "string",
@@ -196,8 +197,8 @@ def state() -> dict[str, Any]:
 
 
 @app.get("/tasks")
-def get_tasks() -> list[dict[str, object]]:
-    return _tasks()
+def get_tasks() -> dict[str, object]:
+    return {"tasks": _tasks()}
 
 
 @app.get("/validate")
@@ -253,10 +254,13 @@ def get_benchmark_adaptation() -> dict[str, object]:
 
 
 @app.post("/grader")
-def grader(request: GraderRequest) -> dict[str, object]:
+def grader(request: GraderRequest = Body(default_factory=GraderRequest)) -> dict[str, object]:
     try:
-        return _validator_grade_payload(
-            grade_episode(request.task_id, episode_id=request.episode_id, split="eval", seed=42)
+        return validator_grade_payload(
+            request.task_id,
+            episode_id=request.episode_id,
+            split="eval",
+            seed=42,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -265,7 +269,7 @@ def grader(request: GraderRequest) -> dict[str, object]:
 @app.get("/grade/{task_id}")
 def grade_task(task_id: str) -> dict[str, object]:
     try:
-        return _validator_grade_payload(grade_episode(task_id, split="eval", seed=42))
+        return validator_grade_payload(task_id, split="eval", seed=42)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

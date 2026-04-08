@@ -243,7 +243,7 @@ def test_benchmark_metadata_and_tasks_payload_smoke() -> None:
     assert metadata["formal_task_specs"][5]["reward_machine_order"]
     assert metadata["objective_weights"][5]["rollup_consistency"] == 0.15
 
-    assert len(payload["tasks"]) == 5
+    assert len(payload["tasks"]) == 3
     assert "incident_signals" in payload["action_schema"]
     assert "reward_machine_signals" in payload["action_schema"]
     assert "incident_type" in payload["action_schema"]["incident_signals"]
@@ -255,30 +255,30 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
 
     tasks_response = client.get("/tasks")
     assert tasks_response.status_code == 200
-    tasks = tasks_response.json()
+    payload = tasks_response.json()
+    tasks = payload["tasks"]
 
-    assert len(tasks) >= 3
-    assert sum(1 for task in tasks if bool(task["grader"])) >= 3
+    assert len(tasks) == 3
+    assert sum(1 for task in tasks if bool(task["grader"])) == 3
     assert tasks[0]["id"] == "task_1"
     assert tasks[0]["name"] == "Ingestion Contract Repair"
     assert tasks[0]["difficulty"] == "easy"
     assert tasks[0]["grade_endpoint"] == "/grade/task_1"
     assert tasks[0]["grader"] == "/grade/task_1"
 
-    for task in tasks[:3]:
+    for task in tasks:
         grade_response = client.get(f"/grade/{task['id']}")
         assert grade_response.status_code == 200
         grade_payload = grade_response.json()
         _assert_minimal_validator_grade_payload(grade_payload)
 
-
-def test_root_task_registry_and_grader_modules_expose_five_live_tasks() -> None:
+def test_root_task_registry_and_grader_modules_expose_validator_tasks_and_live_grades() -> None:
     client = TestClient(app)
     task_ids = list_task_ids()
 
-    assert task_ids == ["task_1", "task_2", "task_3", "task_4", "task_5"]
+    assert task_ids == ["task_1", "task_2", "task_3"]
 
-    for task_id in task_ids:
+    for task_id in ["task_1", "task_2", "task_3", "task_4", "task_5"]:
         payload = grade_episode(task_id, split="eval", seed=42)
         assert 0.0 < payload["score"] < 1.0
         assert 0.0 < payload["reward"] < 1.0
