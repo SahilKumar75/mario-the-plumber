@@ -19,6 +19,27 @@ from models import PipelineDoctorAction
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "docs" / "assets"
+ACTION_EXAMPLES = [
+    [14, "", "", ""],
+    [16, "", "", ""],
+    [18, "", "", ""],
+    [19, "", "", ""],
+    [12, "user_identifier", "user_id", ""],
+    [13, "", "", "user_id,event_ts,amount,status"],
+]
+ACTION_REFERENCE = [
+    ("0", "Inspect schema or switch table", "Use when you need table context before editing."),
+    ("3-5", "Fill missing values", "Recover null-heavy columns before validating or committing."),
+    ("6", "Drop null rows", "Use sparingly when rows are genuinely unrecoverable."),
+    ("7-9", "Cast or normalize values", "Fix schema drift, malformed types, and formatting issues."),
+    ("10", "Remove duplicates", "Apply after replay or retry issues create duplicate events."),
+    ("11", "Drop outliers", "Use when abnormal rows are poisoning downstream checks."),
+    ("12", "Rename column", "Repair contract drift or alias mismatches."),
+    ("13", "Reorder columns", "Use when schema order matters for validation."),
+    ("14", "Validate schema", "Safe first move when you want a read-like diagnostic action."),
+    ("15", "Commit changes", "Only when commit-ready signals are clean."),
+    ("16-19", "Orchestration controls", "Scale workers, replay batches, or refresh downstream assets."),
+]
 
 
 class _WebManager:
@@ -34,7 +55,7 @@ def build_benchmark_demo(
     title,
     quick_start_md,
 ):
-    """Build a benchmark-focused visualization tab for the Space web UI."""
+    """Build a concise operator-first visualization tab for the Space web UI."""
 
     del action_fields, is_chat_env, quick_start_md
 
@@ -50,16 +71,11 @@ def build_benchmark_demo(
                 f"### Task {task_id}",
                 f"**Incident type:** {card['incident_type']}",
                 f"**Objective:** {card['objective']}",
-                f"**Incident summary:** {card['incident_description']}",
-                f"**Broken state:** {card['broken_state']}",
-                f"**Diagnosis signals:** {', '.join(card['diagnosis_signals'])}",
-                f"**Recovery requirements:** {', '.join(card['recovery_requirements'])}",
-                f"**Unsafe commit conditions:** {', '.join(card['unsafe_commit_conditions'])}",
+                f"**What is broken:** {card['broken_state']}",
+                f"**What to watch:** {', '.join(card['diagnosis_signals'])}",
+                f"**Recovery target:** {', '.join(card['recovery_requirements'])}",
+                f"**Do not commit if:** {', '.join(card['unsafe_commit_conditions'])}",
                 f"**Success threshold:** `{card['success_threshold']}`",
-                f"**Threshold rationale:** {card['threshold_rationale']}",
-                f"**Target policy:** {card['target_policy']}",
-                f"**Failure / truncation:** {', '.join(card['failure_conditions'])}",
-                f"**Key subgoals:** {', '.join(card['key_subgoals'])}",
             ]
         )
 
@@ -82,23 +98,79 @@ def build_benchmark_demo(
         lines = [
             f"# {title}",
             "",
-            f"**Benchmark version:** `{runtime_meta['benchmark_version']}`",
-            f"**Runtime mode:** `{runtime_meta['runtime_mode']}`",
-            "",
-            runtime_meta["runtime_mode_card"]["summary"],
-            "",
-            f"Tasks: `{len(benchmark_meta['task_names'])}` | Actions: `20` | Splits: `train`, `eval`",
-            "",
-            "Mario is an ELT/ETL incident fixer delivered through OpenEnv. Agents diagnose broken ingestion and recovery states, repair upstream tables, restore downstream freshness, and decide when a pipeline is safe to commit.",
+            "Mario is an ETL incident-recovery environment built on OpenEnv.",
+            "Use the `Run Environment` tab to reset an incident, apply actions, and inspect the resulting state.",
         ]
         return "\n".join(lines)
 
+    def quick_start_markdown() -> str:
+        return "\n".join(
+            [
+                "## Start Here",
+                "1. Pick a task, split, and seed.",
+                "2. Click `Reset environment` to load a broken pipeline incident.",
+                "3. Start with action `14` to validate, then use repair or orchestration actions.",
+                "4. Watch `commit_ready`, `current_score`, backlog, freshness, and dependency signals.",
+                "5. Use action `15` only when the incident is actually recovered.",
+            ]
+        )
+
+    def action_reference_markdown() -> str:
+        lines = ["## Action Guide"]
+        for action_id, label, usage in ACTION_REFERENCE:
+            lines.append(f"- `{action_id}`: **{label}**. {usage}")
+        return "\n".join(lines)
+
+    def live_status_markdown(state: dict[str, Any] | None) -> str:
+        if not state:
+            return "\n".join(
+                [
+                    "## Current Episode",
+                    "No episode loaded yet.",
+                    "Reset the environment to populate state and observation panels.",
+                ]
+            )
+
+        commit_ready = state.get("commit_ready")
+        success = state.get("success")
+        score = state.get("current_score")
+        steps = state.get("step_count")
+        backlog = state.get("backlog_rows")
+        freshness = state.get("freshness_lag_minutes")
+        reason = state.get("done_reason") or "in_progress"
+        return "\n".join(
+            [
+                "## Current Episode",
+                f"- score: `{score}`",
+                f"- steps: `{steps}`",
+                f"- commit_ready: `{commit_ready}`",
+                f"- success: `{success}`",
+                f"- backlog_rows: `{backlog}`",
+                f"- freshness_lag_minutes: `{freshness}`",
+                f"- status: `{reason}`",
+            ]
+        )
+
+    def workspace_summary_markdown() -> str:
+        return "\n".join(
+            [
+                "## Environment Snapshot",
+                f"- benchmark version: `{runtime_meta['benchmark_version']}`",
+                f"- runtime mode: `{runtime_meta['runtime_mode']}`",
+                f"- tasks: `{len(benchmark_meta['task_names'])}`",
+                "- action space: `0-19` discrete operations",
+                "- splits: `train`, `eval`",
+            ]
+        )
+
     def reset_episode(task_id: int, split: str, seed: int):
         observation = web_manager.env.reset(task_id=int(task_id), split=split, seed=int(seed))
+        state = web_manager.env.state.model_dump()
         return (
             observation.model_dump(),
-            web_manager.env.state.model_dump(),
+            state,
             task_card_markdown(int(task_id)),
+            live_status_markdown(state),
         )
 
     def step_episode(
@@ -115,7 +187,8 @@ def build_benchmark_demo(
             column_order=parsed_order,
         )
         observation = web_manager.env.step(action)
-        return observation.model_dump(), web_manager.env.state.model_dump()
+        state = web_manager.env.state.model_dump()
+        return observation.model_dump(), state, live_status_markdown(state)
 
     def latest_runs_json() -> dict[str, Any]:
         return benchmark_runs
@@ -125,90 +198,133 @@ def build_benchmark_demo(
 
     with gr.Blocks(title=title) as blocks:
         gr.Markdown(benchmark_summary_markdown())
+        with gr.Row():
+            with gr.Column():
+                gr.Markdown(workspace_summary_markdown())
+            with gr.Column():
+                gr.Markdown(
+                    "\n".join(
+                        [
+                            "## What You Can Do",
+                            "- Manually inspect ETL recovery incidents.",
+                            "- Step through the same action contract used by the benchmark.",
+                            "- Review task cards, score structure, and held-out profiles if needed.",
+                        ]
+                    )
+                )
+            with gr.Column():
+                gr.Markdown(
+                    "\n".join(
+                        [
+                            "## API",
+                            "- `POST /reset`",
+                            "- `POST /step`",
+                            "- `GET /state`",
+                            "- `GET /tasks`",
+                            "- `GET /grade/task_1` to `task_3`",
+                        ]
+                    )
+                )
 
         with gr.Tabs():
-            with gr.Tab("Overview"):
-                gr.Markdown("## Benchmark Overview")
+            with gr.Tab("Run Environment"):
                 with gr.Row():
-                    with gr.Column(scale=3):
-                        gr.Markdown(profile_markdown())
                     with gr.Column(scale=2):
-                        gr.Markdown("## Incident Explorer")
-                        task_picker = gr.Dropdown(
-                            choices=[(f"Task {task_id}", task_id) for task_id in sorted(TASK_CARDS)],
-                            value=1,
-                            label="Incident card",
-                        )
-                        task_card = gr.Markdown(task_card_markdown(1))
-                        task_picker.change(task_card_markdown, inputs=task_picker, outputs=task_card)
-
-                with gr.Row():
-                    _image_component("benchmark_overview.png", "Benchmark ladder")
-                    _image_component("difficulty_gap.png", "Difficulty gap")
-                    _image_component("objective_weights.png", "Task scoring weights")
-                gr.Markdown(
-                    "Tasks 1-2 show single-table stabilization. Tasks 3-5 show pipeline-level recovery objectives for the harder ETL incidents."
-                )
-
-            with gr.Tab("Episode Inspector"):
-                gr.Markdown(
-                    "## Live Episode Inspector\nReset an incident, inspect the diagnosis/recovery state bundle, and step manually with the same discrete action contract the benchmark uses."
-                )
-                with gr.Row():
-                    task_id = gr.Dropdown(
-                        choices=[(f"Task {task_id}", task_id) for task_id in sorted(TASK_CARDS)],
-                        value=3,
-                        label="Task",
-                    )
-                    split = gr.Dropdown(["train", "eval"], value="eval", label="Split")
-                    seed = gr.Number(value=42, precision=0, label="Seed")
-                    reset_btn = gr.Button("Reset episode", variant="primary")
-                inspector_task_card = gr.Markdown(task_card_markdown(3))
-                with gr.Row():
-                    observation_json = gr.JSON(label="Observation")
-                    state_json = gr.JSON(label="State")
+                        gr.Markdown(quick_start_markdown())
+                        with gr.Row():
+                            task_id = gr.Dropdown(
+                                choices=[(f"Task {task_id}", task_id) for task_id in sorted(TASK_CARDS)],
+                                value=3,
+                                label="Task",
+                            )
+                            split = gr.Dropdown(["train", "eval"], value="eval", label="Split")
+                            seed = gr.Number(value=42, precision=0, label="Seed")
+                        reset_btn = gr.Button("Reset environment", variant="primary")
+                        status_md = gr.Markdown(live_status_markdown(None))
+                        inspector_task_card = gr.Markdown(task_card_markdown(3))
+                    with gr.Column(scale=3):
+                        with gr.Accordion("Observation", open=True):
+                            observation_json = gr.JSON(label="Observation payload")
+                        with gr.Accordion("State", open=False):
+                            state_json = gr.JSON(label="Internal state")
 
                 task_id.change(task_card_markdown, inputs=task_id, outputs=inspector_task_card)
                 reset_btn.click(
                     reset_episode,
                     inputs=[task_id, split, seed],
-                    outputs=[observation_json, state_json, inspector_task_card],
+                    outputs=[observation_json, state_json, inspector_task_card, status_md],
                 )
 
                 with gr.Row():
-                    action_id = gr.Number(value=14, precision=0, label="Action id")
-                    target_column = gr.Textbox(label="Target column / table")
-                    new_name = gr.Textbox(label="New name")
-                    column_order = gr.Textbox(label="Column order (comma separated)")
-                    step_btn = gr.Button("Step", variant="secondary")
+                    with gr.Column(scale=2):
+                        gr.Markdown(action_reference_markdown())
+                    with gr.Column(scale=3):
+                        gr.Markdown("## Take an Action")
+                        with gr.Row():
+                            action_id = gr.Number(value=14, precision=0, label="Action id")
+                            target_column = gr.Textbox(label="Target column or table")
+                            new_name = gr.Textbox(label="New name")
+                            column_order = gr.Textbox(label="Column order (comma separated)")
+                        step_btn = gr.Button("Apply action", variant="secondary")
+                        gr.Examples(
+                            examples=ACTION_EXAMPLES,
+                            inputs=[action_id, target_column, new_name, column_order],
+                            label="Quick action presets",
+                        )
 
                 step_btn.click(
                     step_episode,
                     inputs=[action_id, target_column, new_name, column_order],
-                    outputs=[observation_json, state_json],
+                    outputs=[observation_json, state_json, status_md],
                 )
 
-            with gr.Tab("Results"):
-                gr.Markdown("## Benchmark Results")
+            with gr.Tab("Tasks"):
                 with gr.Row():
-                    gr.JSON(value=latest_runs_json(), label="Latest benchmark runs")
-                    gr.JSON(value=latest_adaptation_json(), label="Latest adaptation report")
-                with gr.Row():
-                    gr.JSON(value=benchmark_tasks_payload(), label="Task cards and objective weights")
-                    gr.JSON(value=benchmark_profiles_payload(), label="Scenario profile catalog")
+                    with gr.Column(scale=2):
+                        task_picker = gr.Dropdown(
+                            choices=[(f"Task {task_id}", task_id) for task_id in sorted(TASK_CARDS)],
+                            value=1,
+                            label="Task card",
+                        )
+                        task_card = gr.Markdown(task_card_markdown(1))
+                        task_picker.change(task_card_markdown, inputs=task_picker, outputs=task_card)
+                    with gr.Column(scale=3):
+                        gr.Markdown(profile_markdown())
 
-            with gr.Tab("Architecture"):
+            with gr.Tab("Benchmark"):
+                gr.Markdown("## Benchmark Details")
+                with gr.Row():
+                    _image_component("benchmark_overview.png", "Benchmark ladder")
+                    _image_component("difficulty_gap.png", "Difficulty gap")
+                    _image_component("objective_weights.png", "Task scoring weights")
+                with gr.Accordion("Latest benchmark runs", open=False):
+                    gr.JSON(value=latest_runs_json(), label="Runs")
+                with gr.Accordion("Adaptation report", open=False):
+                    gr.JSON(value=latest_adaptation_json(), label="Adaptation")
+                with gr.Accordion("Task metadata and scoring weights", open=False):
+                    gr.JSON(value=benchmark_tasks_payload(), label="Task metadata")
+                with gr.Accordion("Scenario profile catalog", open=False):
+                    gr.JSON(value=benchmark_profiles_payload(), label="Profiles")
+
+            with gr.Tab("API and Architecture"):
                 gr.Markdown(
                     "\n".join(
                         [
-                            "## Benchmark Architecture",
+                            "## API Endpoints",
+                            "- `GET /health`",
+                            "- `GET /metadata`",
+                            "- `GET /schema`",
+                            "- `POST /reset`",
+                            "- `POST /step`",
+                            "- `GET /state`",
+                            "- `GET /tasks`",
+                            "- `GET /grader` and `GET /grade/task_1` to `task_3`",
                             "",
-                            "- **Incident framing:** each task is a broken ETL incident with diagnosis signals, recovery requirements, and unsafe-commit conditions.",
-                            "- **Observation signals:** data quality, dependency consistency, backlog age, freshness severity, resource pressure, and reward-machine state.",
-                            "- **Action space:** discrete repair plus orchestration actions under a stable 0-19 contract.",
-                            "- **Scoring:** per-task deterministic grader with explicit incident-recovery and objective-weight reporting for the hard tasks.",
-                            "- **Scoring weights:** Tasks 1-2 expose the single-table score mix; Tasks 3-5 expose multi-objective pipeline recovery weights.",
-                            "- **Runtime modes:** benchmark, incident, and hybrid. These change the framing/reporting surface, not the underlying benchmark contract.",
+                            "## Architecture Notes",
+                            "- Each task models a broken ETL incident rather than a toy game.",
+                            "- The action space mixes data repair and orchestration controls.",
+                            "- The observation carries quality, dependency, backlog, freshness, and reward-machine signals.",
+                            "- Task grading is deterministic and validator-facing scores stay strictly inside the public range.",
                         ]
                     )
                 )

@@ -7,6 +7,7 @@ from benchmark.api_payloads import tasks_payload
 from benchmark.grading import score_task4
 from benchmark.policies.heuristics import heuristic_action_for
 from graders import grade_episode
+from graders.runtime import validator_grade_payload
 from models import PipelineDoctorAction
 from server.app import app
 from server.data_generator import generate_scenario
@@ -309,3 +310,12 @@ def test_root_task_registry_and_grader_modules_expose_validator_tasks_and_live_g
     reset_props = openapi_schema["components"]["schemas"]["ResetRequest"]["properties"]
     assert "task_id" in reset_props
     assert "split" in reset_props
+
+
+def test_validator_grade_payloads_stay_strictly_inside_declared_score_bounds() -> None:
+    for split in ("train", "eval"):
+        for seed in range(1, 11):
+            for task_id in ("task_1", "task_2", "task_3"):
+                payload = validator_grade_payload(task_id, split=split, seed=seed)
+                assert 0.02 < float(payload["score"]) < 0.98
+                assert 0.02 < float(payload["reward"]) < 0.98

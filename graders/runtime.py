@@ -10,8 +10,12 @@ from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 from tasks.common import build_task_definition
 
-MIN_VALIDATOR_SCORE = 0.02
-MAX_VALIDATOR_SCORE = 0.98
+#
+# Keep validator-facing scores strictly inside the declared OpenEnv range.
+# Some remote validators appear to reject endpoint-equal scores even when they
+# are still inside the broader (0, 1) interval.
+MIN_VALIDATOR_SCORE = 0.0201
+MAX_VALIDATOR_SCORE = 0.9799
 
 
 def _jsonify(value):
