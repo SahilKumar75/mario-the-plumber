@@ -53,8 +53,9 @@ def task_payload(task: TaskDefinition) -> dict[str, object]:
         "name": task.name,
         "difficulty": task.difficulty,
         "description": task.description,
-        "max_steps": task.max_steps,
-        "success_threshold": task.success_threshold,
-        "grader": True,
+        "grader": {
+            "type": "http",
+            "endpoint": task.grade_endpoint,
+        },
         "grade_endpoint": task.grade_endpoint,
     }
