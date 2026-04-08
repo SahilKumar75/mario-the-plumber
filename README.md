@@ -5,7 +5,6 @@ colorTo: green
 sdk: docker
 pinned: false
 app_port: 8000
-base_path: /docs
 tags:
   - openenv
   - data-engineering
@@ -32,10 +31,16 @@ Mario the Plumber is an **ELT/ETL pipeline incident fixer** delivered through Op
 
 ## Quick Start
 
-Run the server:
+Run the API server:
 
 ```bash
 python3 -m server.app
+```
+
+Run the Space web app locally:
+
+```bash
+uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
 Validate the environment:
@@ -192,13 +197,25 @@ Actions:
 
 ## Space Demo
 
-The Hugging Face Space serves the standard OpenEnv API and, when the web interface is enabled, a benchmark-specific visualization tab at `/web`:
+The Hugging Face Space now opens into a Gradio interface at the root path instead of Swagger.
 
-- ETL incident overview
-- incident/task explorer
+The web app includes:
+
+- benchmark overview
+- incident and task explorer
 - live diagnosis and recovery inspector
 - benchmark results and adaptation artifacts
 - architecture notes for reviewers
+
+The API remains available behind the Space app:
+
+- `/health`
+- `/metadata`
+- `/schema`
+- `/reset`
+- `/step`
+- `/state`
+- `/tasks`
 
 ## Reward and Evaluation
 
@@ -275,6 +292,7 @@ Key submission files:
 - [openenv.yaml](openenv.yaml)
 - [pyproject.toml](pyproject.toml)
 - [requirements.txt](requirements.txt)
+- [app.py](app.py)
 - [server/app.py](server/app.py)
 - [server/Dockerfile](server/Dockerfile)
 
@@ -289,7 +307,8 @@ Key submission files:
 - [benchmark/task_runtime](benchmark/task_runtime): task-specific runtime progression, dependency health, and runtime diagnostics
 - [benchmark/actions](benchmark/actions): repair handlers, orchestration handlers, and commit gating
 - [benchmark/policies/engine.py](benchmark/policies/engine.py): baseline policy orchestration
-- [server/benchmark_demo.py](server/benchmark_demo.py): custom web demo
+- [app.py](app.py): Hugging Face Space entrypoint mounting the Gradio UI over the API
+- [server/benchmark_demo.py](server/benchmark_demo.py): Space UI layout and live benchmark inspector
 - [server/app.py](server/app.py): OpenEnv app wiring and benchmark routes
 
 ## Known Limitations

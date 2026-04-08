@@ -21,6 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "docs" / "assets"
 
 
+class _WebManager:
+    def __init__(self, env):
+        self.env = env
+
+
 def build_benchmark_demo(
     web_manager,
     action_fields,
@@ -118,7 +123,7 @@ def build_benchmark_demo(
     def latest_adaptation_json() -> dict[str, Any]:
         return adaptation
 
-    with gr.Blocks() as blocks:
+    with gr.Blocks(title=title) as blocks:
         gr.Markdown(benchmark_summary_markdown())
 
         with gr.Tabs():
@@ -209,6 +214,17 @@ def build_benchmark_demo(
                 )
 
     return blocks
+
+
+def create_space_demo(env):
+    return build_benchmark_demo(
+        web_manager=_WebManager(env),
+        action_fields=[],
+        metadata={},
+        is_chat_env=False,
+        title="Mario the Plumber",
+        quick_start_md="",
+    )
 
 
 def _image_component(name: str, label: str):

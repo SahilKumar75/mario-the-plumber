@@ -1,5 +1,16 @@
-"""Root app entrypoint mirroring the FastAPI application exported by server.app."""
+from __future__ import annotations
 
-from server.app import app, main
+import gradio as gr
 
-__all__ = ["app", "main"]
+from server.app import _ENV, app as api_app, main as api_main
+from server.benchmark_demo import create_space_demo
+
+demo = create_space_demo(_ENV)
+app = gr.mount_gradio_app(api_app, demo, path="/")
+
+
+def main() -> None:
+    api_main()
+
+
+__all__ = ["app", "demo", "main"]

@@ -64,8 +64,8 @@ app = FastAPI(
     title="OpenEnv Environment HTTP API",
     version="2.1.0",
     description="HTTP API for interacting with the Mario the Plumber environment.",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None,
+    redoc_url=None,
     openapi_url="/openapi.json",
 )
 
@@ -135,12 +135,12 @@ _install_openapi_overrides()
 
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
-    return RedirectResponse(url="/docs", status_code=307)
+    return RedirectResponse(url="/metadata", status_code=307)
 
 
 @app.get("/web", include_in_schema=False)
 def web_root() -> RedirectResponse:
-    return RedirectResponse(url="/docs", status_code=307)
+    return RedirectResponse(url="/", status_code=307)
 
 
 @app.get("/health", response_model=HealthResponse)
