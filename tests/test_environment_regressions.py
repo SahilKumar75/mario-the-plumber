@@ -255,19 +255,15 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
 
     tasks_response = client.get("/tasks")
     assert tasks_response.status_code == 200
-    payload = tasks_response.json()
-    tasks = payload["tasks"]
+    tasks = tasks_response.json()
 
-    assert len(tasks) == 3
-    assert sum(1 for task in tasks if bool(task["grader"])) == 3
-    assert tasks[0]["id"] == "task_1"
-    assert tasks[0]["name"] == "Ingestion Contract Repair"
-    assert tasks[0]["difficulty"] == "easy"
-    assert tasks[0]["grade_endpoint"] == "/grade/task_1"
-    assert tasks[0]["grader"] == "/grade/task_1"
+    assert set(tasks) == {"task_1", "task_2", "task_3"}
+    assert sum(1 for task in tasks.values() if bool(task["grader"])) == 3
+    assert tasks["task_1"]["grader"] is True
+    assert "description" in tasks["task_1"]
 
-    for task in tasks:
-        grade_response = client.get(f"/grade/{task['id']}")
+    for task_id in ("task_1", "task_2", "task_3"):
+        grade_response = client.get(f"/grade/{task_id}")
         assert grade_response.status_code == 200
         grade_payload = grade_response.json()
         _assert_minimal_validator_grade_payload(grade_payload)

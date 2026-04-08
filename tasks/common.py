@@ -49,10 +49,6 @@ def task_payload(task: TaskDefinition) -> dict[str, object]:
     """Return a stable validator-facing payload for one task."""
 
     return {
-        "id": task.id,
-        "name": task.name,
-        "difficulty": task.difficulty,
         "description": task.description,
-        "grader": task.grade_endpoint,
-        "grade_endpoint": task.grade_endpoint,
+        "grader": True,
     }
