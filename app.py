@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import Body, FastAPI, Request
+from fastapi import Body, FastAPI, Query, Request
 import gradio as gr
 
 from server.app import (
@@ -109,6 +109,11 @@ def benchmark_adaptation():
 @app.post("/grader")
 def grader(request: GraderRequest = Body(default_factory=GraderRequest)):
     return api_grader(request)
+
+
+@app.get("/grader")
+def grader_get(task_id: str = Query(default="task_1"), episode_id: str | None = Query(default=None)):
+    return api_grader(GraderRequest(task_id=task_id, episode_id=episode_id))
 
 
 @app.get("/grade/{task_id}")

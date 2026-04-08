@@ -12,7 +12,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import RedirectResponse
 from openenv.core.env_server.http_server import serialize_observation
@@ -259,6 +259,19 @@ def grader(request: GraderRequest = Body(default_factory=GraderRequest)) -> dict
         return validator_grade_payload(
             request.task_id,
             episode_id=request.episode_id,
+            split="eval",
+            seed=42,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/grader")
+def grader_get(task_id: str = Query(default="task_1"), episode_id: str | None = Query(default=None)) -> dict[str, object]:
+    try:
+        return validator_grade_payload(
+            task_id,
+            episode_id=episode_id,
             split="eval",
             seed=42,
         )

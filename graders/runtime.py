@@ -10,8 +10,8 @@ from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 from tasks.common import build_task_definition
 
-MIN_VALIDATOR_SCORE = 0.0001
-MAX_VALIDATOR_SCORE = 0.99
+MIN_VALIDATOR_SCORE = 0.02
+MAX_VALIDATOR_SCORE = 0.98
 
 
 def _jsonify(value):

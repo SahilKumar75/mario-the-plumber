@@ -7,12 +7,18 @@ port: 8000
 tasks:
   - id: task_1
     difficulty: easy
-    grader: true
+    grader:
+      endpoint: /grader
+      score_range: [0.02, 0.98]
 
   - id: task_2
     difficulty: medium
-    grader: true
+    grader:
+      endpoint: /grader
+      score_range: [0.02, 0.98]
 
   - id: task_3
     difficulty: hard
-    grader: true
+    grader:
+      endpoint: /grader
+      score_range: [0.02, 0.98]

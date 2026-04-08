@@ -32,11 +32,21 @@ def get_task(task_id: str) -> TaskDefinition:
 
 
 def task_payloads() -> list[dict[str, object]]:
-    return [{**task_payload(task), "id": task.id, "name": task.name} for task in list_tasks()]
+    return [
+        {
+            **task_payload(task),
+            "id": task.id,
+            "task_id": task.id,
+            "name": task.name,
+        }
+        for task in list_tasks()
+    ]
 
 
 def tasks_payload() -> dict[str, object]:
-    return {
+    payloads = {
         task.id: task_payload(task)
         for task in list_tasks()
     }
+    payloads["tasks"] = task_payloads()
+    return payloads
