@@ -13,8 +13,8 @@ def main() -> None:
     live_successes = 0
     for task in tasks:
         payload = grade_episode(task.id, split="eval", seed=42)
-        assert 0.0 <= float(payload["score"]) <= 1.0, f"{task.id} score must be normalized"
-        assert 0.0 <= float(payload["reward"]) <= 1.0, f"{task.id} reward must be normalized"
+        assert 0.0 < float(payload["score"]) < 1.0, f"{task.id} score must be strictly inside (0, 1)"
+        assert 0.0 < float(payload["reward"]) < 1.0, f"{task.id} reward must be strictly inside (0, 1)"
         if payload.get("success"):
             live_successes += 1
 

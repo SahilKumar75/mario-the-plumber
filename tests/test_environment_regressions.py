@@ -254,8 +254,8 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
         grade_response = client.get(f"/grade/{task['id']}")
         assert grade_response.status_code == 200
         grade_payload = grade_response.json()
-        assert 0.0 <= grade_payload["score"] <= 1.0
-        assert 0.0 <= grade_payload["reward"] <= 1.0
+        assert 0.0 < grade_payload["score"] < 1.0
+        assert 0.0 < grade_payload["reward"] < 1.0
         assert grade_payload["grader_mode"] in {"live", "live-fallback"}
         assert grade_payload["success"] is True
 
@@ -268,8 +268,8 @@ def test_root_task_registry_and_grader_modules_expose_five_live_tasks() -> None:
 
     for task_id in task_ids:
         payload = grade_episode(task_id, split="eval", seed=42)
-        assert 0.0 <= payload["score"] <= 1.0
-        assert 0.0 <= payload["reward"] <= 1.0
+        assert 0.0 < payload["score"] < 1.0
+        assert 0.0 < payload["reward"] < 1.0
         assert payload["grader_mode"] in {"live", "live-fallback"}
         assert payload["success"] is True
 

@@ -10,6 +10,9 @@ from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 from tasks.task_bank import get_task
 
+MIN_VALIDATOR_SCORE = 0.0001
+MAX_VALIDATOR_SCORE = 0.9999
+
 
 def _jsonify(value):
     if isinstance(value, dict):
@@ -24,9 +27,13 @@ def _jsonify(value):
     return value
 
 
+def _strict_validator_score(value: float) -> float:
+    return round(min(MAX_VALIDATOR_SCORE, max(MIN_VALIDATOR_SCORE, float(value))), 4)
+
+
 def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, object]) -> dict[str, object]:
     task = get_task(public_task_id(task_id))
-    score = round(float(payload.get("score", 0.0)), 4)
+    score = _strict_validator_score(float(payload.get("score", 0.0)))
     success = bool(payload.get("success", False))
     return {
         "task_id": task.internal_id,
@@ -47,7 +54,7 @@ def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, 
 
 def grade_env(env: PipelineDoctorEnvironment, *, grader_mode: str, episode_id: str | None = None) -> dict[str, object]:
     task = get_task(public_task_id(env.state.task_id))
-    score = round(float(env.state.current_score), 4)
+    score = _strict_validator_score(float(env.state.current_score))
     return {
         "task_id": task.internal_id,
         "task_alias": task.id,
