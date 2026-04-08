@@ -14,6 +14,17 @@ from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 from tasks.task_bank import list_task_ids
 
 
+def _assert_nested_scores_strictly_inside_open_interval(value) -> None:
+    if isinstance(value, dict):
+        for item in value.values():
+            _assert_nested_scores_strictly_inside_open_interval(item)
+    elif isinstance(value, list):
+        for item in value:
+            _assert_nested_scores_strictly_inside_open_interval(item)
+    elif isinstance(value, float):
+        assert 0.0 < value < 1.0
+
+
 def test_reset_and_step_lifecycle_invariants() -> None:
     fresh_env = PipelineDoctorEnvironment()
     fresh_observation = fresh_env.reset(task_id=4, split="eval", seed=7)
@@ -256,6 +267,8 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
         grade_payload = grade_response.json()
         assert 0.0 < grade_payload["score"] < 1.0
         assert 0.0 < grade_payload["reward"] < 1.0
+        _assert_nested_scores_strictly_inside_open_interval(grade_payload["breakdown"])
+        _assert_nested_scores_strictly_inside_open_interval(grade_payload["objective_breakdown"])
         assert grade_payload["grader_mode"] in {"live", "live-fallback"}
         assert grade_payload["success"] is True
 
@@ -270,6 +283,8 @@ def test_root_task_registry_and_grader_modules_expose_five_live_tasks() -> None:
         payload = grade_episode(task_id, split="eval", seed=42)
         assert 0.0 < payload["score"] < 1.0
         assert 0.0 < payload["reward"] < 1.0
+        _assert_nested_scores_strictly_inside_open_interval(payload["breakdown"])
+        _assert_nested_scores_strictly_inside_open_interval(payload["objective_breakdown"])
         assert payload["grader_mode"] in {"live", "live-fallback"}
         assert payload["success"] is True
 

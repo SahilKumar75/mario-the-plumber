@@ -31,6 +31,24 @@ def _strict_validator_score(value: float) -> float:
     return round(min(MAX_VALIDATOR_SCORE, max(MIN_VALIDATOR_SCORE, float(value))), 4)
 
 
+def _strict_validator_metrics(value):
+    if isinstance(value, dict):
+        return {str(key): _strict_validator_metrics(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_strict_validator_metrics(item) for item in value]
+    if isinstance(value, float):
+        return _strict_validator_score(value)
+    if hasattr(value, "item"):
+        try:
+            item = value.item()
+        except Exception:
+            return str(value)
+        if isinstance(item, float):
+            return _strict_validator_score(item)
+        return item
+    return value
+
+
 def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, object]) -> dict[str, object]:
     task = get_task(public_task_id(task_id))
     score = _strict_validator_score(float(payload.get("score", 0.0)))
@@ -43,8 +61,8 @@ def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, 
         "reward": score,
         "success_threshold": task.success_threshold,
         "success": success,
-        "breakdown": _jsonify(payload.get("breakdown", {})),
-        "objective_breakdown": _jsonify(payload.get("objective_breakdown", {})),
+        "breakdown": _strict_validator_metrics(_jsonify(payload.get("breakdown", {}))),
+        "objective_breakdown": _strict_validator_metrics(_jsonify(payload.get("objective_breakdown", {}))),
         "grader_mode": "stored",
         "steps_taken": int(payload.get("steps_taken", 0)),
         "truncated": bool(payload.get("truncated", False)),
@@ -63,8 +81,8 @@ def grade_env(env: PipelineDoctorEnvironment, *, grader_mode: str, episode_id: s
         "reward": score,
         "success_threshold": task.success_threshold,
         "success": bool(env.state.success),
-        "breakdown": _jsonify(breakdown_payload(env)),
-        "objective_breakdown": _jsonify(objective_breakdown(env)),
+        "breakdown": _strict_validator_metrics(_jsonify(breakdown_payload(env))),
+        "objective_breakdown": _strict_validator_metrics(_jsonify(objective_breakdown(env))),
         "grader_mode": grader_mode,
         "steps_taken": env.state.step_count,
         "truncated": bool(env.state.truncated),
