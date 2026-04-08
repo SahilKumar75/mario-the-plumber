@@ -207,15 +207,15 @@ The web app includes:
 - benchmark results and adaptation artifacts
 - architecture notes for reviewers
 
-The API remains available behind the Space app:
+The API remains available behind the Space app under `/api`:
 
-- `/health`
-- `/metadata`
-- `/schema`
-- `/reset`
-- `/step`
-- `/state`
-- `/tasks`
+- `/api/health`
+- `/api/metadata`
+- `/api/schema`
+- `/api/reset`
+- `/api/step`
+- `/api/state`
+- `/api/tasks`
 
 ## Reward and Evaluation
 
