@@ -238,7 +238,7 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
 
     tasks_response = client.get("/tasks")
     assert tasks_response.status_code == 200
-    tasks = tasks_response.json()["tasks"]
+    tasks = tasks_response.json()
 
     assert len(tasks) >= 3
     assert sum(1 for task in tasks if task["grader"] is True) >= 3

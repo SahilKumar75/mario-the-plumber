@@ -33,5 +33,9 @@ def get_task(task_id: str) -> TaskDefinition:
     return TASKS[task_id]
 
 
+def task_payloads() -> list[dict[str, object]]:
+    return [task_payload(task) for task in list_tasks()]
+
+
 def tasks_payload() -> dict[str, object]:
-    return {"tasks": [task_payload(task) for task in list_tasks()]}
+    return {"tasks": task_payloads()}
