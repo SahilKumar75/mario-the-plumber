@@ -62,6 +62,10 @@ def _validate_runtime_llm_config(api_key: str | None, selected_model: str | None
         raise RuntimeError("MODEL_NAME contains non-ASCII characters; re-enter MODEL_NAME manually.")
 
 
+def _policy_requires_llm(policy_mode: str) -> bool:
+    return policy_mode in {"hybrid", "pure-llm"}
+
+
 def _format_action(action: PipelineDoctorAction) -> str:
     payload = action.model_dump(exclude_none=True, exclude_defaults=True)
     return json.dumps(payload, separators=(",", ":"), sort_keys=True)
@@ -85,10 +89,12 @@ def run_baseline(
 
     started = time.perf_counter()
     api_key, selected_model, api_base_url = _resolve_runtime_llm_config(model_name)
-    _validate_runtime_llm_config(api_key, selected_model)
-    client = _build_client(api_key=api_key, selected_model=selected_model, api_base_url=api_base_url)
-    if client is None:
-        raise RuntimeError("HF_TOKEN environment variable is required")
+    client = None
+    if _policy_requires_llm(policy_mode):
+        _validate_runtime_llm_config(api_key, selected_model)
+        client = _build_client(api_key=api_key, selected_model=selected_model, api_base_url=api_base_url)
+        if client is None:
+            raise RuntimeError("HF_TOKEN environment variable is required")
 
     results: list[dict[str, object]] = []
     action_sources: Counter[str] = Counter()
