@@ -7,35 +7,20 @@ port: 8000
 tasks:
   - id: task_1
     difficulty: easy
-    max_steps: 10
-    grader:
-      type: llm
-      prompt_template: "Evaluate task_1 agent performance and return exactly one decimal score strictly between 0 and 1, such as 0.73. Return only the number. Never return 0, 1, 0.0, or 1.0."
+    grader: grade/task_1
 
   - id: task_2
     difficulty: medium
-    max_steps: 15
-    grader:
-      type: llm
-      prompt_template: "Evaluate task_2 agent performance and return exactly one decimal score strictly between 0 and 1, such as 0.73. Return only the number. Never return 0, 1, 0.0, or 1.0."
+    grader: grade/task_2
 
   - id: task_3
     difficulty: hard
-    max_steps: 25
-    grader:
-      type: llm
-      prompt_template: "Evaluate task_3 agent performance and return exactly one decimal score strictly between 0 and 1, such as 0.73. Return only the number. Never return 0, 1, 0.0, or 1.0."
+    grader: grade/task_3
 
   - id: task_4
     difficulty: hard
-    max_steps: 30
-    grader:
-      type: llm
-      prompt_template: "Evaluate task_4 agent performance and return exactly one decimal score strictly between 0 and 1, such as 0.73. Return only the number. Never return 0, 1, 0.0, or 1.0."
+    grader: grade/task_4
 
   - id: task_5
     difficulty: hard
-    max_steps: 35
-    grader:
-      type: llm
-      prompt_template: "Evaluate task_5 agent performance and return exactly one decimal score strictly between 0 and 1, such as 0.73. Return only the number. Never return 0, 1, 0.0, or 1.0."
+    grader: grade/task_5
