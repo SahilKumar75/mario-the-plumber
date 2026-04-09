@@ -8,6 +8,7 @@
 
 from typing import Any
 
+from debug_trace import debug_log
 from openenv.core.env_server.types import Action, Observation, State
 from pydantic import Field
 
@@ -29,6 +30,15 @@ class MarioThePlumberAction(Action):
     column_order: list[str] | None = Field(
         default=None, description="Required for action 13 (reorder_columns)."
     )
+
+    def model_post_init(self, __context: Any) -> None:
+        debug_log(
+            "model_action_init",
+            action_id=self.action_id,
+            target_column=self.target_column,
+            new_name=self.new_name,
+            column_order=self.column_order,
+        )
 
 
 class MarioThePlumberObservation(Observation):
@@ -92,6 +102,18 @@ class MarioThePlumberObservation(Observation):
     adaptation_target: str = Field(default="")
     heldout_profile_family: bool = False
 
+    def model_post_init(self, __context: Any) -> None:
+        debug_log(
+            "model_observation_init",
+            incident_type=self.incident_type,
+            current_score=self.current_score,
+            steps_taken=self.steps_taken,
+            commit_ready=self.commit_ready,
+            done_reason=self.done_reason,
+            scenario_profile=self.scenario_profile,
+            truncated=self.truncated,
+        )
+
 
 class MarioThePlumberState(State):
     """Internal episode metadata surfaced via the OpenEnv state endpoint."""
@@ -124,6 +146,19 @@ class MarioThePlumberState(State):
     active_subgoal: str = Field(default="")
     reward_machine_state: str = Field(default="")
     heldout_profile_family: bool = False
+
+    def model_post_init(self, __context: Any) -> None:
+        debug_log(
+            "model_state_init",
+            task_id=self.task_id,
+            seed=self.seed,
+            current_score=self.current_score,
+            done=self.done,
+            success=self.success,
+            scenario_profile=self.scenario_profile,
+            done_reason=self.done_reason,
+            truncated=self.truncated,
+        )
 
 
 PipelineDoctorAction = MarioThePlumberAction

@@ -48,10 +48,22 @@ def _resolve_runtime_llm_config(model_override: str | None) -> tuple[str | None,
     api_base_url = (os.getenv("API_BASE_URL", API_BASE_URL) or API_BASE_URL).strip()
     api_key = (os.getenv("HF_TOKEN") or HF_TOKEN or "").strip()
     selected_model = (model_override or os.getenv("MODEL_NAME", MODEL_NAME) or MODEL_NAME).strip()
+    debug_log(
+        "resolve_runtime_llm_config",
+        api_base_url=api_base_url,
+        has_api_key=bool(api_key),
+        selected_model=selected_model,
+        model_override=model_override,
+    )
     return (api_key or None, selected_model or None, api_base_url)
 
 
 def _validate_runtime_llm_config(api_key: str | None, selected_model: str | None) -> None:
+    debug_log(
+        "validate_runtime_llm_config",
+        has_api_key=bool(api_key),
+        selected_model=selected_model,
+    )
     if not api_key or not selected_model:
         raise RuntimeError("HF_TOKEN environment variable is required")
     if _invalid_api_key_value(api_key):
@@ -247,11 +259,20 @@ def run_baseline(
 
 def _build_client(*, api_key: str | None, selected_model: str | None, api_base_url: str) -> OpenAI | None:
     if not api_key or not selected_model:
+        debug_log(
+            "build_client_skipped",
+            has_api_key=bool(api_key),
+            selected_model=selected_model,
+            api_base_url=api_base_url,
+        )
         return None
     if _invalid_api_key_value(api_key):
+        debug_log("build_client_invalid_api_key", api_base_url=api_base_url)
         return None
     if _contains_non_ascii(selected_model):
+        debug_log("build_client_invalid_model_name", selected_model=selected_model)
         return None
+    debug_log("build_client_success", api_base_url=api_base_url, selected_model=selected_model)
     return OpenAI(base_url=api_base_url, api_key=api_key)
 
 
