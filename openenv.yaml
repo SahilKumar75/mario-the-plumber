@@ -67,7 +67,8 @@ tasks:
     steps: 10
     success_threshold: 0.85
     grader:
-      endpoint: /grader
+      type: function
+      endpoint: /grade/task_1
       score_range: [0.02, 0.98]
 
   - id: task_2
@@ -78,7 +79,8 @@ tasks:
     steps: 15
     success_threshold: 0.80
     grader:
-      endpoint: /grader
+      type: function
+      endpoint: /grade/task_2
       score_range: [0.02, 0.98]
 
   - id: task_3
@@ -90,7 +92,8 @@ tasks:
     steps: 25
     success_threshold: 0.75
     grader:
-      endpoint: /grader
+      type: function
+      endpoint: /grade/task_3
       score_range: [0.02, 0.98]
 
 scoring:
