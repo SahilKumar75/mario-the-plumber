@@ -97,6 +97,20 @@ def _absolute_url(base_url: str, path: str) -> str:
     return urljoin(base_url, path.lstrip("/"))
 
 
+def _public_base_url(request: Request) -> str:
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    forwarded_host = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+
+    if forwarded_host:
+        scheme = forwarded_proto or "https"
+        return f"{scheme}://{forwarded_host}/"
+
+    base_url = str(request.base_url)
+    if "hf.space" in base_url and base_url.startswith("http://"):
+        return "https://" + base_url.removeprefix("http://")
+    return base_url
+
+
 def _absolutize_task_payloads(base_url: str, payload: dict[str, object]) -> dict[str, object]:
     absolute_payload = dict(payload)
 
@@ -275,7 +289,7 @@ def state() -> dict[str, Any]:
 @app.get("/tasks")
 def get_tasks(request: Request) -> dict[str, object]:
     debug_log("tasks_request")
-    return _absolutize_task_payloads(str(request.base_url), tasks_payload())
+    return _absolutize_task_payloads(_public_base_url(request), tasks_payload())
 
 
 @app.get("/validate")
