@@ -286,6 +286,54 @@ class _WebManager:
         self.env = env
 
 
+def _space_theme() -> gr.Theme:
+    theme = gr.themes.Origin(
+        primary_hue=gr.themes.colors.blue,
+        secondary_hue=gr.themes.colors.slate,
+        neutral_hue=gr.themes.colors.zinc,
+        radius_size=gr.themes.sizes.radius_lg,
+        text_size=gr.themes.sizes.text_md,
+        font=(
+            gr.themes.GoogleFont("IBM Plex Sans"),
+            "ui-sans-serif",
+            "system-ui",
+            "sans-serif",
+        ),
+        font_mono=(
+            gr.themes.GoogleFont("IBM Plex Mono"),
+            "ui-monospace",
+            "monospace",
+        ),
+    )
+    return theme.set(
+        background_fill_primary="#eef3f9",
+        background_fill_secondary="#f8fbff",
+        block_background_fill="#ffffff",
+        block_border_color="#d8e0eb",
+        block_border_width="1px",
+        block_radius="18px",
+        body_background_fill="#eef3f9",
+        body_text_color="#162033",
+        body_text_color_subdued="#5f6f86",
+        button_primary_background_fill="#183b67",
+        button_primary_background_fill_hover="#224b82",
+        button_primary_border_color="#183b67",
+        button_primary_text_color="#f8fafc",
+        button_secondary_background_fill="#eef4fb",
+        button_secondary_background_fill_hover="#e0ebf8",
+        button_secondary_border_color="#cbd8e8",
+        button_secondary_text_color="#173055",
+        checkbox_label_text_color="#223247",
+        input_background_fill="#fbfdff",
+        input_border_color="#cfd9e6",
+        input_border_color_focus="#3b82f6",
+        input_radius="14px",
+        link_text_color="#1d4ed8",
+        link_text_color_hover="#1e40af",
+        table_border_color="#dbe3ef",
+    )
+
+
 def build_benchmark_demo(
     web_manager,
     action_fields,
@@ -584,7 +632,7 @@ def build_benchmark_demo(
     def latest_adaptation_json() -> dict[str, Any]:
         return adaptation
 
-    with gr.Blocks(title=title, css=CUSTOM_CSS, theme=gr.themes.Soft()) as blocks:
+    with gr.Blocks(title=title, css=CUSTOM_CSS) as blocks:
         with gr.Column(elem_classes="mario-shell"):
             gr.HTML(_hero_html())
             gr.HTML(benchmark_metric_html())
@@ -721,6 +769,7 @@ def build_benchmark_demo(
                     )
                 )
 
+    blocks.theme = _space_theme()
     return blocks
 
 
