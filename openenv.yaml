@@ -14,6 +14,7 @@ type: space
 runtime: fastapi
 app: app:app
 port: 8000
+entry_point: inference.py
 
 observation_space:
   type: object
@@ -60,6 +61,7 @@ endpoints:
 
 tasks:
   - id: task_1
+    name: task_1
     difficulty: easy
     description: >
       Stabilize a customer-ingestion table after missing values and light
@@ -71,6 +73,7 @@ tasks:
       endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_1
 
   - id: task_2
+    name: task_2
     difficulty: medium
     description: >
       Recover a transaction and events table after retry-path duplication,
@@ -82,6 +85,7 @@ tasks:
       endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_2
 
   - id: task_3
+    name: task_3
     difficulty: hard
     description: >
       Restore customer, product, and order tables after upstream regressions
@@ -104,3 +108,6 @@ constraints:
   max_runtime_seconds: 1200
   max_memory_gb: 8
   max_vcpu: 2
+
+reward_range: [0.0, 1.0]
+max_steps: 25
