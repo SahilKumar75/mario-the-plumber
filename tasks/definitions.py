@@ -53,7 +53,10 @@ def task_payload(task: TaskDefinition) -> dict[str, object]:
 
     payload = {
         "description": task.description,
-        "grader": task.grade_endpoint,
+        "grader": {
+            "type": "function",
+            "endpoint": task.grade_endpoint,
+        },
         "grade_endpoint": task.grade_endpoint,
         "difficulty": task.difficulty,
     }
