@@ -334,6 +334,32 @@ def _space_theme() -> gr.Theme:
     )
 
 
+def _panel_style(*, dark: bool = False, accent: str | None = None) -> str:
+    if dark:
+        return (
+            "padding: 28px 30px; border-radius: 22px; "
+            "background: linear-gradient(135deg, #111827 0%, #1e3a5f 100%); "
+            "color: #f8fafc; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);"
+        )
+    border = accent or "#d8e0eb"
+    return (
+        f"padding: 22px 24px; border-radius: 20px; border: 1px solid {border}; "
+        "background: rgba(255,255,255,0.97); box-shadow: 0 16px 38px rgba(15,23,42,0.08);"
+    )
+
+
+def _mini_stat_style(*, dark: bool = False) -> str:
+    if dark:
+        return (
+            "padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,0.10); "
+            "border: 1px solid rgba(255,255,255,0.12);"
+        )
+    return (
+        "padding: 14px 16px; border-radius: 16px; background: #f8fbff; "
+        "border: 1px solid #dbe3ef;"
+    )
+
+
 def build_benchmark_demo(
     web_manager,
     action_fields,
@@ -404,31 +430,37 @@ def build_benchmark_demo(
         recovery = ", ".join(card["recovery_requirements"][:3])
         unsafe = ", ".join(card["unsafe_commit_conditions"][:2])
         return f"""
-        <section class="task-card">
-          <div class="band" style="background:{tone};"></div>
-          <div class="content">
-            <h3>Task {task_id}: {card['incident_type']}</h3>
-            <p>{card['objective']}</p>
-            <div class="pill-row">
-              <span class="pill" style="background:{soft}; border-color:{soft}; color:{tone};">Threshold {card['success_threshold']}</span>
-              <span class="pill">Monitor {diagnosis}</span>
+        <section style="border-radius:22px; overflow:hidden; border:1px solid #dbe3ef; background:#ffffff; box-shadow:0 20px 46px rgba(15,23,42,0.08);">
+          <div style="height:10px; background:{tone};"></div>
+          <div style="padding:20px;">
+            <div style="display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+              <div>
+                <div style="font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:{tone}; font-weight:700;">Task {task_id}</div>
+                <h3 style="margin:8px 0 8px; font-size:24px; line-height:1.1; letter-spacing:-0.03em; color:#172033;">{card['incident_type']}</h3>
+              </div>
+              <div style="padding:8px 12px; border-radius:999px; background:{soft}; color:{tone}; font-weight:700;">Threshold {card['success_threshold']}</div>
             </div>
-            <div class="signal-grid">
-              <div class="signal-card">
-                <span class="label">Broken State</span>
-                <span class="value">{card['broken_state']}</span>
+            <p style="margin:0 0 14px; color:#475569; line-height:1.65;">{card['objective']}</p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+              <span style="padding:6px 10px; border-radius:999px; background:{soft}; color:{tone}; font-size:12px; font-weight:700;">Monitor {diagnosis}</span>
+              <span style="padding:6px 10px; border-radius:999px; background:#eef5ff; color:#24426d; font-size:12px; font-weight:700;">Recover {recovery}</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;">
+              <div style="padding:14px; border-radius:16px; background:#f8fbff; border:1px solid #dbe3ef;">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#64748b;">Broken State</div>
+                <div style="margin-top:6px; color:#172033; font-weight:700; line-height:1.5;">{card['broken_state']}</div>
               </div>
-              <div class="signal-card">
-                <span class="label">Recovery Target</span>
-                <span class="value">{recovery}</span>
+              <div style="padding:14px; border-radius:16px; background:#f8fbff; border:1px solid #dbe3ef;">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#64748b;">Recovery Target</div>
+                <div style="margin-top:6px; color:#172033; font-weight:700; line-height:1.5;">{recovery}</div>
               </div>
-              <div class="signal-card">
-                <span class="label">Unsafe Commit</span>
-                <span class="value">{unsafe}</span>
+              <div style="padding:14px; border-radius:16px; background:#f8fbff; border:1px solid #dbe3ef;">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#64748b;">Unsafe Commit</div>
+                <div style="margin-top:6px; color:#172033; font-weight:700; line-height:1.5;">{unsafe}</div>
               </div>
-              <div class="signal-card">
-                <span class="label">Primary Signals</span>
-                <span class="value">{diagnosis}</span>
+              <div style="padding:14px; border-radius:16px; background:#f8fbff; border:1px solid #dbe3ef;">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#64748b;">Primary Signals</div>
+                <div style="margin-top:6px; color:#172033; font-weight:700; line-height:1.5;">{diagnosis}</div>
               </div>
             </div>
           </div>
@@ -438,31 +470,31 @@ def build_benchmark_demo(
     def task_gallery_html() -> str:
         cards = "".join(task_card_html(task_id) for task_id in (1, 2, 3))
         return f"""
-        <section class="info-panel panel-body">
-          <h2 class="section-title">Validator Task Set</h2>
-          <p class="section-copy">
+        <section style="{_panel_style()}">
+          <h2 style="margin:0 0 12px; font-size:28px; letter-spacing:-0.04em; color:#172033;">Validator Task Set</h2>
+          <p style="margin:0 0 18px; color:#4b5b72; line-height:1.6;">
             The public validator sees three task families with deterministic grading and distinct failure patterns.
           </p>
-          <div class="task-gallery">{cards}</div>
+          <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px;">{cards}</div>
         </section>
         """
 
     def action_lane_html() -> str:
         return """
-        <section class="info-panel panel-body">
-          <h2 class="section-title">Recovery Lanes</h2>
-          <div class="action-lane">
-            <div class="lane-card">
-              <h3>Inspect</h3>
-              <p>Start with schema validation and table inspection before making edits.</p>
+        <section style="padding:22px 24px; border-radius:20px; border:1px solid #d8e0eb; background:rgba(255,255,255,0.97); box-shadow:0 16px 38px rgba(15,23,42,0.08);">
+          <h2 style="margin:0 0 14px; font-size:28px; letter-spacing:-0.04em; color:#172033;">Recovery Lanes</h2>
+          <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px;">
+            <div style="padding:18px; border-radius:18px; border:1px solid #dbe3ef; background:linear-gradient(180deg, #f8fbff, #ffffff);">
+              <h3 style="margin:0 0 8px; font-size:20px; color:#172033;">Inspect</h3>
+              <p style="margin:0; color:#4b5b72; line-height:1.6;">Start with schema validation and table inspection before making edits.</p>
             </div>
-            <div class="lane-card">
-              <h3>Repair</h3>
-              <p>Resolve nulls, casting issues, duplicates, and contract drift in the active table.</p>
+            <div style="padding:18px; border-radius:18px; border:1px solid #dbe3ef; background:linear-gradient(180deg, #f8fbff, #ffffff);">
+              <h3 style="margin:0 0 8px; font-size:20px; color:#172033;">Repair</h3>
+              <p style="margin:0; color:#4b5b72; line-height:1.6;">Resolve nulls, casting issues, duplicates, and contract drift in the active table.</p>
             </div>
-            <div class="lane-card">
-              <h3>Stabilize</h3>
-              <p>Replay batches, refresh downstream assets, then commit only when readiness is clean.</p>
+            <div style="padding:18px; border-radius:18px; border:1px solid #dbe3ef; background:linear-gradient(180deg, #f8fbff, #ffffff);">
+              <h3 style="margin:0 0 8px; font-size:20px; color:#172033;">Stabilize</h3>
+              <p style="margin:0; color:#4b5b72; line-height:1.6;">Replay batches, refresh downstream assets, then commit only when readiness is clean.</p>
             </div>
           </div>
         </section>
@@ -474,28 +506,28 @@ def build_benchmark_demo(
         adaptation_report = adaptation.get("report", {}) if isinstance(adaptation, dict) else {}
         heldout_gap = adaptation_report.get("heldout_family_gap_task5", 0.0)
         return f"""
-        <section class="info-panel panel-body">
-          <h2 class="section-title">Benchmark Snapshot</h2>
-          <div class="metric-grid">
-            <div class="metric-card">
-              <span class="label">Recorded Runs</span>
-              <span class="value">{len(rows)}</span>
-              <p>Benchmark result rows currently packaged with the Space.</p>
+        <section style="{_panel_style()}">
+          <h2 style="margin:0 0 16px; font-size:28px; letter-spacing:-0.04em; color:#172033;">Benchmark Snapshot</h2>
+          <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px;">
+            <div style="padding:18px; border-radius:18px; border:1px solid #dbe3ef; background:linear-gradient(180deg, #f8fbff, #ffffff);">
+              <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#607086;">Recorded Runs</div>
+              <div style="margin-top:8px; font-size:32px; font-weight:700; color:#162033;">{len(rows)}</div>
+              <p style="margin:8px 0 0; color:#4b5b72; line-height:1.55;">Benchmark result rows currently packaged with the Space.</p>
             </div>
-            <div class="metric-card">
-              <span class="label">Scenario Splits</span>
-              <span class="value">2</span>
-              <p>Train and eval distributions are both available in the runtime.</p>
+            <div style="padding:18px; border-radius:18px; border:1px solid #dbe3ef; background:linear-gradient(180deg, #f8fbff, #ffffff);">
+              <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#607086;">Scenario Splits</div>
+              <div style="margin-top:8px; font-size:32px; font-weight:700; color:#162033;">2</div>
+              <p style="margin:8px 0 0; color:#4b5b72; line-height:1.55;">Train and eval distributions are both available in the runtime.</p>
             </div>
-            <div class="metric-card">
-              <span class="label">Held-Out Gap</span>
-              <span class="value">{heldout_gap:.2f}</span>
-              <p>Task 5 generalization penalty under held-out temporal families.</p>
+            <div style="padding:18px; border-radius:18px; border:1px solid #dbe3ef; background:linear-gradient(180deg, #f8fbff, #ffffff);">
+              <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#607086;">Held-Out Gap</div>
+              <div style="margin-top:8px; font-size:32px; font-weight:700; color:#162033;">{heldout_gap:.2f}</div>
+              <p style="margin:8px 0 0; color:#4b5b72; line-height:1.55;">Task 5 generalization penalty under held-out temporal families.</p>
             </div>
-            <div class="metric-card">
-              <span class="label">Public Grade Routes</span>
-              <span class="value">3</span>
-              <p>Dedicated validator endpoints exposed at <code>/grade/task_n</code>.</p>
+            <div style="padding:18px; border-radius:18px; border:1px solid #dbe3ef; background:linear-gradient(180deg, #f8fbff, #ffffff);">
+              <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#607086;">Public Grade Routes</div>
+              <div style="margin-top:8px; font-size:32px; font-weight:700; color:#162033;">3</div>
+              <p style="margin:8px 0 0; color:#4b5b72; line-height:1.55;">Dedicated validator endpoints exposed at <code>/grade/task_n</code>.</p>
             </div>
           </div>
         </section>
@@ -503,25 +535,29 @@ def build_benchmark_demo(
 
     def _hero_html() -> str:
         return f"""
-        <section class="hero-panel">
-          <h1>{title}</h1>
-          <p>
+        <section style="{_panel_style(dark=True)}">
+          <div style="display:flex; justify-content:space-between; gap:18px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="max-width:760px;">
+              <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#bfdbfe; margin-bottom:10px;">OpenEnv Incident Recovery Benchmark</div>
+              <h1 style="margin:0 0 12px; font-size:40px; line-height:1.05; letter-spacing:-0.04em;">{title}</h1>
+              <p style="margin:0; color:#dbe5f0; line-height:1.65; font-size:16px;">
             A production-style ETL incident recovery environment for OpenEnv.
             Reset a scenario, inspect the observation contract, apply repair actions,
             and decide when the pipeline is safe to commit.
-          </p>
-          <div class="hero-grid">
-            <div class="hero-stat">
-              <span class="label">Runtime</span>
-              <span class="value">{runtime_meta['runtime_mode'].title()}</span>
             </div>
-            <div class="hero-stat">
-              <span class="label">Validator Tasks</span>
-              <span class="value">3 Public Tasks</span>
-            </div>
-            <div class="hero-stat">
-              <span class="label">Action Space</span>
-              <span class="value">20 Discrete Operations</span>
+            <div style="display:grid; grid-template-columns:repeat(3, minmax(160px,1fr)); gap:14px; flex:1; min-width:360px;">
+              <div style="{_mini_stat_style(dark=True)}">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#c8d6e5;">Runtime</div>
+                <div style="margin-top:8px; font-size:22px; font-weight:700;">{runtime_meta['runtime_mode'].title()}</div>
+              </div>
+              <div style="{_mini_stat_style(dark=True)}">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#c8d6e5;">Validator Tasks</div>
+                <div style="margin-top:8px; font-size:22px; font-weight:700;">3 Public Tasks</div>
+              </div>
+              <div style="{_mini_stat_style(dark=True)}">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#c8d6e5;">Action Space</div>
+                <div style="margin-top:8px; font-size:22px; font-weight:700;">20 Operations</div>
+              </div>
             </div>
           </div>
         </section>
@@ -529,9 +565,9 @@ def build_benchmark_demo(
 
     def _overview_html() -> str:
         return """
-        <section class="info-panel panel-body">
-          <h3>Operator Workflow</h3>
-          <ol class="mini-list">
+        <section style="padding:22px 24px; border-radius:20px; border:1px solid #d8e0eb; background:rgba(255,255,255,0.97); box-shadow:0 16px 38px rgba(15,23,42,0.08);">
+          <h3 style="margin:0 0 14px; font-size:22px; letter-spacing:-0.03em;">Operator Workflow</h3>
+          <ol style="margin:0; padding-left:20px; color:#334155; line-height:1.75;">
             <li>Select a task, split, and seed.</li>
             <li>Reset the environment to load the broken pipeline.</li>
             <li>Validate first, then repair data quality and orchestration issues.</li>
@@ -544,13 +580,13 @@ def build_benchmark_demo(
     def live_status_html(state: dict[str, Any] | None) -> str:
         if not state:
             return """
-            <section class="status-panel panel-body">
-              <div class="status-banner">No episode loaded. Reset the environment to begin.</div>
-              <div class="status-grid">
-                <div class="status-card"><span class="label">Score</span><span class="value">-</span></div>
-                <div class="status-card"><span class="label">Steps</span><span class="value">-</span></div>
-                <div class="status-card"><span class="label">Commit Ready</span><span class="value">-</span></div>
-                <div class="status-card"><span class="label">Status</span><span class="value">Idle</span></div>
+            <section style="padding:22px 24px; border-radius:20px; border:1px solid #d8e0eb; background:rgba(255,255,255,0.97); box-shadow:0 16px 38px rgba(15,23,42,0.08);">
+              <div style="margin-bottom:14px; padding:12px 14px; border-radius:14px; background:#e8f1ff; color:#163056; border:1px solid #cadeff; font-weight:700;">No episode loaded. Reset the environment to begin.</div>
+              <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;">
+                <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Score</div><div style="margin-top:8px; font-size:18px; font-weight:700; color:#162033;">-</div></div>
+                <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Steps</div><div style="margin-top:8px; font-size:18px; font-weight:700; color:#162033;">-</div></div>
+                <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Commit Ready</div><div style="margin-top:8px; font-size:18px; font-weight:700; color:#162033;">-</div></div>
+                <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Status</div><div style="margin-top:8px; font-size:18px; font-weight:700; color:#162033;">Idle</div></div>
               </div>
             </section>
             """
@@ -562,34 +598,34 @@ def build_benchmark_demo(
         backlog = state.get("backlog_rows")
         freshness = state.get("freshness_lag_minutes")
         reason = state.get("done_reason") or "in_progress"
-        banner_class = "status-banner"
         banner_text = f"Episode status: {reason}"
+        banner_style = "background:#e8f1ff; color:#163056; border:1px solid #cadeff;"
         if success is True:
-            banner_class += " complete"
             banner_text = f"Episode complete: {reason}"
+            banner_style = "background:#e7f7ed; color:#165a2d; border:1px solid #b6dfc2;"
         elif state.get("done"):
-            banner_class += " failed"
             banner_text = f"Episode ended: {reason}"
+            banner_style = "background:#fff0f0; color:#8b1f1f; border:1px solid #f1c8c8;"
 
         return f"""
-        <section class="status-panel panel-body">
-          <div class="{banner_class}">{banner_text}</div>
-          <div class="status-grid">
-            <div class="status-card"><span class="label">Score</span><span class="value">{score}</span></div>
-            <div class="status-card"><span class="label">Steps Used</span><span class="value">{steps}</span></div>
-            <div class="status-card"><span class="label">Commit Ready</span><span class="value">{commit_ready}</span></div>
-            <div class="status-card"><span class="label">Success</span><span class="value">{success}</span></div>
-            <div class="status-card"><span class="label">Backlog Rows</span><span class="value">{backlog}</span></div>
-            <div class="status-card"><span class="label">Freshness Lag</span><span class="value">{freshness}</span></div>
+        <section style="{_panel_style()}">
+          <div style="margin-bottom:14px; padding:12px 14px; border-radius:14px; font-weight:700; {banner_style}">{banner_text}</div>
+          <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;">
+            <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Score</div><div style="margin-top:8px; font-size:22px; font-weight:700;">{score}</div></div>
+            <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Steps Used</div><div style="margin-top:8px; font-size:22px; font-weight:700;">{steps}</div></div>
+            <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Commit Ready</div><div style="margin-top:8px; font-size:22px; font-weight:700;">{commit_ready}</div></div>
+            <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Success</div><div style="margin-top:8px; font-size:22px; font-weight:700;">{success}</div></div>
+            <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Backlog Rows</div><div style="margin-top:8px; font-size:22px; font-weight:700;">{backlog}</div></div>
+            <div style="{_mini_stat_style()}"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#5f6f86;">Freshness Lag</div><div style="margin-top:8px; font-size:22px; font-weight:700;">{freshness}</div></div>
           </div>
         </section>
         """
 
     def workspace_summary_html() -> str:
         return f"""
-        <section class="info-panel panel-body">
-          <h3>Environment Snapshot</h3>
-          <ul class="mini-list">
+        <section style="{_panel_style()}">
+          <h3 style="margin:0 0 14px; font-size:22px; letter-spacing:-0.03em; color:#172033;">Environment Snapshot</h3>
+          <ul style="margin:0; padding-left:18px; color:#334155; line-height:1.8;">
             <li>Benchmark version: <strong>{runtime_meta['benchmark_version']}</strong></li>
             <li>Runtime mode: <strong>{runtime_meta['runtime_mode']}</strong></li>
             <li>Total benchmark tasks: <strong>{len(benchmark_meta['task_names'])}</strong></li>
