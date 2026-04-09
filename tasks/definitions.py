@@ -1,4 +1,4 @@
-"""Canonical single-file root task registry for hackathon validators."""
+"""Canonical single-file root task definitions for hackathon validators."""
 
 from __future__ import annotations
 

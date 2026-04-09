@@ -8,7 +8,7 @@ from benchmark.policies.heuristics import heuristic_action_for
 from benchmark.task_ids import parse_task_id, public_task_id
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
-from tasks.task_bank import build_task_definition
+from tasks.definitions import build_task_definition
 
 #
 # Keep validator-facing scores strictly inside the declared OpenEnv range.

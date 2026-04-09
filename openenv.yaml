@@ -1,24 +1,104 @@
 spec_version: 1
-name: mario_the_plumber
+name: Mario the Plumber
+description: >
+  An OpenEnv-compliant environment for ETL incident diagnosis and recovery.
+  An agent receives structured pipeline-health observations containing data
+  quality, dependency, backlog, freshness, and reward-machine signals, and
+  must repair broken ingestion and downstream recovery states before safely
+  committing the pipeline.
+version: "1.0.0"
+author: Sahil Kumar Singh
 type: space
 runtime: fastapi
 app: app:app
 port: 8000
+
+observation_space:
+  type: object
+  description: >
+    Structured observation payload covering incident framing, table-health
+    diagnostics, dependency alerts, backlog and freshness pressure, resource
+    state, and reward/progress signals for the active ETL recovery episode.
+
+action_space:
+  type: discrete
+  actions:
+    - inspect_or_switch_table
+    - no_op_1
+    - no_op_2
+    - fill_missing_primary
+    - fill_missing_secondary
+    - fill_missing_contextual
+    - drop_null_rows
+    - cast_column
+    - normalize_values
+    - standardize_formats
+    - remove_duplicates
+    - drop_outliers
+    - rename_column
+    - reorder_columns
+    - validate_schema
+    - commit_changes
+    - scale_resources_up
+    - scale_resources_down
+    - prioritize_incremental_batch
+    - refresh_downstream_assets
+  description: >
+    Discrete ETL recovery operations. The agent must choose inspection,
+    transformation, orchestration, validation, or commit actions based on the
+    current incident state.
+
+endpoints:
+  health: /health
+  reset: /reset
+  step: /step
+  state: /state
+  tasks: /tasks
+  grader: /grader
+
 tasks:
   - id: task_1
     difficulty: easy
+    description: >
+      Stabilize a customer-ingestion table after missing values and light
+      schema drift are introduced by an upstream formatter regression.
+    steps: 10
+    success_threshold: 0.85
     grader:
       endpoint: /grader
       score_range: [0.02, 0.98]
 
   - id: task_2
     difficulty: medium
+    description: >
+      Recover a transaction and events table after retry-path duplication,
+      malformed fields, and validation drift destabilize downstream checks.
+    steps: 15
+    success_threshold: 0.80
     grader:
       endpoint: /grader
       score_range: [0.02, 0.98]
 
   - id: task_3
     difficulty: hard
+    description: >
+      Restore customer, product, and order tables after upstream regressions
+      break referential consistency and cascade into incorrect downstream
+      totals and commit-unsafe pipeline state.
+    steps: 25
+    success_threshold: 0.75
     grader:
       endpoint: /grader
       score_range: [0.02, 0.98]
+
+scoring:
+  reward_range: [0.0, 1.0]
+  success_threshold: 0.75
+  score_formula: >
+    Task-specific ETL recovery score with dense shaping, returned as a scalar
+    OpenEnv reward and validator-facing grader score.
+
+constraints:
+  max_runtime_seconds: 1200
+  max_memory_gb: 8
+  max_vcpu: 2

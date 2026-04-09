@@ -31,7 +31,7 @@ from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
 from graders import validator_grade_payload
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
-from tasks.task_bank import list_internal_task_ids, task_payloads, tasks_payload
+from tasks.definitions import list_internal_task_ids, task_payloads, tasks_payload
 
 _ENV = PipelineDoctorEnvironment()
 _ENV_LOCK = Lock()

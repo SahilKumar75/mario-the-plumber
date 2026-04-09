@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from graders import grade_episode
-from tasks.task_bank import list_tasks
+from tasks.definitions import list_tasks
 
 
 def main() -> None:

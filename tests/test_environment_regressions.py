@@ -12,7 +12,7 @@ from models import PipelineDoctorAction
 from server.app import app
 from server.data_generator import generate_scenario
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
-from tasks.task_bank import list_task_ids
+from tasks.definitions import list_task_ids
 
 
 def _assert_nested_scores_strictly_inside_open_interval(value) -> None:

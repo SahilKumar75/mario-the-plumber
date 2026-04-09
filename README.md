@@ -53,7 +53,7 @@ Run the regression suite:
 
 ```bash
 python3 -m venv .venv
-./.venv/bin/pip install -r requirements.txt pytest
+./.venv/bin/pip install -r server/requirements.txt pytest
 ./.venv/bin/python -m pytest tests -q
 ```
 
@@ -291,7 +291,7 @@ Key submission files:
 - [inference.py](inference.py)
 - [openenv.yaml](openenv.yaml)
 - [pyproject.toml](pyproject.toml)
-- [requirements.txt](requirements.txt)
+- [server/requirements.txt](server/requirements.txt)
 - [app.py](app.py)
 - [server/app.py](server/app.py)
 - [server/Dockerfile](server/Dockerfile)

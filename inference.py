@@ -21,7 +21,7 @@ from benchmark.catalog import MAX_STEPS
 from benchmark.policies import choose_action, next_table, table_should_advance
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
-from tasks.task_bank import list_internal_task_ids
+from tasks.definitions import list_internal_task_ids
 
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_MODEL_NAME = "nvidia/nemotron-super-49b-v1"
