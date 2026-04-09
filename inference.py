@@ -126,6 +126,15 @@ def run_baseline(
         env = PipelineDoctorEnvironment()
         observation = env.reset(seed=seed, task_id=task_id, split=split)
         task_sources: Counter[str] = Counter()
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "event": "task_started",
+                    "task_id": task_id,
+                    "step": 0,
+                    "quality": float(observation.current_score),
+                }
+            )
 
         for _ in range(MAX_STEPS[task_id]):
             if env.state.done:
@@ -160,6 +169,7 @@ def run_baseline(
                         "step": env.state.step_count,
                         "action": _format_action(action),
                         "reward": float(observation.reward),
+                        "quality": float(observation.current_score),
                         "done": bool(observation.done),
                         "error": observation.action_result or None,
                     }
@@ -192,6 +202,7 @@ def run_baseline(
                                 "step": env.state.step_count,
                                 "action": _format_action(switch_action),
                                 "reward": float(observation.reward),
+                                "quality": float(observation.current_score),
                                 "done": bool(observation.done),
                                 "error": observation.action_result or None,
                             }
@@ -218,6 +229,7 @@ def run_baseline(
                         "step": env.state.step_count,
                         "action": _format_action(commit_action),
                         "reward": float(observation.reward),
+                        "quality": float(observation.current_score),
                         "done": bool(observation.done),
                         "error": observation.action_result or None,
                     }
@@ -298,6 +310,7 @@ def _emit_bracket_step(
     *,
     task_id: int,
     step: int,
+    quality: float,
     action: str,
     reward: float,
     done: bool,
@@ -306,7 +319,7 @@ def _emit_bracket_step(
     error_value = _format_error(error)
     print(
         f"[STEP] task=task_{task_id} step={step} action={action} reward={reward:.2f} "
-        f"done={str(done).lower()} error={error_value}",
+        f"quality={quality:.4f} done={str(done).lower()} error={error_value}",
         flush=True,
     )
 
@@ -363,6 +376,17 @@ def main() -> None:
 
     def record_protocol_step(event: dict[str, object]) -> None:
         nonlocal protocol_step_count
+        if event.get("event") == "task_started":
+            _emit_bracket_step(
+                task_id=int(event.get("task_id", 0) or 0),
+                step=0,
+                quality=float(event.get("quality", 0.0)),
+                action="reset",
+                reward=0.0,
+                done=False,
+                error=None,
+            )
+            return
         if event.get("event") != "step_complete":
             return
         protocol_step_count += 1
@@ -371,6 +395,7 @@ def main() -> None:
         _emit_bracket_step(
             task_id=int(event.get("task_id", 0) or 0),
             step=protocol_step_count,
+            quality=float(event.get("quality", 0.0)),
             action=str(event.get("action", "null")),
             reward=reward,
             done=bool(event.get("done", False)),
