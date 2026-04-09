@@ -283,7 +283,15 @@ def test_root_task_registry_and_grader_modules_expose_validator_tasks_and_live_g
 
     assert task_ids == ["task_1", "task_2", "task_3"]
 
-    for task_id in ["task_1", "task_2", "task_3", "task_4", "task_5"]:
+    for task_id in ["task_1", "task_2", "task_3"]:
+        payload = grade_episode(task_id, split="eval", seed=42)
+        assert 0.0 < payload["score"] < 1.0
+        assert 0.0 < payload["reward"] < 1.0
+        _assert_nested_scores_strictly_inside_open_interval(payload["breakdown"])
+        _assert_nested_scores_strictly_inside_open_interval(payload["objective_breakdown"])
+        assert payload["grader_mode"] == "live"
+
+    for task_id in ["task_4", "task_5"]:
         payload = grade_episode(task_id, split="eval", seed=42)
         assert 0.0 < payload["score"] < 1.0
         assert 0.0 < payload["reward"] < 1.0

@@ -6,6 +6,7 @@ from benchmark.evaluation import breakdown_payload, objective_breakdown
 from benchmark.catalog import TASK_THRESHOLDS
 from benchmark.policies.heuristics import heuristic_action_for
 from benchmark.task_ids import parse_task_id, public_task_id
+from debug_trace import debug_log
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 from tasks.definitions import build_task_definition
@@ -16,6 +17,7 @@ from tasks.definitions import build_task_definition
 # are still inside the broader (0, 1) interval.
 MIN_VALIDATOR_SCORE = 0.0201
 MAX_VALIDATOR_SCORE = 0.9799
+VALIDATOR_TASK_IDS = (1, 2, 3)
 
 
 def _jsonify(value):
@@ -57,7 +59,7 @@ def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, 
     task = build_task_definition(public_task_id(task_id))
     score = _strict_validator_score(float(payload.get("score", 0.0)))
     success = bool(payload.get("success", False))
-    return {
+    result = {
         "task_id": task.internal_id,
         "task_alias": task.id,
         "episode_id": episode_id,
@@ -72,12 +74,14 @@ def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, 
         "truncated": bool(payload.get("truncated", False)),
         "done_reason": payload.get("done_reason", ""),
     }
+    debug_log("grader_stored_payload", task_id=task.internal_id, episode_id=episode_id, payload=result)
+    return result
 
 
 def grade_env(env: PipelineDoctorEnvironment, *, grader_mode: str, episode_id: str | None = None) -> dict[str, object]:
     task = build_task_definition(public_task_id(env.state.task_id))
     score = _strict_validator_score(float(env.state.current_score))
-    return {
+    result = {
         "task_id": task.internal_id,
         "task_alias": task.id,
         "episode_id": episode_id or env.state.episode_id,
@@ -92,6 +96,17 @@ def grade_env(env: PipelineDoctorEnvironment, *, grader_mode: str, episode_id: s
         "truncated": bool(env.state.truncated),
         "done_reason": env.state.done_reason,
     }
+    debug_log(
+        "grade_env",
+        task_id=task.internal_id,
+        episode_id=result["episode_id"],
+        grader_mode=grader_mode,
+        score=result["score"],
+        success=result["success"],
+        done_reason=result["done_reason"],
+        steps_taken=result["steps_taken"],
+    )
+    return result
 
 
 def _force_successful_terminal_grade(
@@ -101,6 +116,13 @@ def _force_successful_terminal_grade(
 ) -> dict[str, object]:
     """Construct a stable successful grade when the heuristic rollout fails in deployment."""
 
+    debug_log(
+        "validator_fallback_enter",
+        task_id=env.state.task_id,
+        episode_id=episode_id or env.state.episode_id,
+        pre_fallback_score=env.state.current_score,
+        pre_fallback_done_reason=env.state.done_reason,
+    )
     env._tables = {
         name: frame.copy(deep=True)
         for name, frame in env._ground_truth.items()
@@ -135,6 +157,7 @@ def run_live_grade(
     """Run a deterministic heuristic episode to completion and return its grade."""
 
     task_id = parse_task_id(task_ref)
+    debug_log("run_live_grade_start", task_id=task_id, split=split, seed=seed, episode_id=episode_id)
     env = PipelineDoctorEnvironment()
     observation = env.reset(seed=seed, task_id=task_id, split=split, episode_id=episode_id)
 
@@ -145,8 +168,27 @@ def run_live_grade(
         env.step(PipelineDoctorAction(action_id=15))
 
     payload = grade_env(env, grader_mode="live", episode_id=episode_id)
-    if payload["success"]:
+    if payload["success"] or task_id in VALIDATOR_TASK_IDS:
+        debug_log(
+            "run_live_grade_complete",
+            task_id=task_id,
+            split=split,
+            seed=seed,
+            grader_mode=payload["grader_mode"],
+            score=payload["score"],
+            success=payload["success"],
+            done_reason=payload["done_reason"],
+        )
         return payload
+    debug_log(
+        "run_live_grade_needs_fallback",
+        task_id=task_id,
+        split=split,
+        seed=seed,
+        score=payload["score"],
+        success=payload["success"],
+        done_reason=payload["done_reason"],
+    )
     return _force_successful_terminal_grade(env, episode_id=episode_id)
 
 
@@ -160,6 +202,7 @@ def grade_episode(
     """Grade a stored episode when available, else fall back to deterministic live grading."""
 
     task_id = parse_task_id(task_ref)
+    debug_log("grade_episode_start", task_id=task_id, split=split, seed=seed, episode_id=episode_id)
     if episode_id:
         payload = EPISODE_SUMMARIES.get(episode_id)
         if payload is not None:
@@ -167,6 +210,16 @@ def grade_episode(
     result = run_live_grade(task_id, seed=seed, split=split, episode_id=episode_id)
     if episode_id and result.get("episode_id") is None:
         result["episode_id"] = episode_id
+    debug_log(
+        "grade_episode_complete",
+        task_id=task_id,
+        split=split,
+        seed=seed,
+        episode_id=result.get("episode_id"),
+        grader_mode=result.get("grader_mode"),
+        score=result.get("score"),
+        success=result.get("success"),
+    )
     return result
 
 
@@ -183,10 +236,12 @@ def validator_grade_payload(
     result = grade_episode(task_id, episode_id=episode_id, seed=seed, split=split)
     score = _strict_validator_score(float(result.get("score", 0.0)))
     reward = _strict_validator_score(float(result.get("reward", score)))
-    return {
+    payload = {
         "score": score,
         "reward": reward,
     }
+    debug_log("validator_grade_payload", task_id=task_id, split=split, seed=seed, payload=payload)
+    return payload
 
 
 def debug_grade_payload(
@@ -202,7 +257,7 @@ def debug_grade_payload(
     result = grade_episode(task_id, episode_id=episode_id, seed=seed, split=split)
     score = _strict_validator_score(float(result.get("score", 0.0)))
     reward = _strict_validator_score(float(result.get("reward", score)))
-    return {
+    payload = {
         "task_id": int(result.get("task_id", task_id)),
         "task_alias": str(result.get("task_alias", public_task_id(task_id))),
         "episode_id": result.get("episode_id"),
@@ -215,3 +270,5 @@ def debug_grade_payload(
         "truncated": bool(result.get("truncated", False)),
         "done_reason": str(result.get("done_reason", "")),
     }
+    debug_log("debug_grade_payload", task_id=task_id, split=split, seed=seed, payload=payload)
+    return payload

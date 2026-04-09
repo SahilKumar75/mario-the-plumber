@@ -27,6 +27,7 @@ from benchmark.api_payloads import (
     benchmark_runs_payload,
     benchmark_tasks_payload,
 )
+from debug_trace import debug_log
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
 from graders import debug_grade_payload, validator_grade_payload
@@ -35,6 +36,7 @@ from tasks.definitions import list_internal_task_ids, task_payloads, tasks_paylo
 
 _ENV = PipelineDoctorEnvironment()
 _ENV_LOCK = Lock()
+debug_log("server_app_init", validator_task_ids=list(VALIDATOR_TASK_IDS))
 
 
 class ResetRequest(BaseModel):
@@ -146,6 +148,7 @@ def web_root() -> RedirectResponse:
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
+    debug_log("health_request")
     return HealthResponse(status=HealthStatus.HEALTHY)
 
 
@@ -165,14 +168,29 @@ def schema() -> SchemaResponse:
 
 @app.post("/reset")
 def reset(request: ResetRequest = Body(default_factory=ResetRequest)) -> dict[str, object]:
+    debug_log(
+        "reset_request",
+        task_id=request.task_id,
+        split=request.split,
+        seed=request.seed,
+        episode_id=request.episode_id,
+    )
     with _ENV_LOCK:
         observation = _ENV.reset(**request.model_dump())
+        debug_log(
+            "reset_response",
+            task_id=_ENV.state.task_id,
+            episode_id=_ENV.state.episode_id,
+            current_score=_ENV.state.current_score,
+            done=_ENV.state.done,
+        )
         return serialize_observation(observation)
 
 
 @app.post("/step")
 async def step(request: Request) -> dict[str, object]:
     payload = await request.json()
+    debug_log("step_request", payload=payload)
     if not isinstance(payload, dict):
         raise HTTPException(status_code=422, detail="step payload must be a JSON object")
 
@@ -187,17 +205,29 @@ async def step(request: Request) -> dict[str, object]:
 
     with _ENV_LOCK:
         observation = _ENV.step(action)
+        debug_log(
+            "step_response",
+            task_id=_ENV.state.task_id,
+            episode_id=_ENV.state.episode_id,
+            action_id=action.action_id,
+            done=observation.done,
+            reward=observation.reward,
+            current_score=observation.current_score,
+            action_result=observation.action_result,
+        )
         return serialize_observation(observation)
 
 
 @app.get("/state")
 def state() -> dict[str, Any]:
     with _ENV_LOCK:
+        debug_log("state_request", task_id=_ENV.state.task_id, episode_id=_ENV.state.episode_id)
         return _ENV.state.model_dump()
 
 
 @app.get("/tasks")
 def get_tasks() -> dict[str, object]:
+    debug_log("tasks_request")
     return tasks_payload()
 
 
@@ -215,12 +245,14 @@ def validate() -> dict[str, object]:
         "all_tasks_have_graders": all(bool(task.get("grader")) for task in tasks),
         "reward_shaped": True,
     }
-    return {
+    payload = {
         "valid": all(checks.values()),
         "checks": checks,
         "env_name": "mario_the_plumber",
         "version": "2.1",
     }
+    debug_log("validate_request", valid=payload["valid"], checks=checks)
+    return payload
 
 
 @app.get("/benchmark-metadata")
@@ -256,65 +288,83 @@ def get_benchmark_adaptation() -> dict[str, object]:
 @app.post("/grader")
 def grader(request: GraderRequest = Body(default_factory=GraderRequest)) -> dict[str, object]:
     try:
-        return validator_grade_payload(
+        payload = validator_grade_payload(
             request.task_id,
             episode_id=request.episode_id,
             split="eval",
             seed=42,
         )
+        debug_log("grader_request", task_id=request.task_id, episode_id=request.episode_id, payload=payload)
+        return payload
     except ValueError as exc:
+        debug_log("grader_error", task_id=request.task_id, episode_id=request.episode_id, error=str(exc))
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/grader")
 def grader_get(task_id: str = Query(default="task_1"), episode_id: str | None = Query(default=None)) -> dict[str, object]:
     try:
-        return validator_grade_payload(
+        payload = validator_grade_payload(
             task_id,
             episode_id=episode_id,
             split="eval",
             seed=42,
         )
+        debug_log("grader_get_request", task_id=task_id, episode_id=episode_id, payload=payload)
+        return payload
     except ValueError as exc:
+        debug_log("grader_get_error", task_id=task_id, episode_id=episode_id, error=str(exc))
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/grade/{task_id}")
 def grade_task(task_id: str) -> dict[str, object]:
     try:
-        return validator_grade_payload(task_id, split="eval", seed=42)
+        payload = validator_grade_payload(task_id, split="eval", seed=42)
+        debug_log("grade_task_request", task_id=task_id, payload=payload)
+        return payload
     except ValueError as exc:
+        debug_log("grade_task_error", task_id=task_id, error=str(exc))
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/grader/debug")
 def grader_debug(task_id: str = Query(default="task_1"), episode_id: str | None = Query(default=None)) -> dict[str, object]:
     try:
-        return debug_grade_payload(
+        payload = debug_grade_payload(
             task_id,
             episode_id=episode_id,
             split="eval",
             seed=42,
         )
+        debug_log("grader_debug_request", task_id=task_id, episode_id=episode_id, payload=payload)
+        return payload
     except ValueError as exc:
+        debug_log("grader_debug_error", task_id=task_id, episode_id=episode_id, error=str(exc))
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/grade-debug/{task_id}")
 def grade_task_debug(task_id: str) -> dict[str, object]:
     try:
-        return debug_grade_payload(task_id, split="eval", seed=42)
+        payload = debug_grade_payload(task_id, split="eval", seed=42)
+        debug_log("grade_task_debug_request", task_id=task_id, payload=payload)
+        return payload
     except ValueError as exc:
+        debug_log("grade_task_debug_error", task_id=task_id, error=str(exc))
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.post("/baseline")
 def baseline(request: BaselineRequest) -> dict[str, object]:
-    return run_baseline(
+    debug_log("baseline_request", seed=request.seed, split=request.split, policy_mode=request.policy_mode)
+    payload = run_baseline(
         seed=request.seed,
         split=request.split,
         policy_mode=request.policy_mode,
     )
+    debug_log("baseline_response", average_score=payload["average_score"], status=payload["status"])
+    return payload
 
 
 def main(host: str = "0.0.0.0", port: int = 8000) -> None:

@@ -15,6 +15,7 @@ import os
 import time
 from typing import Callable
 
+from debug_trace import debug_log
 from openai import OpenAI
 
 from benchmark.catalog import MAX_STEPS
@@ -88,6 +89,13 @@ def run_baseline(
     """Run the benchmark baseline over the official Mario tasks."""
 
     started = time.perf_counter()
+    debug_log(
+        "run_baseline_start",
+        seed=seed,
+        split=split,
+        policy_mode=policy_mode,
+        model_name_override=model_name,
+    )
     api_key, selected_model, api_base_url = _resolve_runtime_llm_config(model_name)
     client = None
     if _policy_requires_llm(policy_mode):
@@ -100,6 +108,7 @@ def run_baseline(
     action_sources: Counter[str] = Counter()
 
     for task_id in list_internal_task_ids():
+        debug_log("baseline_task_start", task_id=task_id, split=split, seed=seed)
         env = PipelineDoctorEnvironment()
         observation = env.reset(seed=seed, task_id=task_id, split=split)
         task_sources: Counter[str] = Counter()
@@ -119,6 +128,16 @@ def run_baseline(
             action_sources[action_source] += 1
             task_sources[action_source] += 1
             observation = env.step(action)
+            debug_log(
+                "baseline_step",
+                task_id=task_id,
+                step=env.state.step_count,
+                action_source=action_source,
+                action=_format_action(action),
+                reward=float(observation.reward),
+                done=bool(observation.done),
+                error=observation.action_result or None,
+            )
             if progress_callback is not None:
                 progress_callback(
                     {
@@ -142,6 +161,15 @@ def run_baseline(
                     observation = env.step(switch_action)
                     action_sources["auto_table_switch"] += 1
                     task_sources["auto_table_switch"] += 1
+                    debug_log(
+                        "baseline_auto_table_switch",
+                        task_id=task_id,
+                        step=env.state.step_count,
+                        target_column=next_stage,
+                        reward=float(observation.reward),
+                        done=bool(observation.done),
+                        error=observation.action_result or None,
+                    )
                     if progress_callback is not None:
                         progress_callback(
                             {
@@ -160,6 +188,14 @@ def run_baseline(
             observation = env.step(commit_action)
             action_sources["forced_commit"] += 1
             task_sources["forced_commit"] += 1
+            debug_log(
+                "baseline_forced_commit",
+                task_id=task_id,
+                step=env.state.step_count,
+                reward=float(observation.reward),
+                done=bool(observation.done),
+                error=observation.action_result or None,
+            )
             if progress_callback is not None:
                 progress_callback(
                     {
@@ -183,13 +219,14 @@ def run_baseline(
             "action_sources": dict(task_sources),
         }
         results.append(task_result)
+        debug_log("baseline_task_complete", **task_result)
         if progress_callback is not None:
             progress_callback({"event": "task_complete", **task_result})
 
     average_score = round(
         sum(float(result["score"]) for result in results) / max(len(results), 1), 4
     )
-    return {
+    payload = {
         "status": "complete",
         "policy_mode": policy_mode,
         "scenario_split": split,
@@ -199,6 +236,13 @@ def run_baseline(
         "action_source_totals": dict(action_sources),
         "runtime_seconds": round(time.perf_counter() - started, 2),
     }
+    debug_log(
+        "run_baseline_complete",
+        average_score=payload["average_score"],
+        runtime_seconds=payload["runtime_seconds"],
+        action_source_totals=payload["action_source_totals"],
+    )
+    return payload
 
 
 def _build_client(*, api_key: str | None, selected_model: str | None, api_base_url: str) -> OpenAI | None:
