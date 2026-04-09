@@ -163,6 +163,121 @@ CUSTOM_CSS = """
 .mini-list li {
   margin: 6px 0;
 }
+.ribbon-grid,
+.task-gallery,
+.signal-grid,
+.metric-grid,
+.action-lane {
+  display: grid;
+  gap: 12px;
+}
+.ribbon-grid,
+.metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.task-gallery {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.action-lane {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.signal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+.ribbon-card,
+.task-card,
+.signal-card,
+.metric-card,
+.lane-card {
+  border-radius: 16px;
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+}
+.ribbon-card,
+.metric-card,
+.lane-card {
+  padding: 16px 18px;
+}
+.task-card {
+  overflow: hidden;
+}
+.task-card .band {
+  height: 8px;
+}
+.task-card .content {
+  padding: 18px;
+}
+.task-card h3,
+.metric-card h3,
+.lane-card h3 {
+  margin: 0 0 8px;
+  color: #172033;
+}
+.task-card p,
+.lane-card p,
+.metric-card p {
+  margin: 0;
+  color: #4b5b72;
+  line-height: 1.55;
+}
+.pill-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0 10px;
+}
+.pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eff5ff;
+  border: 1px solid #d2e0fb;
+  color: #23416d;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.metric-card .value,
+.ribbon-card .value {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #162033;
+}
+.ribbon-card .label,
+.metric-card .label {
+  display: block;
+  color: #607086;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.signal-card {
+  padding: 12px 14px;
+  background: #f8fbff;
+}
+.signal-card .label {
+  display: block;
+  color: #64748b;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.signal-card .value {
+  display: block;
+  margin-top: 6px;
+  color: #172033;
+  font-weight: 700;
+}
+.section-title {
+  margin: 0 0 14px;
+  color: #172033;
+}
+.section-copy {
+  margin: 0 0 18px;
+  color: #4b5b72;
+}
 """
 
 
@@ -223,6 +338,120 @@ def build_benchmark_demo(
         for action_id, label, usage in ACTION_REFERENCE:
             lines.append(f"- `{action_id}`: **{label}**. {usage}")
         return "\n".join(lines)
+
+    def _task_tone(task_id: int) -> tuple[str, str]:
+        tones = {
+            1: ("#2f6fed", "#dbe7ff"),
+            2: ("#0f9f8f", "#d7f5ef"),
+            3: ("#d97706", "#fff1d6"),
+            4: ("#9333ea", "#f0e3ff"),
+            5: ("#be185d", "#ffe2ef"),
+        }
+        return tones.get(task_id, ("#334155", "#e5edf7"))
+
+    def task_card_html(task_id: int) -> str:
+        card = TASK_CARDS[int(task_id)]
+        tone, soft = _task_tone(int(task_id))
+        diagnosis = ", ".join(card["diagnosis_signals"][:3])
+        recovery = ", ".join(card["recovery_requirements"][:3])
+        unsafe = ", ".join(card["unsafe_commit_conditions"][:2])
+        return f"""
+        <section class="task-card">
+          <div class="band" style="background:{tone};"></div>
+          <div class="content">
+            <h3>Task {task_id}: {card['incident_type']}</h3>
+            <p>{card['objective']}</p>
+            <div class="pill-row">
+              <span class="pill" style="background:{soft}; border-color:{soft}; color:{tone};">Threshold {card['success_threshold']}</span>
+              <span class="pill">Monitor {diagnosis}</span>
+            </div>
+            <div class="signal-grid">
+              <div class="signal-card">
+                <span class="label">Broken State</span>
+                <span class="value">{card['broken_state']}</span>
+              </div>
+              <div class="signal-card">
+                <span class="label">Recovery Target</span>
+                <span class="value">{recovery}</span>
+              </div>
+              <div class="signal-card">
+                <span class="label">Unsafe Commit</span>
+                <span class="value">{unsafe}</span>
+              </div>
+              <div class="signal-card">
+                <span class="label">Primary Signals</span>
+                <span class="value">{diagnosis}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+        """
+
+    def task_gallery_html() -> str:
+        cards = "".join(task_card_html(task_id) for task_id in (1, 2, 3))
+        return f"""
+        <section class="info-panel panel-body">
+          <h2 class="section-title">Validator Task Set</h2>
+          <p class="section-copy">
+            The public validator sees three task families with deterministic grading and distinct failure patterns.
+          </p>
+          <div class="task-gallery">{cards}</div>
+        </section>
+        """
+
+    def action_lane_html() -> str:
+        return """
+        <section class="info-panel panel-body">
+          <h2 class="section-title">Recovery Lanes</h2>
+          <div class="action-lane">
+            <div class="lane-card">
+              <h3>Inspect</h3>
+              <p>Start with schema validation and table inspection before making edits.</p>
+            </div>
+            <div class="lane-card">
+              <h3>Repair</h3>
+              <p>Resolve nulls, casting issues, duplicates, and contract drift in the active table.</p>
+            </div>
+            <div class="lane-card">
+              <h3>Stabilize</h3>
+              <p>Replay batches, refresh downstream assets, then commit only when readiness is clean.</p>
+            </div>
+          </div>
+        </section>
+        """
+
+    def benchmark_metric_html() -> str:
+        report = benchmark_runs.get("report", {})
+        rows = report.get("rows", []) if isinstance(report, dict) else []
+        adaptation_report = adaptation.get("report", {}) if isinstance(adaptation, dict) else {}
+        heldout_gap = adaptation_report.get("heldout_family_gap_task5", 0.0)
+        return f"""
+        <section class="info-panel panel-body">
+          <h2 class="section-title">Benchmark Snapshot</h2>
+          <div class="metric-grid">
+            <div class="metric-card">
+              <span class="label">Recorded Runs</span>
+              <span class="value">{len(rows)}</span>
+              <p>Benchmark result rows currently packaged with the Space.</p>
+            </div>
+            <div class="metric-card">
+              <span class="label">Scenario Splits</span>
+              <span class="value">2</span>
+              <p>Train and eval distributions are both available in the runtime.</p>
+            </div>
+            <div class="metric-card">
+              <span class="label">Held-Out Gap</span>
+              <span class="value">{heldout_gap:.2f}</span>
+              <p>Task 5 generalization penalty under held-out temporal families.</p>
+            </div>
+            <div class="metric-card">
+              <span class="label">Public Grade Routes</span>
+              <span class="value">3</span>
+              <p>Dedicated validator endpoints exposed at <code>/grade/task_n</code>.</p>
+            </div>
+          </div>
+        </section>
+        """
 
     def _hero_html() -> str:
         return f"""
@@ -328,7 +557,7 @@ def build_benchmark_demo(
         return (
             observation.model_dump(),
             state,
-            task_card_markdown(int(task_id)),
+            task_card_html(int(task_id)),
             live_status_html(state),
         )
 
@@ -358,6 +587,7 @@ def build_benchmark_demo(
     with gr.Blocks(title=title, css=CUSTOM_CSS, theme=gr.themes.Soft()) as blocks:
         with gr.Column(elem_classes="mario-shell"):
             gr.HTML(_hero_html())
+            gr.HTML(benchmark_metric_html())
             with gr.Row():
                 with gr.Column():
                     gr.HTML(workspace_summary_html())
@@ -378,6 +608,8 @@ def build_benchmark_demo(
                         </section>
                         """
                     )
+            gr.HTML(task_gallery_html())
+            gr.HTML(action_lane_html())
 
             with gr.Tabs():
                 with gr.Tab("Run Environment"):
@@ -391,17 +623,17 @@ def build_benchmark_demo(
                                     label="Task",
                                 )
                                 split = gr.Dropdown(["train", "eval"], value="eval", label="Split")
-                                seed = gr.Number(value=42, precision=0, label="Seed")
+                            seed = gr.Number(value=42, precision=0, label="Seed")
                             reset_btn = gr.Button("Reset environment", variant="primary")
                             status_md = gr.HTML(live_status_html(None))
-                            inspector_task_card = gr.Markdown(task_card_markdown(3), elem_classes="task-panel")
+                            inspector_task_card = gr.HTML(task_card_html(3))
                         with gr.Column(scale=3):
                             with gr.Accordion("Observation payload", open=True):
                                 observation_json = gr.JSON(label="Observation payload")
                             with gr.Accordion("Internal state", open=False):
                                 state_json = gr.JSON(label="Internal state")
 
-                    task_id.change(task_card_markdown, inputs=task_id, outputs=inspector_task_card)
+                    task_id.change(task_card_html, inputs=task_id, outputs=inspector_task_card)
                     reset_btn.click(
                         reset_episode,
                         inputs=[task_id, split, seed],
@@ -446,8 +678,8 @@ def build_benchmark_demo(
                                 value=1,
                                 label="Task card",
                             )
-                            task_card = gr.Markdown(task_card_markdown(1))
-                            task_picker.change(task_card_markdown, inputs=task_picker, outputs=task_card)
+                            task_card = gr.HTML(task_card_html(1))
+                            task_picker.change(task_card_html, inputs=task_picker, outputs=task_card)
                         with gr.Column(scale=3):
                             gr.Markdown(profile_markdown())
 
