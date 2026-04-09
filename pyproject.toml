@@ -38,7 +38,7 @@ package = false
 
 [tool.setuptools]
 include-package-data = true
-py-modules = ["app", "environment", "models", "client", "inference", "validate_submission"]
+py-modules = ["app", "environment", "models", "client", "inference", "validate_submission", "debug_trace"]
 
 [tool.setuptools.packages.find]
 include = ["server*", "benchmark*", "scripts*", "tasks*", "graders*"]
