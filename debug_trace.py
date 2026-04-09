@@ -10,7 +10,7 @@ from typing import Any
 
 
 def _enabled() -> bool:
-    value = os.getenv("MARIO_DEBUG_LOGS", "1").strip().lower()
+    value = os.getenv("MARIO_DEBUG_LOGS", "0").strip().lower()
     return value not in {"0", "false", "off", "no"}
 
 

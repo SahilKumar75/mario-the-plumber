@@ -296,6 +296,7 @@ def _emit_bracket_start(*, policy_mode: str, model_name_override: str | None) ->
 
 def _emit_bracket_step(
     *,
+    task_id: int,
     step: int,
     action: str,
     reward: float,
@@ -304,7 +305,8 @@ def _emit_bracket_step(
 ) -> None:
     error_value = _format_error(error)
     print(
-        f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error_value}",
+        f"[STEP] task=task_{task_id} step={step} action={action} reward={reward:.2f} "
+        f"done={str(done).lower()} error={error_value}",
         flush=True,
     )
 
@@ -367,6 +369,7 @@ def main() -> None:
         reward = float(event.get("reward", 0.0))
         protocol_rewards.append(reward)
         _emit_bracket_step(
+            task_id=int(event.get("task_id", 0) or 0),
             step=protocol_step_count,
             action=str(event.get("action", "null")),
             reward=reward,
