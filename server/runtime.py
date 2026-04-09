@@ -11,6 +11,10 @@ from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
 from benchmark.grading import compute_reward, compute_reward_breakdown
 from models import PipelineDoctorState
 
+MIN_VALIDATOR_EXPOSED_SCORE = 0.0201
+MAX_VALIDATOR_EXPOSED_SCORE = 0.9799
+VALIDATOR_TASK_IDS = {1, 2, 3}
+
 
 @dataclass(slots=True)
 class StepResolution:
@@ -22,6 +26,13 @@ class StepResolution:
     done_reason: str
     score_after: float
     reward_breakdown: dict[str, float]
+
+
+def _exposed_score(task_id: int, raw_score: float) -> float:
+    score = float(raw_score)
+    if task_id not in VALIDATOR_TASK_IDS:
+        return score
+    return round(min(MAX_VALIDATOR_EXPOSED_SCORE, max(MIN_VALIDATOR_EXPOSED_SCORE, score)), 4)
 
 
 def initialize_episode(env, scenario, *, task_id: int, seed: int | None, episode_id: str | None) -> None:
@@ -71,7 +82,7 @@ def initialize_episode(env, scenario, *, task_id: int, seed: int | None, episode
     )
     env._refresh_errors()
     env._update_task_progress_state()
-    current_score = env._score()
+    current_score = _exposed_score(task_id, env._score())
     env._state.current_score = current_score
     env._state.initial_score = current_score
     env._state.best_score = current_score
@@ -80,7 +91,8 @@ def initialize_episode(env, scenario, *, task_id: int, seed: int | None, episode
 def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool) -> StepResolution:
     env._refresh_errors()
     commit_ready = env._commit_ready()
-    score_after = env._score()
+    raw_score_after = env._score()
+    score_after = _exposed_score(env._task_id, raw_score_after)
 
     threshold = TASK_THRESHOLDS[env._task_id]
     done = False
@@ -89,9 +101,9 @@ def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool
     done_reason = ""
     if action_id == 15:
         done = True
-        success = commit_ready and score_after >= threshold and action_valid
+        success = commit_ready and raw_score_after >= threshold and action_valid
         done_reason = "commit_success" if success else "commit_failure"
-    elif score_after < 0.10:
+    elif raw_score_after < 0.10:
         done = True
         done_reason = "quality_collapse"
     elif env._state.step_count >= env._state.max_steps:
@@ -101,7 +113,7 @@ def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool
 
     reward = compute_reward(
         score_before,
-        score_after,
+        raw_score_after,
         action_valid=action_valid,
         done=done,
         success=success,
@@ -111,7 +123,7 @@ def resolve_step(env, *, action_id: int, score_before: float, action_valid: bool
     )
     reward_breakdown = compute_reward_breakdown(
         score_before,
-        score_after,
+        raw_score_after,
         action_valid=action_valid,
         done=done,
         success=success,

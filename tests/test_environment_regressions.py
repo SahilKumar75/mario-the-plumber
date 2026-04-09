@@ -330,3 +330,14 @@ def test_validator_grade_payloads_stay_strictly_inside_declared_score_bounds() -
                 payload = validator_grade_payload(task_id, split=split, seed=seed)
                 assert 0.02 < float(payload["score"]) < 0.98
                 assert 0.02 < float(payload["reward"]) < 0.98
+
+
+def test_validator_tasks_do_not_expose_boundary_scores_in_environment_rollouts() -> None:
+    env = PipelineDoctorEnvironment()
+    observation = env.reset(task_id=2, split="eval", seed=42)
+
+    while not env.state.done:
+        observation = env.step(heuristic_action_for(2, observation))
+
+    assert 0.02 < observation.current_score < 0.98
+    assert 0.02 < env.state.current_score < 0.98
