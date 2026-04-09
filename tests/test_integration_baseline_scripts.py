@@ -62,11 +62,17 @@ def test_inference_cli_heuristic_eval_smoke() -> None:
     assert steps
     assert sum(1 for step in steps if int(step["step"]) == 0) == 5
     action_steps = [step for step in steps if int(step["step"]) > 0]
-    assert [int(step["step"]) for step in action_steps] == list(range(1, len(action_steps) + 1))
     assert all("quality" in step for step in steps)
+    for task_id in {"task_1", "task_2", "task_3", "task_4", "task_5"}:
+        task_steps = [int(step["step"]) for step in action_steps if step["task"] == task_id]
+        if task_steps:
+            assert task_steps == list(range(1, len(task_steps) + 1))
+    zero_steps = [step for step in steps if int(step["step"]) == 0]
+    assert all("action" not in step for step in zero_steps)
+    assert all("reward" not in step for step in zero_steps)
     assert all("action" in step for step in action_steps)
     assert all("reward" in step for step in action_steps)
-    assert all("error" in step for step in action_steps)
+    assert all("done" in step for step in action_steps)
 
     end_payload = next(payload for tag, payload in protocol if tag == "END")
     assert int(end_payload["steps"]) == len(action_steps)

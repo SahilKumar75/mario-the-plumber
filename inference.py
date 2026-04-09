@@ -311,17 +311,21 @@ def _emit_bracket_step(
     task_id: int,
     step: int,
     quality: float,
-    action: str,
-    reward: float,
-    done: bool,
-    error: str | None,
+    action: str | None = None,
+    reward: float | None = None,
+    done: bool | None = None,
+    error: str | None = None,
 ) -> None:
-    error_value = _format_error(error)
-    print(
-        f"[STEP] task=task_{task_id} step={step} action={action} reward={reward:.2f} "
-        f"quality={quality:.4f} done={str(done).lower()} error={error_value}",
-        flush=True,
-    )
+    parts = [f"[STEP] task=task_{task_id}", f"step={step}", f"quality={quality:.4f}"]
+    if action is not None:
+        parts.append(f"action={action}")
+    if reward is not None:
+        parts.append(f"reward={reward:.2f}")
+    if done is not None:
+        parts.append(f"done={str(done).lower()}")
+    if error is not None:
+        parts.append(f"error={_format_error(error)}")
+    print(" ".join(parts), flush=True)
 
 
 def _emit_bracket_end(*, success: bool, steps: int, rewards: list[float]) -> None:
@@ -370,31 +374,24 @@ def main() -> None:
     args = parser.parse_args()
     strict_protocol = args.stdout_protocol == "strict"
     protocol_rewards: list[float] = []
-    protocol_step_count = 0
     payload: dict[str, object] = {}
     protocol_success = False
 
     def record_protocol_step(event: dict[str, object]) -> None:
-        nonlocal protocol_step_count
         if event.get("event") == "task_started":
             _emit_bracket_step(
                 task_id=int(event.get("task_id", 0) or 0),
                 step=0,
                 quality=float(event.get("quality", 0.0)),
-                action="reset",
-                reward=0.0,
-                done=False,
-                error=None,
             )
             return
         if event.get("event") != "step_complete":
             return
-        protocol_step_count += 1
         reward = float(event.get("reward", 0.0))
         protocol_rewards.append(reward)
         _emit_bracket_step(
             task_id=int(event.get("task_id", 0) or 0),
-            step=protocol_step_count,
+            step=int(event.get("step", 0) or 0),
             quality=float(event.get("quality", 0.0)),
             action=str(event.get("action", "null")),
             reward=reward,
