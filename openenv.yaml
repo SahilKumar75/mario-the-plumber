@@ -68,8 +68,7 @@ tasks:
     success_threshold: 0.85
     grader:
       type: function
-      endpoint: /grade/task_1
-      score_range: [0.02, 0.98]
+      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_1
 
   - id: task_2
     difficulty: medium
@@ -80,8 +79,7 @@ tasks:
     success_threshold: 0.80
     grader:
       type: function
-      endpoint: /grade/task_2
-      score_range: [0.02, 0.98]
+      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_2
 
   - id: task_3
     difficulty: hard
@@ -93,8 +91,7 @@ tasks:
     success_threshold: 0.75
     grader:
       type: function
-      endpoint: /grade/task_3
-      score_range: [0.02, 0.98]
+      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_3
 
 scoring:
   reward_range: [0.0, 1.0]
