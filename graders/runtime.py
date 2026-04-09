@@ -187,3 +187,31 @@ def validator_grade_payload(
         "score": score,
         "reward": reward,
     }
+
+
+def debug_grade_payload(
+    task_ref: int | str,
+    *,
+    episode_id: str | None = None,
+    seed: int = 42,
+    split: str = "train",
+) -> dict[str, object]:
+    """Return an expanded grader payload for local debugging."""
+
+    task_id = parse_task_id(task_ref)
+    result = grade_episode(task_id, episode_id=episode_id, seed=seed, split=split)
+    score = _strict_validator_score(float(result.get("score", 0.0)))
+    reward = _strict_validator_score(float(result.get("reward", score)))
+    return {
+        "task_id": int(result.get("task_id", task_id)),
+        "task_alias": str(result.get("task_alias", public_task_id(task_id))),
+        "episode_id": result.get("episode_id"),
+        "score": score,
+        "reward": reward,
+        "success": bool(result.get("success", False)),
+        "success_threshold": float(result.get("success_threshold", 0.0)),
+        "grader_mode": str(result.get("grader_mode", "unknown")),
+        "steps_taken": int(result.get("steps_taken", 0)),
+        "truncated": bool(result.get("truncated", False)),
+        "done_reason": str(result.get("done_reason", "")),
+    }

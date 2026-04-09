@@ -29,7 +29,7 @@ from benchmark.api_payloads import (
 )
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-from graders import validator_grade_payload
+from graders import debug_grade_payload, validator_grade_payload
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 from tasks.definitions import list_internal_task_ids, task_payloads, tasks_payload
 
@@ -283,6 +283,27 @@ def grader_get(task_id: str = Query(default="task_1"), episode_id: str | None = 
 def grade_task(task_id: str) -> dict[str, object]:
     try:
         return validator_grade_payload(task_id, split="eval", seed=42)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/grader/debug")
+def grader_debug(task_id: str = Query(default="task_1"), episode_id: str | None = Query(default=None)) -> dict[str, object]:
+    try:
+        return debug_grade_payload(
+            task_id,
+            episode_id=episode_id,
+            split="eval",
+            seed=42,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/grade-debug/{task_id}")
+def grade_task_debug(task_id: str) -> dict[str, object]:
+    try:
+        return debug_grade_payload(task_id, split="eval", seed=42)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

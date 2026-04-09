@@ -18,7 +18,9 @@ from server.app import (
     get_benchmark_runs,
     get_benchmark_tasks,
     grader as api_grader,
+    grader_debug as api_grader_debug,
     grade_task as api_grade_task,
+    grade_task_debug as api_grade_task_debug,
     health as api_health,
     main as api_main,
     metadata as api_metadata,
@@ -119,6 +121,16 @@ def grader_get(task_id: str = Query(default="task_1"), episode_id: str | None = 
 @app.get("/grade/{task_id}")
 def grade_task(task_id: str):
     return api_grade_task(task_id)
+
+
+@app.get("/grader/debug")
+def grader_debug(task_id: str = Query(default="task_1"), episode_id: str | None = Query(default=None)):
+    return api_grader_debug(task_id=task_id, episode_id=episode_id)
+
+
+@app.get("/grade-debug/{task_id}")
+def grade_task_debug(task_id: str):
+    return api_grade_task_debug(task_id)
 
 
 @app.post("/baseline")
