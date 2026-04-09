@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from threading import Lock
 from typing import Any
+from urllib.parse import urljoin
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.openapi.utils import get_openapi
@@ -88,6 +89,52 @@ def _validator_grade_payload(payload: dict[str, object]) -> dict[str, float]:
         "score": score,
         "reward": reward,
     }
+
+
+def _absolute_url(base_url: str, path: str) -> str:
+    if path.startswith(("http://", "https://")):
+        return path
+    return urljoin(base_url, path.lstrip("/"))
+
+
+def _absolutize_task_payloads(base_url: str, payload: dict[str, object]) -> dict[str, object]:
+    absolute_payload = dict(payload)
+
+    for task_id, task in payload.items():
+        if task_id == "tasks" or not isinstance(task, dict):
+            continue
+        task_copy = dict(task)
+        grade_endpoint = task_copy.get("grade_endpoint")
+        if isinstance(grade_endpoint, str):
+            task_copy["grade_endpoint"] = _absolute_url(base_url, grade_endpoint)
+        grader = task_copy.get("grader")
+        if isinstance(grader, dict):
+            grader_copy = dict(grader)
+            endpoint = grader_copy.get("endpoint")
+            if isinstance(endpoint, str):
+                grader_copy["endpoint"] = _absolute_url(base_url, endpoint)
+            task_copy["grader"] = grader_copy
+        absolute_payload[task_id] = task_copy
+
+    tasks_list = []
+    for task in payload.get("tasks", []):
+        if not isinstance(task, dict):
+            tasks_list.append(task)
+            continue
+        task_copy = dict(task)
+        grade_endpoint = task_copy.get("grade_endpoint")
+        if isinstance(grade_endpoint, str):
+            task_copy["grade_endpoint"] = _absolute_url(base_url, grade_endpoint)
+        grader = task_copy.get("grader")
+        if isinstance(grader, dict):
+            grader_copy = dict(grader)
+            endpoint = grader_copy.get("endpoint")
+            if isinstance(endpoint, str):
+                grader_copy["endpoint"] = _absolute_url(base_url, endpoint)
+            task_copy["grader"] = grader_copy
+        tasks_list.append(task_copy)
+    absolute_payload["tasks"] = tasks_list
+    return absolute_payload
 
 
 def _install_openapi_overrides() -> None:
@@ -226,9 +273,9 @@ def state() -> dict[str, Any]:
 
 
 @app.get("/tasks")
-def get_tasks() -> dict[str, object]:
+def get_tasks(request: Request) -> dict[str, object]:
     debug_log("tasks_request")
-    return tasks_payload()
+    return _absolutize_task_payloads(str(request.base_url), tasks_payload())
 
 
 @app.get("/validate")

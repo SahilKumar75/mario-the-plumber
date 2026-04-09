@@ -77,9 +77,9 @@ def state() -> dict[str, Any]:
 
 
 @app.get("/tasks")
-def tasks():
+def tasks(request: Request):
     debug_log("space_tasks_request")
-    return api_tasks()
+    return api_tasks(request)
 
 
 @app.get("/validate")

@@ -264,10 +264,10 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
     assert sum(1 for task in tasks["tasks"] if bool(task["grader"])) == 3
     assert tasks["task_1"]["grader"] == {
         "type": "function",
-        "endpoint": "/grade/task_1",
+        "endpoint": "http://testserver/grade/task_1",
     }
     assert "description" in tasks["task_1"]
-    assert tasks["task_1"]["grade_endpoint"] == "/grade/task_1"
+    assert tasks["task_1"]["grade_endpoint"] == "http://testserver/grade/task_1"
     assert tasks["task_1"]["difficulty"] == "easy"
 
     for task_id in ("task_1", "task_2", "task_3"):
