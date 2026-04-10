@@ -63,6 +63,39 @@ Run the baseline:
 python3 -m inference --policy-mode heuristic --split eval --seed 42
 ```
 
+## Compatibility Layer
+
+Mario now also exposes an openenv_hackthon-style root layout for interoperability,
+while preserving the original ETL logic and scoring internals.
+
+Compatibility files added at root:
+
+- `env.py` (root environment wrapper)
+- `server.py` (root compatibility API)
+- `app_ui.py` (compatibility UI for root API)
+- `requirements.txt` (root dependency list)
+- `tasks/task1_alert_prioritization.py`
+- `tasks/task2_threat_detection.py`
+- `tasks/task3_incident_response.py`
+
+Run compatibility API:
+
+```bash
+python3 server.py
+```
+
+Run compatibility UI:
+
+```bash
+python3 app_ui.py
+```
+
+Important:
+
+- Mario remains an ETL incident-repair environment.
+- Openenv_hackthon remains a SOC cybersecurity environment.
+- Compatibility aliases only remap task names; they do not replace ETL logic.
+
 The inference CLI emits strict `START` / `STEP` / `END` protocol lines by default for submission parsers.
 If you need legacy single-JSON output, add:
 

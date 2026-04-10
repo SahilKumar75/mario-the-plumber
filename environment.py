@@ -1,5 +1,5 @@
-"""Root environment entrypoint mirroring the benchmark environment implementation."""
+"""Legacy root environment entrypoint delegating to env.py compatibility wrapper."""
 
-from server.pipeline_doctor_environment import PipelineDoctorEnvironment
+from env import PipelineDoctorEnvironment
 
 __all__ = ["PipelineDoctorEnvironment"]

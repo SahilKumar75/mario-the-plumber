@@ -59,8 +59,25 @@ endpoints:
   tasks: /tasks
   grader: /grader
 
+compatibility_layer:
+  enabled: true
+  description: >
+    Openenv_hackthon-style root wrappers are exposed through env.py, server.py,
+    and app_ui.py while core ETL runtime logic remains unchanged.
+  root_endpoints:
+    health: /health
+    reset: /reset
+    step: /step
+    state: /state
+    tasks: /tasks
+  task_aliases:
+    alert_prioritization: task_1
+    threat_detection: task_2
+    incident_response: task_3
+
 tasks:
   - id: task_1
+    compatibility_id: alert_prioritization
     name: task_1
     difficulty: easy
     description: >
@@ -73,6 +90,7 @@ tasks:
       endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_1
 
   - id: task_2
+    compatibility_id: threat_detection
     name: task_2
     difficulty: medium
     description: >
@@ -85,6 +103,7 @@ tasks:
       endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_2
 
   - id: task_3
+    compatibility_id: incident_response
     name: task_3
     difficulty: hard
     description: >
