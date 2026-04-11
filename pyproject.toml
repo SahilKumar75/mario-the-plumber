@@ -21,6 +21,7 @@ dependencies = [
     "pandas>=2.2.0",
     "numpy>=1.26.0",
     "openai>=1.0.0",
+    "requests>=2.32.0",
 ]
 
 [project.optional-dependencies]
@@ -31,7 +32,8 @@ dev = [
 ]
 
 [project.scripts]
-server = "server.app:main"
+server = "server:main"
+legacy-server = "server.app:main"
 
 [tool.uv]
 package = false

@@ -12,9 +12,9 @@ version: "1.0.0"
 author: Sahil Kumar Singh
 type: space
 runtime: fastapi
-app: app:app
-port: 8000
-entry_point: inference.py
+app: server:app
+port: 7860
+entry_point: server.py
 
 observation_space:
   type: object
@@ -70,6 +70,7 @@ compatibility_layer:
     step: /step
     state: /state
     tasks: /tasks
+    grader: /grader
   task_aliases:
     alert_prioritization: task_1
     threat_detection: task_2

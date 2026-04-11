@@ -4,7 +4,7 @@ colorFrom: blue
 colorTo: green
 sdk: docker
 pinned: false
-app_port: 8000
+app_port: 7860
 tags:
   - openenv
   - data-engineering
@@ -31,13 +31,25 @@ Mario the Plumber is an **ELT/ETL pipeline incident fixer** delivered through Op
 
 ## Quick Start
 
-Run the API server:
+Run the compatibility API server (default runtime):
+
+```bash
+python3 server.py
+```
+
+Run the legacy ETL API server:
 
 ```bash
 python3 -m server.app
 ```
 
 Run the Space web app locally:
+
+```bash
+uvicorn server:app --host 0.0.0.0 --port 7860
+```
+
+Run the legacy Space app locally:
 
 ```bash
 uvicorn app:app --host 0.0.0.0 --port 8000
@@ -78,6 +90,16 @@ Compatibility files added at root:
 - `tasks/task2_threat_detection.py`
 - `tasks/task3_incident_response.py`
 
+Compatibility endpoints:
+
+- `/health`
+- `/tasks`
+- `/reset`
+- `/step`
+- `/state`
+- `/grader`
+- `/grade/{task_id}`
+
 Run compatibility API:
 
 ```bash
@@ -95,6 +117,7 @@ Important:
 - Mario remains an ETL incident-repair environment.
 - Openenv_hackthon remains a SOC cybersecurity environment.
 - Compatibility aliases only remap task names; they do not replace ETL logic.
+- Legacy ETL API remains available via `python3 -m server.app`.
 
 The inference CLI emits strict `START` / `STEP` / `END` protocol lines by default for submission parsers.
 If you need legacy single-JSON output, add:

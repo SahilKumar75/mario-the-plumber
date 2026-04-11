@@ -53,10 +53,18 @@ class StepRequest(BaseModel):
     action: Any
 
 
+class GraderRequest(BaseModel):
+    task_id: str = "alert_prioritization"
+    episode_id: str | None = None
+    seed: int = 42
+    split: str = Field(default="eval", pattern="^(train|eval)$")
+
+
 # Explicit rebuild avoids deferred annotation edge cases when module is loaded
 # via non-standard import paths during compatibility smoke checks.
 ResetRequest.model_rebuild()
 StepRequest.model_rebuild()
+GraderRequest.model_rebuild()
 
 
 app = FastAPI(
@@ -134,6 +142,11 @@ def tasks() -> dict[str, Any]:
                 "max_steps": task.max_steps,
                 "success_threshold": task.success_threshold,
                 "description": task.description,
+                "grader": {
+                    "type": "function",
+                    "endpoint": f"/grade/{compat_id}",
+                },
+                "grade_endpoint": f"/grade/{compat_id}",
             }
         )
     return {"tasks": payloads, "task_id_mapping": _COMPAT_TO_INTERNAL}
@@ -190,6 +203,37 @@ def state(
         "scenario_index": scenario_index,
         "state": current_state,
     }
+
+
+@app.post("/grader")
+def grader(req: GraderRequest) -> dict[str, float]:
+    _, public_alias = _normalize_task_ref(req.task_id)
+    from graders.runtime import validator_grade_payload
+
+    return validator_grade_payload(
+        public_alias,
+        episode_id=req.episode_id,
+        seed=req.seed,
+        split=req.split,
+    )
+
+
+@app.get("/grade/{task_id}")
+def grade_task(
+    task_id: str,
+    episode_id: str | None = Query(default=None),
+    seed: int = Query(default=42),
+    split: str = Query(default="eval"),
+) -> dict[str, float]:
+    _, public_alias = _normalize_task_ref(task_id)
+    from graders.runtime import validator_grade_payload
+
+    return validator_grade_payload(
+        public_alias,
+        episode_id=episode_id,
+        seed=seed,
+        split=split,
+    )
 
 
 def main() -> None:
