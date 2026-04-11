@@ -77,8 +77,9 @@ compatibility_layer:
     incident_response: task_3
 
 tasks:
-  - id: task_1
-    name: task_1
+  - id: alert_prioritization
+    internal_task_id: task_1
+    name: Alert Prioritization
     difficulty: easy
     description: >
       Stabilize a customer-ingestion table after missing values and light
@@ -87,10 +88,11 @@ tasks:
     success_threshold: 0.85
     grader:
       type: function
-      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_1
+      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/alert_prioritization
 
-  - id: task_2
-    name: task_2
+  - id: threat_detection
+    internal_task_id: task_2
+    name: Threat Detection
     difficulty: medium
     description: >
       Recover a transaction and events table after retry-path duplication,
@@ -99,10 +101,11 @@ tasks:
     success_threshold: 0.80
     grader:
       type: function
-      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_2
+      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/threat_detection
 
-  - id: task_3
-    name: task_3
+  - id: incident_response
+    internal_task_id: task_3
+    name: Incident Response
     difficulty: hard
     description: >
       Restore customer, product, and order tables after upstream regressions
@@ -112,7 +115,7 @@ tasks:
     success_threshold: 0.75
     grader:
       type: function
-      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/task_3
+      endpoint: https://sahilksingh-mario-the-plumber.hf.space/grade/incident_response
 
 scoring:
   reward_range: [0.0, 1.0]

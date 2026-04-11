@@ -10,7 +10,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -135,9 +135,9 @@ def tasks() -> dict[str, Any]:
         compat_id = _INTERNAL_TO_COMPAT.get(task.id, task.id)
         payloads.append(
             {
-                "id": task.id,
-                "task_id": task.id,
-                "compatibility_id": compat_id,
+                "id": compat_id,
+                "task_id": compat_id,
+                "internal_task_id": task.id,
                 "name": task.name,
                 "difficulty": task.difficulty,
                 "max_steps": task.max_steps,
@@ -145,16 +145,18 @@ def tasks() -> dict[str, Any]:
                 "description": task.description,
                 "grader": {
                     "type": "function",
-                    "endpoint": f"/grade/{task.id}",
+                    "endpoint": f"/grade/{compat_id}",
                 },
-                "grade_endpoint": f"/grade/{task.id}",
+                "grade_endpoint": f"/grade/{compat_id}",
             }
         )
     return {"tasks": payloads}
 
 
 @app.post("/reset")
-def reset(req: ResetRequest) -> dict[str, Any]:
+def reset(req: ResetRequest | None = Body(default=None)) -> dict[str, Any]:
+    if req is None:
+        req = ResetRequest()
     internal_id, public_alias = _normalize_task_ref(req.task_id)
     compat_id = _INTERNAL_TO_COMPAT.get(public_alias, public_alias)
     env = _get_env(public_alias, req.scenario_index)
@@ -162,8 +164,8 @@ def reset(req: ResetRequest) -> dict[str, Any]:
         observation = env.reset(task_id=internal_id, seed=req.seed, split=req.split)
     return {
         "observation": observation.model_dump(),
-        "task_id": public_alias,
-        "compatibility_id": compat_id,
+        "task_id": compat_id,
+        "internal_task_id": public_alias,
         "scenario_index": req.scenario_index,
     }
 
@@ -201,15 +203,17 @@ def state(
     with _ENV_LOCK:
         current_state = env.state.model_dump()
     return {
-        "task_id": public_task_id(internal_id),
-        "compatibility_id": compat_id,
+        "task_id": compat_id,
+        "internal_task_id": public_task_id(internal_id),
         "scenario_index": scenario_index,
         "state": current_state,
     }
 
 
 @app.post("/grader")
-def grader(req: GraderRequest) -> dict[str, float]:
+def grader(req: GraderRequest | None = Body(default=None)) -> dict[str, float]:
+    if req is None:
+        req = GraderRequest()
     _, public_alias = _normalize_task_ref(req.task_id)
     from graders.runtime import validator_grade_payload
 
