@@ -11,6 +11,8 @@ from __future__ import annotations
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
+from .pipeline_doctor_environment import PipelineDoctorEnvironment
+
 
 _COMPAT_MODULE = None
 
@@ -29,8 +31,6 @@ def _load_compat_module():
     spec.loader.exec_module(module)
     _COMPAT_MODULE = module
     return _COMPAT_MODULE
-
-from .pipeline_doctor_environment import PipelineDoctorEnvironment
 
 
 def __getattr__(name: str):
