@@ -9,8 +9,9 @@ from __future__ import annotations
 from pathlib import Path
 from threading import Lock
 from typing import Any
+from urllib.parse import urljoin
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -123,16 +124,45 @@ def _coerce_action(payload: Any) -> PipelineDoctorAction:
     raise HTTPException(status_code=422, detail="action must be an integer or object")
 
 
+def _absolute_url(base_url: str, path: str) -> str:
+    if path.startswith(("http://", "https://")):
+        return path
+    return urljoin(base_url, path.lstrip("/"))
+
+
+def _public_base_url(request: Request) -> str:
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    forwarded_host = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+
+    if forwarded_host:
+        scheme = forwarded_proto or "https"
+        return f"{scheme}://{forwarded_host}/"
+
+    base_url = str(request.base_url)
+    if "hf.space" in base_url and base_url.startswith("http://"):
+        return "https://" + base_url.removeprefix("http://")
+    return base_url
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "env": "Mario the Plumber ETL"}
 
 
 @app.get("/tasks")
-def tasks() -> dict[str, Any]:
+def tasks(request: Request) -> dict[str, Any]:
+    base_url = _public_base_url(request)
+    grader_lookup_url = _absolute_url(base_url, "/grader")
     payloads = []
     for task in list_tasks():
         compat_id = _INTERNAL_TO_COMPAT.get(task.id, task.id)
+        grade_path = f"/grade/{compat_id}"
+        grade_url = _absolute_url(base_url, grade_path)
+        grader_http = {
+            "type": "http",
+            "url": grade_url,
+            "method": "GET",
+        }
         payloads.append(
             {
                 "id": compat_id,
@@ -143,14 +173,41 @@ def tasks() -> dict[str, Any]:
                 "max_steps": task.max_steps,
                 "success_threshold": task.success_threshold,
                 "description": task.description,
-                "grader": {
+                "grader": grade_url,
+                "grader_enabled": True,
+                "grade_endpoint": grade_url,
+                "grader_url": grade_url,
+                "grader_method": "GET",
+                "graders": [grader_http],
+                "grader_config": grader_http,
+                "grader_function": {
                     "type": "function",
-                    "endpoint": f"/grade/{compat_id}",
+                    "endpoint": grade_url,
                 },
-                "grade_endpoint": f"/grade/{compat_id}",
+                "episode_grader": {
+                    "type": "http",
+                    "url": grader_lookup_url,
+                    "method": "POST",
+                    "content_type": "application/json",
+                    "payload_schema": {
+                        "task_id": compat_id,
+                        "episode_id": "<episode_id>",
+                    },
+                },
             }
         )
-    return {"tasks": payloads}
+    response_payload: dict[str, Any] = {"tasks": payloads}
+    for item in payloads:
+        response_payload[item["id"]] = {
+            "description": item["description"],
+            "grader": {
+                "type": "function",
+                "endpoint": item["grade_endpoint"],
+            },
+            "grade_endpoint": item["grade_endpoint"],
+            "difficulty": item["difficulty"],
+        }
+    return response_payload
 
 
 @app.post("/reset")
@@ -225,6 +282,23 @@ def grader(req: GraderRequest | None = Body(default=None)) -> dict[str, float]:
     )
 
 
+@app.get("/grader")
+def grader_get(
+    task_id: str = Query(default="alert_prioritization"),
+    episode_id: str | None = Query(default=None),
+    seed: int = Query(default=42),
+    split: str = Query(default="eval"),
+) -> dict[str, float]:
+    return grader(
+        GraderRequest(
+            task_id=task_id,
+            episode_id=episode_id,
+            seed=seed,
+            split=split,
+        )
+    )
+
+
 @app.get("/grade/{task_id}")
 def grade_task(
     task_id: str,
@@ -240,6 +314,19 @@ def grade_task(
         episode_id=episode_id,
         seed=seed,
         split=split,
+    )
+
+
+@app.post("/grade/{task_id}")
+def grade_task_post(
+    task_id: str,
+    req: GraderRequest | None = Body(default=None),
+) -> dict[str, float]:
+    return grade_task(
+        task_id,
+        episode_id=(req.episode_id if req is not None else None),
+        seed=(req.seed if req is not None else 42),
+        split=(req.split if req is not None else "eval"),
     )
 
 
