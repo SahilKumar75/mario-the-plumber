@@ -28,6 +28,7 @@ from benchmark.api_payloads import (
     benchmark_runs_payload,
     benchmark_tasks_payload,
 )
+from benchmark.task_ids import list_compat_task_ids
 from debug_trace import debug_log
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
@@ -112,24 +113,6 @@ def _public_base_url(request: Request) -> str:
 
 
 def _absolutize_task_payloads(base_url: str, payload: dict[str, object]) -> dict[str, object]:
-    absolute_payload = dict(payload)
-
-    for task_id, task in payload.items():
-        if task_id == "tasks" or not isinstance(task, dict):
-            continue
-        task_copy = dict(task)
-        grade_endpoint = task_copy.get("grade_endpoint")
-        if isinstance(grade_endpoint, str):
-            task_copy["grade_endpoint"] = _absolute_url(base_url, grade_endpoint)
-        grader = task_copy.get("grader")
-        if isinstance(grader, dict):
-            grader_copy = dict(grader)
-            endpoint = grader_copy.get("endpoint")
-            if isinstance(endpoint, str):
-                grader_copy["endpoint"] = _absolute_url(base_url, endpoint)
-            task_copy["grader"] = grader_copy
-        absolute_payload[task_id] = task_copy
-
     tasks_list = []
     for task in payload.get("tasks", []):
         if not isinstance(task, dict):
@@ -147,8 +130,7 @@ def _absolutize_task_payloads(base_url: str, payload: dict[str, object]) -> dict
                 grader_copy["endpoint"] = _absolute_url(base_url, endpoint)
             task_copy["grader"] = grader_copy
         tasks_list.append(task_copy)
-    absolute_payload["tasks"] = tasks_list
-    return absolute_payload
+    return {"tasks": tasks_list}
 
 
 def _install_openapi_overrides() -> None:
@@ -170,12 +152,17 @@ def _install_openapi_overrides() -> None:
                 {"type": "integer", "minimum": 1.0, "maximum": float(max(VALIDATOR_TASK_IDS))},
                 {
                     "type": "string",
-                    "enum": [str(task_id) for task_id in list_internal_task_ids()]
-                    + [f"task_{task_id}" for task_id in list_internal_task_ids()],
+                    "enum": list(
+                        dict.fromkeys(
+                            [str(task_id) for task_id in list_internal_task_ids()]
+                            + [f"task_{task_id}" for task_id in list_internal_task_ids()]
+                            + list_compat_task_ids()
+                        )
+                    ),
                 },
             ],
             "title": "Task Id",
-            "description": "Task selector supporting integer ids and aliases like task_1.",
+            "description": "Task selector supporting integer ids, task_N aliases, and compatibility ids.",
         }
         properties["split"] = {
             "type": "string",
@@ -187,6 +174,7 @@ def _install_openapi_overrides() -> None:
         reset_request["examples"] = [
             {"task_id": "task_1", "seed": 42, "split": "train"},
             {"task_id": 2, "seed": 42, "split": "eval"},
+            {"task_id": "threat_detection", "seed": 42, "split": "eval"},
         ]
         app.openapi_schema = schema
         return app.openapi_schema

@@ -6,6 +6,7 @@ from benchmark.api_payloads import benchmark_metadata_payload
 from benchmark.api_payloads import tasks_payload
 from benchmark.grading import score_task4
 from benchmark.policies.heuristics import heuristic_action_for
+from benchmark.task_ids import parse_task_id
 from graders import grade_episode
 from graders.runtime import validator_grade_payload
 from models import PipelineDoctorAction
@@ -256,19 +257,21 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
 
     tasks_response = client.get("/tasks")
     assert tasks_response.status_code == 200
-    tasks = tasks_response.json()
+    tasks_payload = tasks_response.json()
 
-    assert {"task_1", "task_2", "task_3"}.issubset(tasks)
-    assert "tasks" in tasks
-    assert len(tasks["tasks"]) == 3
-    assert sum(1 for task in tasks["tasks"] if bool(task["grader"])) == 3
-    assert tasks["task_1"]["grader"] == {
+    assert set(tasks_payload) == {"tasks"}
+    assert len(tasks_payload["tasks"]) == 3
+    assert sum(1 for task in tasks_payload["tasks"] if bool(task["grader"])) == 3
+
+    tasks_by_id = {task["id"]: task for task in tasks_payload["tasks"]}
+    assert set(tasks_by_id) == {"task_1", "task_2", "task_3"}
+    assert tasks_by_id["task_1"]["grader"] == {
         "type": "function",
         "endpoint": "http://testserver/grade/task_1",
     }
-    assert "description" in tasks["task_1"]
-    assert tasks["task_1"]["grade_endpoint"] == "http://testserver/grade/task_1"
-    assert tasks["task_1"]["difficulty"] == "easy"
+    assert "description" in tasks_by_id["task_1"]
+    assert tasks_by_id["task_1"]["grade_endpoint"] == "http://testserver/grade/task_1"
+    assert tasks_by_id["task_1"]["difficulty"] == "easy"
 
     for task_id in ("task_1", "task_2", "task_3"):
         grade_response = client.get(f"/grade/{task_id}")
@@ -276,9 +279,25 @@ def test_validator_facing_task_and_grade_endpoints_match_hackathon_pattern() -> 
         grade_payload = grade_response.json()
         _assert_minimal_validator_grade_payload(grade_payload)
 
+    for compat_task_id in ("alert_prioritization", "threat_detection", "incident_response"):
+        grade_response = client.get(f"/grade/{compat_task_id}")
+        assert grade_response.status_code == 200
+        _assert_minimal_validator_grade_payload(grade_response.json())
+
     grader_get_response = client.get("/grader", params={"task_id": "task_2"})
     assert grader_get_response.status_code == 200
     _assert_minimal_validator_grade_payload(grader_get_response.json())
+
+    grader_get_compat_response = client.get("/grader", params={"task_id": "threat_detection"})
+    assert grader_get_compat_response.status_code == 200
+    _assert_minimal_validator_grade_payload(grader_get_compat_response.json())
+
+
+def test_parse_task_id_accepts_global_compatibility_aliases() -> None:
+    assert parse_task_id("alert_prioritization") == 1
+    assert parse_task_id("threat_detection") == 2
+    assert parse_task_id("incident_response") == 3
+    assert parse_task_id("incident-response") == 3
 
 def test_root_task_registry_and_grader_modules_expose_validator_tasks_and_live_grades() -> None:
     client = TestClient(app)

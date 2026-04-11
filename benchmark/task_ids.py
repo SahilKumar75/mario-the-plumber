@@ -5,6 +5,13 @@ from __future__ import annotations
 from benchmark.catalog import TASK_NAMES
 
 
+COMPAT_TASK_ALIASES: dict[str, int] = {
+    "alert_prioritization": 1,
+    "threat_detection": 2,
+    "incident_response": 3,
+}
+
+
 def public_task_id(task_id: int) -> str:
     """Return the public-facing task alias used by validator-style endpoints."""
 
@@ -13,8 +20,14 @@ def public_task_id(task_id: int) -> str:
     return f"task_{task_id}"
 
 
+def list_compat_task_ids() -> list[str]:
+    """Return supported compatibility task aliases in stable order."""
+
+    return list(COMPAT_TASK_ALIASES)
+
+
 def parse_task_id(task_ref: int | str | None) -> int:
-    """Normalize numeric or alias task references to the internal integer id."""
+    """Normalize numeric, task_N, or compatibility aliases to the internal id."""
 
     if task_ref is None:
         return 1
@@ -24,7 +37,9 @@ def parse_task_id(task_ref: int | str | None) -> int:
         raise ValueError(f"Unsupported task_id: {task_ref}")
 
     normalized = str(task_ref).strip().lower().replace("-", "_")
-    if normalized.isdigit():
+    if normalized in COMPAT_TASK_ALIASES:
+        task_id = COMPAT_TASK_ALIASES[normalized]
+    elif normalized.isdigit():
         task_id = int(normalized)
     elif normalized.startswith("task_") and normalized[5:].isdigit():
         task_id = int(normalized[5:])

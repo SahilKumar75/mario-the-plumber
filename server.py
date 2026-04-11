@@ -135,8 +135,9 @@ def tasks() -> dict[str, Any]:
         compat_id = _INTERNAL_TO_COMPAT.get(task.id, task.id)
         payloads.append(
             {
-                "id": compat_id,
-                "internal_task_id": task.id,
+                "id": task.id,
+                "task_id": task.id,
+                "compatibility_id": compat_id,
                 "name": task.name,
                 "difficulty": task.difficulty,
                 "max_steps": task.max_steps,
@@ -144,24 +145,25 @@ def tasks() -> dict[str, Any]:
                 "description": task.description,
                 "grader": {
                     "type": "function",
-                    "endpoint": f"/grade/{compat_id}",
+                    "endpoint": f"/grade/{task.id}",
                 },
-                "grade_endpoint": f"/grade/{compat_id}",
+                "grade_endpoint": f"/grade/{task.id}",
             }
         )
-    return {"tasks": payloads, "task_id_mapping": _COMPAT_TO_INTERNAL}
+    return {"tasks": payloads}
 
 
 @app.post("/reset")
 def reset(req: ResetRequest) -> dict[str, Any]:
     internal_id, public_alias = _normalize_task_ref(req.task_id)
+    compat_id = _INTERNAL_TO_COMPAT.get(public_alias, public_alias)
     env = _get_env(public_alias, req.scenario_index)
     with _ENV_LOCK:
         observation = env.reset(task_id=internal_id, seed=req.seed, split=req.split)
     return {
         "observation": observation.model_dump(),
-        "task_id": _INTERNAL_TO_COMPAT.get(public_alias, public_alias),
-        "internal_task_id": public_alias,
+        "task_id": public_alias,
+        "compatibility_id": compat_id,
         "scenario_index": req.scenario_index,
     }
 
@@ -194,12 +196,13 @@ def state(
     scenario_index: int = Query(default=0),
 ) -> dict[str, Any]:
     internal_id, public_alias = _normalize_task_ref(task_id)
+    compat_id = _INTERNAL_TO_COMPAT.get(public_alias, public_alias)
     env = _get_env(public_alias, scenario_index)
     with _ENV_LOCK:
         current_state = env.state.model_dump()
     return {
-        "task_id": _INTERNAL_TO_COMPAT.get(public_alias, public_alias),
-        "internal_task_id": public_task_id(internal_id),
+        "task_id": public_task_id(internal_id),
+        "compatibility_id": compat_id,
         "scenario_index": scenario_index,
         "state": current_state,
     }

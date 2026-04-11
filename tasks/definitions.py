@@ -115,10 +115,8 @@ def task_payloads() -> list[dict[str, object]]:
 
 
 def tasks_payload() -> dict[str, object]:
-    payloads = {
-        task.id: task_payload(task)
-        for task in list_tasks()
+    payload = {
+        "tasks": task_payloads(),
     }
-    payloads["tasks"] = task_payloads()
-    debug_log("tasks_payload", count=len(payloads["tasks"]))
-    return payloads
+    debug_log("tasks_payload", count=len(payload["tasks"]))
+    return payload
