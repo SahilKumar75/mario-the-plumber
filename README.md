@@ -46,13 +46,13 @@ python3 -m server.app
 Run the Space web app locally:
 
 ```bash
-uvicorn server:app --host 0.0.0.0 --port 7860
+uvicorn app:app --host 0.0.0.0 --port 7860
 ```
 
-Run the legacy Space app locally:
+Run the compatibility API app locally:
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
+uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
 Validate the environment:

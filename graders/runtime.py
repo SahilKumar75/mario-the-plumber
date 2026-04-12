@@ -12,11 +12,9 @@ from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctor
 from tasks.definitions import build_task_definition
 
 #
-# Keep validator-facing scores strictly inside the declared OpenEnv range.
-# Some remote validators appear to reject endpoint-equal scores even when they
-# are still inside the broader (0, 1) interval.
-MIN_VALIDATOR_SCORE = 0.0201
-MAX_VALIDATOR_SCORE = 0.9799
+# Keep validator-facing scores bounded in the declared OpenEnv range.
+MIN_VALIDATOR_SCORE = 0.01
+MAX_VALIDATOR_SCORE = 0.99
 VALIDATOR_TASK_IDS = (1, 2, 3)
 
 
@@ -57,7 +55,7 @@ def _strict_validator_metrics(value):
 
 def _normalize_stored_payload(task_id: int, episode_id: str, payload: dict[str, object]) -> dict[str, object]:
     task = build_task_definition(public_task_id(task_id))
-    score = _strict_validator_score(float(payload.get("score", 0.0)))
+    score = _strict_validator_score(float(payload.get("score", MIN_VALIDATOR_SCORE)))
     success = bool(payload.get("success", False))
     result = {
         "task_id": task.internal_id,
@@ -234,7 +232,7 @@ def validator_grade_payload(
 
     task_id = parse_task_id(task_ref)
     result = grade_episode(task_id, episode_id=episode_id, seed=seed, split=split)
-    score = _strict_validator_score(float(result.get("score", 0.0)))
+    score = _strict_validator_score(float(result.get("score", MIN_VALIDATOR_SCORE)))
     reward = _strict_validator_score(float(result.get("reward", score)))
     payload = {
         "score": score,
@@ -255,7 +253,7 @@ def debug_grade_payload(
 
     task_id = parse_task_id(task_ref)
     result = grade_episode(task_id, episode_id=episode_id, seed=seed, split=split)
-    score = _strict_validator_score(float(result.get("score", 0.0)))
+    score = _strict_validator_score(float(result.get("score", MIN_VALIDATOR_SCORE)))
     reward = _strict_validator_score(float(result.get("reward", score)))
     payload = {
         "task_id": int(result.get("task_id", task_id)),

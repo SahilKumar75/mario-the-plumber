@@ -84,7 +84,7 @@ def _tasks() -> list[dict[str, object]]:
 
 
 def _validator_grade_payload(payload: dict[str, object]) -> dict[str, float]:
-    score = float(payload.get("score", 0.0))
+    score = float(payload.get("score", 0.01))
     reward = float(payload.get("reward", score))
     return {
         "score": score,

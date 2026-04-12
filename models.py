@@ -46,7 +46,7 @@ class MarioThePlumberObservation(Observation):
 
     incident_type: str = Field(default="")
     incident_summary: str = Field(default="")
-    current_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    current_score: float = Field(default=0.01, ge=0.01, le=0.99)
     missing_rate: float = Field(default=0.0, ge=0.0, le=1.0)
     duplicate_rate: float = Field(default=0.0, ge=0.0, le=1.0)
     type_violations: int = Field(default=0, ge=0)
@@ -121,9 +121,9 @@ class MarioThePlumberState(State):
     task_id: int = Field(default=1, ge=1, le=5)
     seed: int | None = None
     max_steps: int = Field(default=10, ge=1)
-    current_score: float = Field(default=0.0, ge=0.0, le=1.0)
-    initial_score: float = Field(default=0.0, ge=0.0, le=1.0)
-    best_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    current_score: float = Field(default=0.01, ge=0.01, le=0.99)
+    initial_score: float = Field(default=0.01, ge=0.01, le=0.99)
+    best_score: float = Field(default=0.01, ge=0.01, le=0.99)
     done: bool = False
     success: bool | None = None
     active_table: str = Field(default="single")

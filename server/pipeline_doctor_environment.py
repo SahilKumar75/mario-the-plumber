@@ -32,7 +32,7 @@ from benchmark.progress import update_task_progress_state
 from benchmark.task_ids import parse_task_id
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
 from server.data_generator import generate_scenario
-from server.runtime import initialize_episode, resolve_step
+from server.runtime import MIN_VALIDATOR_EXPOSED_SCORE, initialize_episode, resolve_step
 
 EPISODE_SUMMARIES: dict[str, dict[str, object]] = {}
 
@@ -60,9 +60,9 @@ class PipelineDoctorEnvironment(
             task_id=1,
             seed=None,
             max_steps=MAX_STEPS[1],
-            current_score=0.0,
-            initial_score=0.0,
-            best_score=0.0,
+            current_score=MIN_VALIDATOR_EXPOSED_SCORE,
+            initial_score=MIN_VALIDATOR_EXPOSED_SCORE,
+            best_score=MIN_VALIDATOR_EXPOSED_SCORE,
             done=False,
             success=None,
             active_table="single",

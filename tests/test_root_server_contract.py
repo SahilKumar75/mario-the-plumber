@@ -5,6 +5,10 @@ from fastapi.testclient import TestClient
 from server import app as root_app
 
 
+MIN_SCORE_BOUND = 0.01
+MAX_SCORE_BOUND = 0.99
+
+
 def test_root_reset_and_grader_accept_missing_or_null_body() -> None:
     client = TestClient(root_app)
 
@@ -24,8 +28,8 @@ def test_root_reset_and_grader_accept_missing_or_null_body() -> None:
     assert grader_without_body.status_code == 200
     grader_payload = grader_without_body.json()
     assert set(grader_payload) == {"score", "reward"}
-    assert 0.0 < float(grader_payload["score"]) < 1.0
-    assert 0.0 < float(grader_payload["reward"]) < 1.0
+    assert MIN_SCORE_BOUND <= float(grader_payload["score"]) <= MAX_SCORE_BOUND
+    assert MIN_SCORE_BOUND <= float(grader_payload["reward"]) <= MAX_SCORE_BOUND
 
     grader_with_null_body = client.post(
         "/grader",
@@ -35,8 +39,8 @@ def test_root_reset_and_grader_accept_missing_or_null_body() -> None:
     assert grader_with_null_body.status_code == 200
     grader_null_payload = grader_with_null_body.json()
     assert set(grader_null_payload) == {"score", "reward"}
-    assert 0.0 < float(grader_null_payload["score"]) < 1.0
-    assert 0.0 < float(grader_null_payload["reward"]) < 1.0
+    assert MIN_SCORE_BOUND <= float(grader_null_payload["score"]) <= MAX_SCORE_BOUND
+    assert MIN_SCORE_BOUND <= float(grader_null_payload["reward"]) <= MAX_SCORE_BOUND
 
 
 def test_root_tasks_and_state_follow_openenv_style_ids() -> None:
@@ -92,19 +96,19 @@ def test_root_grade_endpoints_support_get_and_post() -> None:
     assert get_response.status_code == 200
     get_payload = get_response.json()
     assert set(get_payload) == {"score", "reward"}
-    assert 0.0 < float(get_payload["score"]) < 1.0
-    assert 0.0 < float(get_payload["reward"]) < 1.0
+    assert MIN_SCORE_BOUND <= float(get_payload["score"]) <= MAX_SCORE_BOUND
+    assert MIN_SCORE_BOUND <= float(get_payload["reward"]) <= MAX_SCORE_BOUND
 
     post_response = client.post("/grade/alert_prioritization")
     assert post_response.status_code == 200
     post_payload = post_response.json()
     assert set(post_payload) == {"score", "reward"}
-    assert 0.0 < float(post_payload["score"]) < 1.0
-    assert 0.0 < float(post_payload["reward"]) < 1.0
+    assert MIN_SCORE_BOUND <= float(post_payload["score"]) <= MAX_SCORE_BOUND
+    assert MIN_SCORE_BOUND <= float(post_payload["reward"]) <= MAX_SCORE_BOUND
 
     grader_get_response = client.get("/grader", params={"task_id": "threat_detection"})
     assert grader_get_response.status_code == 200
     grader_get_payload = grader_get_response.json()
     assert set(grader_get_payload) == {"score", "reward"}
-    assert 0.0 < float(grader_get_payload["score"]) < 1.0
-    assert 0.0 < float(grader_get_payload["reward"]) < 1.0
+    assert MIN_SCORE_BOUND <= float(grader_get_payload["score"]) <= MAX_SCORE_BOUND
+    assert MIN_SCORE_BOUND <= float(grader_get_payload["reward"]) <= MAX_SCORE_BOUND

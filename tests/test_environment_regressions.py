@@ -16,6 +16,10 @@ from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 from tasks.definitions import list_task_ids
 
 
+MIN_SCORE_BOUND = 0.01
+MAX_SCORE_BOUND = 0.99
+
+
 def _assert_nested_scores_strictly_inside_open_interval(value) -> None:
     if isinstance(value, dict):
         for item in value.values():
@@ -24,13 +28,13 @@ def _assert_nested_scores_strictly_inside_open_interval(value) -> None:
         for item in value:
             _assert_nested_scores_strictly_inside_open_interval(item)
     elif isinstance(value, float):
-        assert 0.0 < value < 1.0
+        assert MIN_SCORE_BOUND <= value <= MAX_SCORE_BOUND
 
 
 def _assert_minimal_validator_grade_payload(payload: dict[str, object]) -> None:
     assert set(payload) == {"score", "reward"}
-    assert 0.0 < float(payload["score"]) < 1.0
-    assert 0.0 < float(payload["reward"]) < 1.0
+    assert MIN_SCORE_BOUND <= float(payload["score"]) <= MAX_SCORE_BOUND
+    assert MIN_SCORE_BOUND <= float(payload["reward"]) <= MAX_SCORE_BOUND
 
 
 def test_reset_and_step_lifecycle_invariants() -> None:
@@ -307,16 +311,16 @@ def test_root_task_registry_and_grader_modules_expose_validator_tasks_and_live_g
 
     for task_id in ["task_1", "task_2", "task_3"]:
         payload = grade_episode(task_id, split="eval", seed=42)
-        assert 0.0 < payload["score"] < 1.0
-        assert 0.0 < payload["reward"] < 1.0
+        assert MIN_SCORE_BOUND <= payload["score"] <= MAX_SCORE_BOUND
+        assert MIN_SCORE_BOUND <= payload["reward"] <= MAX_SCORE_BOUND
         _assert_nested_scores_strictly_inside_open_interval(payload["breakdown"])
         _assert_nested_scores_strictly_inside_open_interval(payload["objective_breakdown"])
         assert payload["grader_mode"] == "live"
 
     for task_id in ["task_4", "task_5"]:
         payload = grade_episode(task_id, split="eval", seed=42)
-        assert 0.0 < payload["score"] < 1.0
-        assert 0.0 < payload["reward"] < 1.0
+        assert MIN_SCORE_BOUND <= payload["score"] <= MAX_SCORE_BOUND
+        assert MIN_SCORE_BOUND <= payload["reward"] <= MAX_SCORE_BOUND
         _assert_nested_scores_strictly_inside_open_interval(payload["breakdown"])
         _assert_nested_scores_strictly_inside_open_interval(payload["objective_breakdown"])
         assert payload["grader_mode"] in {"live", "live-fallback"}
@@ -347,8 +351,8 @@ def test_validator_grade_payloads_stay_strictly_inside_declared_score_bounds() -
         for seed in range(1, 11):
             for task_id in ("task_1", "task_2", "task_3"):
                 payload = validator_grade_payload(task_id, split=split, seed=seed)
-                assert 0.02 < float(payload["score"]) < 0.98
-                assert 0.02 < float(payload["reward"]) < 0.98
+                assert MIN_SCORE_BOUND <= float(payload["score"]) <= MAX_SCORE_BOUND
+                assert MIN_SCORE_BOUND <= float(payload["reward"]) <= MAX_SCORE_BOUND
 
 
 def test_validator_tasks_do_not_expose_boundary_scores_in_environment_rollouts() -> None:
@@ -358,5 +362,5 @@ def test_validator_tasks_do_not_expose_boundary_scores_in_environment_rollouts()
     while not env.state.done:
         observation = env.step(heuristic_action_for(2, observation))
 
-    assert 0.02 < observation.current_score < 0.98
-    assert 0.02 < env.state.current_score < 0.98
+    assert MIN_SCORE_BOUND <= observation.current_score <= MAX_SCORE_BOUND
+    assert MIN_SCORE_BOUND <= env.state.current_score <= MAX_SCORE_BOUND

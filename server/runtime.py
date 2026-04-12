@@ -11,9 +11,8 @@ from benchmark.catalog import MAX_STEPS, TASK_THRESHOLDS
 from benchmark.grading import compute_reward, compute_reward_breakdown
 from models import PipelineDoctorState
 
-MIN_VALIDATOR_EXPOSED_SCORE = 0.0201
-MAX_VALIDATOR_EXPOSED_SCORE = 0.9799
-VALIDATOR_TASK_IDS = {1, 2, 3}
+MIN_VALIDATOR_EXPOSED_SCORE = 0.01
+MAX_VALIDATOR_EXPOSED_SCORE = 0.99
 
 
 @dataclass(slots=True)
@@ -29,9 +28,8 @@ class StepResolution:
 
 
 def _exposed_score(task_id: int, raw_score: float) -> float:
+    del task_id
     score = float(raw_score)
-    if task_id not in VALIDATOR_TASK_IDS:
-        return score
     return round(min(MAX_VALIDATOR_EXPOSED_SCORE, max(MIN_VALIDATOR_EXPOSED_SCORE, score)), 4)
 
 
@@ -54,9 +52,9 @@ def initialize_episode(env, scenario, *, task_id: int, seed: int | None, episode
         seed=seed,
         step_count=0,
         max_steps=MAX_STEPS[task_id],
-        current_score=0.0,
-        initial_score=0.0,
-        best_score=0.0,
+        current_score=MIN_VALIDATOR_EXPOSED_SCORE,
+        initial_score=MIN_VALIDATOR_EXPOSED_SCORE,
+        best_score=MIN_VALIDATOR_EXPOSED_SCORE,
         done=False,
         success=None,
         active_table=scenario.active_table,
