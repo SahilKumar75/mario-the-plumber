@@ -16,8 +16,10 @@ def _run_command(*args: str) -> str:
 def _run_command_with_env(*args: str, include_hf_token: bool = True) -> str:
     env = os.environ.copy()
     if include_hf_token:
+        env.setdefault("API_KEY", "test-token")
         env.setdefault("HF_TOKEN", "test-token")
     else:
+        env.pop("API_KEY", None)
         env.pop("HF_TOKEN", None)
     completed = subprocess.run(
         [sys.executable, *args],
@@ -68,7 +70,7 @@ def test_inference_cli_heuristic_eval_smoke() -> None:
     starts = [payload for tag, payload in protocol if tag == "START"]
     assert len(starts) == 3
     assert [payload["task"] for payload in starts] == ["easy", "medium", "hard"]
-    assert all("env" not in payload for payload in starts)
+    assert all("env" in payload for payload in starts)
     assert all("model" in payload for payload in starts)
 
     blocks: list[tuple[dict[str, str], list[dict[str, str]], dict[str, str]]] = []
@@ -93,11 +95,13 @@ def test_inference_cli_heuristic_eval_smoke() -> None:
         step_numbers = [int(step["step"]) for step in step_payloads]
         assert step_numbers == list(range(1, len(step_payloads) + 1))
         assert all("action" in step for step in step_payloads)
-        assert all("(" in step["action"] and ")" in step["action"] for step in step_payloads)
+        assert all(step["action"] for step in step_payloads)
         assert all("reward" in step for step in step_payloads)
         assert all("done" in step for step in step_payloads)
         assert all("error" in step for step in step_payloads)
         assert int(end_payload["steps"]) == len(step_payloads)
+        assert "score" in end_payload
+        assert 0.01 <= float(end_payload["score"]) <= 0.99
         rewards = [value for value in end_payload["rewards"].split(",") if value]
         assert len(rewards) == len(step_payloads)
         assert end_payload["success"] in {"true", "false"}
@@ -167,6 +171,7 @@ def test_inference_cli_hybrid_without_hf_token_falls_back_to_heuristic() -> None
 
 def test_inference_cli_pure_llm_without_hf_token_fails() -> None:
     env = os.environ.copy()
+    env.pop("API_KEY", None)
     env.pop("HF_TOKEN", None)
     completed = subprocess.run(
         [
@@ -190,7 +195,7 @@ def test_inference_cli_pure_llm_without_hf_token_fails() -> None:
     )
 
     assert completed.returncode != 0
-    assert "HF_TOKEN environment variable is required for pure-llm policy mode" in (
+    assert "API_KEY (or HF_TOKEN) environment variable is required for pure-llm policy mode" in (
         completed.stderr + completed.stdout
     )
 

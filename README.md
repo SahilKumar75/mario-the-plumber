@@ -69,10 +69,22 @@ python3 -m venv .venv
 ./.venv/bin/python -m pytest tests -q
 ```
 
+Set the default LLM model (used by `inference.py` and Space baseline runs):
+
+```bash
+export MODEL_NAME=deepseek-ai/DeepSeek-V3-0324
+```
+
 Run the baseline:
 
 ```bash
 python3 -m inference --policy-mode heuristic --split eval --seed 42
+```
+
+Run the baseline with an explicit model override:
+
+```bash
+python3 -m inference --policy-mode hybrid --split eval --seed 42 --model-name deepseek-ai/DeepSeek-V3-0324
 ```
 
 ## Compatibility Layer

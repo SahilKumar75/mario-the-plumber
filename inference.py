@@ -29,11 +29,13 @@ BENCHMARK_TASK_IDS = tuple(sorted(TASK_NAMES))
 PROTOCOL_TASK_IDS = (1, 2, 3)
 
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
-DEFAULT_MODEL_NAME = "Qwen3-VL-30B"
+DEFAULT_MODEL_NAME = "deepseek-ai/DeepSeek-V3-0324"
 API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
 MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
+API_KEY = os.getenv("API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+PROTOCOL_ENV_NAME = os.getenv("PROTOCOL_ENV_NAME", "pipeline_doctor")
 
 
 def _contains_non_ascii(value: str) -> bool:
@@ -50,7 +52,7 @@ def _invalid_api_key_value(value: str) -> bool:
 
 def _resolve_runtime_llm_config(model_override: str | None) -> tuple[str | None, str | None, str]:
     api_base_url = (os.getenv("API_BASE_URL", API_BASE_URL) or API_BASE_URL).strip()
-    api_key = (os.getenv("HF_TOKEN") or HF_TOKEN or "").strip()
+    api_key = (os.getenv("API_KEY") or API_KEY or os.getenv("HF_TOKEN") or HF_TOKEN or "").strip()
     selected_model = (model_override or os.getenv("MODEL_NAME", MODEL_NAME) or MODEL_NAME).strip()
     debug_log(
         "resolve_runtime_llm_config",
@@ -69,10 +71,10 @@ def _validate_runtime_llm_config(api_key: str | None, selected_model: str | None
         selected_model=selected_model,
     )
     if not api_key or not selected_model:
-        raise RuntimeError("HF_TOKEN environment variable is required for pure-llm policy mode")
+        raise RuntimeError("API_KEY (or HF_TOKEN) environment variable is required for pure-llm policy mode")
     if _invalid_api_key_value(api_key):
         raise RuntimeError(
-            "HF_TOKEN contains invalid characters. "
+            "API_KEY/HF_TOKEN contains invalid characters. "
             "Re-export token in a clean shell; hidden Unicode (for example U+2028) often causes this."
         )
     if _contains_non_ascii(selected_model):
@@ -116,14 +118,7 @@ def _format_action(action: PipelineDoctorAction) -> str:
 
 def _format_protocol_action(action: PipelineDoctorAction) -> str:
     action_name = ACTION_NAMES.get(action.action_id, f"action_{action.action_id}")
-    args: list[str] = []
-    if action.target_column is not None:
-        args.append(repr(str(action.target_column)))
-    if action.new_name is not None:
-        args.append(repr(str(action.new_name)))
-    if action.column_order:
-        args.append(repr(",".join(action.column_order)))
-    return f"{action_name}({','.join(args)})"
+    return action_name
 
 
 def _format_error(error: str | None) -> str:
@@ -160,7 +155,7 @@ def run_baseline(
             api_key, selected_model = _sanitize_optional_llm_config(api_key, selected_model)
         client = _build_client(api_key=api_key, selected_model=selected_model, api_base_url=api_base_url)
         if _policy_requires_llm(policy_mode) and client is None:
-            raise RuntimeError("HF_TOKEN environment variable is required for pure-llm policy mode")
+            raise RuntimeError("API_KEY (or HF_TOKEN) environment variable is required for pure-llm policy mode")
 
     results: list[dict[str, object]] = []
     action_sources: Counter[str] = Counter()
@@ -350,7 +345,7 @@ def _task_protocol_label(task_id: int) -> str:
 def _emit_bracket_start(*, task_id: int, policy_mode: str, model_name_override: str | None) -> None:
     model_label = _protocol_model_label(policy_mode, model_name_override)
     print(
-        f"[START] task={_task_protocol_label(task_id)} model={model_label}",
+        f"[START] task={_task_protocol_label(task_id)} env={PROTOCOL_ENV_NAME} model={model_label}",
         flush=True,
     )
 
@@ -364,7 +359,7 @@ def _emit_bracket_step(
     error: str | None,
 ) -> None:
     parts = [
-        "    [STEP]",
+        "[STEP]",
         f"step={step}",
         f"action={action}",
         f"reward={reward:.2f}",
@@ -374,10 +369,10 @@ def _emit_bracket_step(
     print(" ".join(parts), flush=True)
 
 
-def _emit_bracket_end(*, success: bool, steps: int, rewards: list[float]) -> None:
+def _emit_bracket_end(*, success: bool, steps: int, score: float, rewards: list[float]) -> None:
     rewards_blob = ",".join(f"{value:.2f}" for value in rewards) if rewards else "0.00"
     print(
-        f"    [END] success={str(success).lower()} steps={steps} rewards={rewards_blob}",
+        f"[END] success={str(success).lower()} steps={steps} score={score:.4f} rewards={rewards_blob}",
         flush=True,
     )
 
@@ -445,6 +440,7 @@ def main() -> None:
             _emit_bracket_end(
                 success=bool(event.get("success", False)),
                 steps=int(event.get("steps", 0) or 0),
+                score=float(event.get("score", 0.0) or 0.0),
                 rewards=protocol_rewards_by_task.get(task_id, []),
             )
             print("", flush=True)

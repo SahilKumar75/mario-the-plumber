@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,7 @@ from models import PipelineDoctorAction
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "docs" / "assets"
+SPACE_MODEL_NAME = os.getenv("MODEL_NAME", "deepseek-ai/DeepSeek-V3-0324")
 ACTION_EXAMPLES = [
     [14, "", "", ""],
     [16, "", "", ""],
@@ -545,7 +547,7 @@ def build_benchmark_demo(
             Reset a scenario, inspect the observation contract, apply repair actions,
             and decide when the pipeline is safe to commit.
             </div>
-            <div style="display:grid; grid-template-columns:repeat(3, minmax(160px,1fr)); gap:14px; flex:1; min-width:360px;">
+            <div style="display:grid; grid-template-columns:repeat(4, minmax(150px,1fr)); gap:14px; flex:1; min-width:520px;">
               <div style="{_mini_stat_style(dark=True)}">
                 <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#c8d6e5;">Runtime</div>
                 <div style="margin-top:8px; font-size:22px; font-weight:700;">{runtime_meta['runtime_mode'].title()}</div>
@@ -557,6 +559,10 @@ def build_benchmark_demo(
               <div style="{_mini_stat_style(dark=True)}">
                 <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#c8d6e5;">Action Space</div>
                 <div style="margin-top:8px; font-size:22px; font-weight:700;">20 Operations</div>
+              </div>
+              <div style="{_mini_stat_style(dark=True)}">
+                <div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#c8d6e5;">Default Model</div>
+                <div style="margin-top:8px; font-size:14px; font-weight:700; line-height:1.3;">{SPACE_MODEL_NAME}</div>
               </div>
             </div>
           </div>
@@ -628,6 +634,7 @@ def build_benchmark_demo(
           <ul style="margin:0; padding-left:18px; color:#334155; line-height:1.8;">
             <li>Benchmark version: <strong>{runtime_meta['benchmark_version']}</strong></li>
             <li>Runtime mode: <strong>{runtime_meta['runtime_mode']}</strong></li>
+            <li>Default model: <strong>{SPACE_MODEL_NAME}</strong></li>
             <li>Total benchmark tasks: <strong>{len(benchmark_meta['task_names'])}</strong></li>
             <li>Available splits: <strong>train</strong> and <strong>eval</strong></li>
             <li>Validator-facing tasks: <strong>task_1</strong> to <strong>task_3</strong></li>
