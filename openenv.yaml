@@ -1,6 +1,6 @@
 spec_version: 1
 # Debug note: runtime diagnostics are emitted by debug_trace.py to stderr from
-# app.py, server/app.py, graders/runtime.py, inference.py, client.py, and models.py.
+# app.py, server/app.py, grader.py, inference.py, client.py, and models.py.
 name: Mario the Plumber
 description: >
   An OpenEnv-compliant environment for ETL incident diagnosis and recovery.

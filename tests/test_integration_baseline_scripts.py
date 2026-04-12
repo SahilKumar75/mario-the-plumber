@@ -10,8 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _run_command(*args: str) -> str:
+    return _run_command_with_env(*args)
+
+
+def _run_command_with_env(*args: str, include_hf_token: bool = True) -> str:
     env = os.environ.copy()
-    env.setdefault("HF_TOKEN", "test-token")
+    if include_hf_token:
+        env.setdefault("HF_TOKEN", "test-token")
+    else:
+        env.pop("HF_TOKEN", None)
     completed = subprocess.run(
         [sys.executable, *args],
         cwd=ROOT,
@@ -25,6 +32,10 @@ def _run_command(*args: str) -> str:
 
 def _run_json_command(*args: str) -> dict[str, object]:
     return json.loads(_run_command(*args))
+
+
+def _run_json_command_with_env(*args: str, include_hf_token: bool = True) -> dict[str, object]:
+    return json.loads(_run_command_with_env(*args, include_hf_token=include_hf_token))
 
 
 def _parse_bracket_protocol_line(line: str) -> tuple[str, dict[str, str]]:
@@ -54,30 +65,42 @@ def test_inference_cli_heuristic_eval_smoke() -> None:
     ).splitlines()
     protocol = [_parse_bracket_protocol_line(line) for line in lines if line.strip()]
 
-    assert protocol[0][0] == "START"
-    assert protocol[0][1]["env"] == "benchmark"
-    assert protocol[0][1]["task"] == "mario_the_plumber"
+    starts = [payload for tag, payload in protocol if tag == "START"]
+    assert len(starts) == 3
+    assert [payload["task"] for payload in starts] == ["easy", "medium", "hard"]
+    assert all("env" not in payload for payload in starts)
+    assert all("model" in payload for payload in starts)
 
-    steps = [payload for tag, payload in protocol if tag == "STEP"]
-    assert steps
-    assert sum(1 for step in steps if int(step["step"]) == 0) == 5
-    action_steps = [step for step in steps if int(step["step"]) > 0]
-    assert all("quality" in step for step in steps)
-    for task_id in {"task_1", "task_2", "task_3", "task_4", "task_5"}:
-        task_steps = [int(step["step"]) for step in action_steps if step["task"] == task_id]
-        if task_steps:
-            assert task_steps == list(range(1, len(task_steps) + 1))
-    zero_steps = [step for step in steps if int(step["step"]) == 0]
-    assert all("action" not in step for step in zero_steps)
-    assert all("reward" not in step for step in zero_steps)
-    assert all("action" in step for step in action_steps)
-    assert all("reward" in step for step in action_steps)
-    assert all("done" in step for step in action_steps)
+    blocks: list[tuple[dict[str, str], list[dict[str, str]], dict[str, str]]] = []
+    index = 0
+    while index < len(protocol):
+        tag, start_payload = protocol[index]
+        assert tag == "START"
+        index += 1
+        step_payloads: list[dict[str, str]] = []
+        while index < len(protocol) and protocol[index][0] == "STEP":
+            step_payloads.append(protocol[index][1])
+            index += 1
+        assert index < len(protocol)
+        end_tag, end_payload = protocol[index]
+        assert end_tag == "END"
+        index += 1
+        blocks.append((start_payload, step_payloads, end_payload))
 
-    end_payload = next(payload for tag, payload in protocol if tag == "END")
-    assert int(end_payload["steps"]) == len(action_steps)
-    assert "success" in end_payload
-    assert "rewards" in end_payload
+    assert len(blocks) == 3
+    for _, step_payloads, end_payload in blocks:
+        assert step_payloads
+        step_numbers = [int(step["step"]) for step in step_payloads]
+        assert step_numbers == list(range(1, len(step_payloads) + 1))
+        assert all("action" in step for step in step_payloads)
+        assert all("(" in step["action"] and ")" in step["action"] for step in step_payloads)
+        assert all("reward" in step for step in step_payloads)
+        assert all("done" in step for step in step_payloads)
+        assert all("error" in step for step in step_payloads)
+        assert int(end_payload["steps"]) == len(step_payloads)
+        rewards = [value for value in end_payload["rewards"].split(",") if value]
+        assert len(rewards) == len(step_payloads)
+        assert end_payload["success"] in {"true", "false"}
 
 
 def test_inference_cli_json_fallback_mode() -> None:
@@ -119,6 +142,57 @@ def test_inference_cli_trained_mode_smoke() -> None:
     assert payload["scenario_split"] == "eval"
     assert len(payload["results"]) == 5
     assert any(key.startswith("trained") for key in payload["action_source_totals"])
+
+
+def test_inference_cli_hybrid_without_hf_token_falls_back_to_heuristic() -> None:
+    payload = _run_json_command_with_env(
+        "-m",
+        "inference",
+        "--seed",
+        "1",
+        "--split",
+        "eval",
+        "--policy-mode",
+        "hybrid",
+        "--stdout-protocol",
+        "json",
+        include_hf_token=False,
+    )
+
+    assert payload["status"] == "complete"
+    assert payload["policy_mode"] == "hybrid"
+    assert payload["model_name"] is None
+    assert int(payload["action_source_totals"].get("heuristic_no_client", 0)) > 0
+
+
+def test_inference_cli_pure_llm_without_hf_token_fails() -> None:
+    env = os.environ.copy()
+    env.pop("HF_TOKEN", None)
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "inference",
+            "--seed",
+            "1",
+            "--split",
+            "eval",
+            "--policy-mode",
+            "pure-llm",
+            "--stdout-protocol",
+            "json",
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert completed.returncode != 0
+    assert "HF_TOKEN environment variable is required for pure-llm policy mode" in (
+        completed.stderr + completed.stdout
+    )
 
 
 def test_benchmark_models_cli_writes_json_and_csv(tmp_path) -> None:

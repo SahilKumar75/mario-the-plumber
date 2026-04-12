@@ -18,16 +18,18 @@ from typing import Callable
 from debug_trace import debug_log
 from openai import OpenAI
 
-from benchmark.catalog import MAX_STEPS, TASK_NAMES
+from benchmark.action_metadata import ACTION_NAMES
+from benchmark.catalog import MAX_STEPS, TASK_DIFFICULTY, TASK_NAMES
 from benchmark.policies import choose_action, next_table, table_should_advance
 from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 
 
 BENCHMARK_TASK_IDS = tuple(sorted(TASK_NAMES))
+PROTOCOL_TASK_IDS = (1, 2, 3)
 
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
-DEFAULT_MODEL_NAME = "nvidia/nemotron-super-49b-v1"
+DEFAULT_MODEL_NAME = "Qwen3-VL-30B"
 API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
 MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -67,7 +69,7 @@ def _validate_runtime_llm_config(api_key: str | None, selected_model: str | None
         selected_model=selected_model,
     )
     if not api_key or not selected_model:
-        raise RuntimeError("HF_TOKEN environment variable is required")
+        raise RuntimeError("HF_TOKEN environment variable is required for pure-llm policy mode")
     if _invalid_api_key_value(api_key):
         raise RuntimeError(
             "HF_TOKEN contains invalid characters. "
@@ -78,12 +80,50 @@ def _validate_runtime_llm_config(api_key: str | None, selected_model: str | None
 
 
 def _policy_requires_llm(policy_mode: str) -> bool:
+    return policy_mode == "pure-llm"
+
+
+def _policy_uses_optional_llm(policy_mode: str) -> bool:
     return policy_mode in {"hybrid", "pure-llm"}
+
+
+def _sanitize_optional_llm_config(
+    api_key: str | None,
+    selected_model: str | None,
+) -> tuple[str | None, str | None]:
+    """Return a safe optional LLM config for non-strict modes."""
+
+    if not api_key or not selected_model:
+        debug_log(
+            "optional_llm_config_missing",
+            has_api_key=bool(api_key),
+            selected_model=selected_model,
+        )
+        return None, None
+    if _invalid_api_key_value(api_key):
+        debug_log("optional_llm_config_invalid_api_key", selected_model=selected_model)
+        return None, None
+    if _contains_non_ascii(selected_model):
+        debug_log("optional_llm_config_invalid_model_name", selected_model=selected_model)
+        return None, None
+    return api_key, selected_model
 
 
 def _format_action(action: PipelineDoctorAction) -> str:
     payload = action.model_dump(exclude_none=True, exclude_defaults=True)
     return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
+def _format_protocol_action(action: PipelineDoctorAction) -> str:
+    action_name = ACTION_NAMES.get(action.action_id, f"action_{action.action_id}")
+    args: list[str] = []
+    if action.target_column is not None:
+        args.append(repr(str(action.target_column)))
+    if action.new_name is not None:
+        args.append(repr(str(action.new_name)))
+    if action.column_order:
+        args.append(repr(",".join(action.column_order)))
+    return f"{action_name}({','.join(args)})"
 
 
 def _format_error(error: str | None) -> str:
@@ -98,6 +138,7 @@ def run_baseline(
     split: str = "train",
     policy_mode: str = "hybrid",
     model_name: str | None = None,
+    task_ids: tuple[int, ...] | list[int] | None = None,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> dict[str, object]:
     """Run the benchmark baseline over the official Mario tasks."""
@@ -112,16 +153,20 @@ def run_baseline(
     )
     api_key, selected_model, api_base_url = _resolve_runtime_llm_config(model_name)
     client = None
-    if _policy_requires_llm(policy_mode):
-        _validate_runtime_llm_config(api_key, selected_model)
+    if _policy_uses_optional_llm(policy_mode):
+        if _policy_requires_llm(policy_mode):
+            _validate_runtime_llm_config(api_key, selected_model)
+        else:
+            api_key, selected_model = _sanitize_optional_llm_config(api_key, selected_model)
         client = _build_client(api_key=api_key, selected_model=selected_model, api_base_url=api_base_url)
-        if client is None:
-            raise RuntimeError("HF_TOKEN environment variable is required")
+        if _policy_requires_llm(policy_mode) and client is None:
+            raise RuntimeError("HF_TOKEN environment variable is required for pure-llm policy mode")
 
     results: list[dict[str, object]] = []
     action_sources: Counter[str] = Counter()
+    active_task_ids = tuple(task_ids) if task_ids is not None else BENCHMARK_TASK_IDS
 
-    for task_id in BENCHMARK_TASK_IDS:
+    for task_id in active_task_ids:
         debug_log("baseline_task_start", task_id=task_id, split=split, seed=seed)
         env = PipelineDoctorEnvironment()
         observation = env.reset(seed=seed, task_id=task_id, split=split)
@@ -167,7 +212,7 @@ def run_baseline(
                         "event": "step_complete",
                         "task_id": task_id,
                         "step": env.state.step_count,
-                        "action": _format_action(action),
+                        "action": _format_protocol_action(action),
                         "reward": float(observation.reward),
                         "quality": float(observation.current_score),
                         "done": bool(observation.done),
@@ -200,7 +245,7 @@ def run_baseline(
                                 "event": "step_complete",
                                 "task_id": task_id,
                                 "step": env.state.step_count,
-                                "action": _format_action(switch_action),
+                                "action": _format_protocol_action(switch_action),
                                 "reward": float(observation.reward),
                                 "quality": float(observation.current_score),
                                 "done": bool(observation.done),
@@ -227,7 +272,7 @@ def run_baseline(
                         "event": "step_complete",
                         "task_id": task_id,
                         "step": env.state.step_count,
-                        "action": _format_action(commit_action),
+                        "action": _format_protocol_action(commit_action),
                         "reward": float(observation.reward),
                         "quality": float(observation.current_score),
                         "done": bool(observation.done),
@@ -291,47 +336,48 @@ def _build_client(*, api_key: str | None, selected_model: str | None, api_base_u
 
 
 def _protocol_model_label(policy_mode: str, model_name_override: str | None) -> str:
-    if model_name_override:
-        return model_name_override
-    if policy_mode == "pure-llm":
-        return (os.getenv("MODEL_NAME", MODEL_NAME) or MODEL_NAME).strip() or "unknown"
-    return policy_mode
+    del policy_mode
+    configured_model = (model_name_override or os.getenv("MODEL_NAME", MODEL_NAME) or MODEL_NAME).strip()
+    if not configured_model:
+        return "unknown"
+    return configured_model.split("/")[-1]
 
 
-def _emit_bracket_start(*, policy_mode: str, model_name_override: str | None) -> None:
+def _task_protocol_label(task_id: int) -> str:
+    return str(TASK_DIFFICULTY.get(task_id, f"task_{task_id}"))
+
+
+def _emit_bracket_start(*, task_id: int, policy_mode: str, model_name_override: str | None) -> None:
     model_label = _protocol_model_label(policy_mode, model_name_override)
     print(
-        f"[START] task=mario_the_plumber env=benchmark model={model_label}",
+        f"[START] task={_task_protocol_label(task_id)} model={model_label}",
         flush=True,
     )
 
 
 def _emit_bracket_step(
     *,
-    task_id: int,
     step: int,
-    quality: float,
-    action: str | None = None,
-    reward: float | None = None,
-    done: bool | None = None,
-    error: str | None = None,
+    action: str,
+    reward: float,
+    done: bool,
+    error: str | None,
 ) -> None:
-    parts = [f"[STEP] task=task_{task_id}", f"step={step}", f"quality={quality:.4f}"]
-    if action is not None:
-        parts.append(f"action={action}")
-    if reward is not None:
-        parts.append(f"reward={reward:.2f}")
-    if done is not None:
-        parts.append(f"done={str(done).lower()}")
-    if error is not None:
-        parts.append(f"error={_format_error(error)}")
+    parts = [
+        "    [STEP]",
+        f"step={step}",
+        f"action={action}",
+        f"reward={reward:.2f}",
+        f"done={str(done).lower()}",
+        f"error={_format_error(error)}",
+    ]
     print(" ".join(parts), flush=True)
 
 
 def _emit_bracket_end(*, success: bool, steps: int, rewards: list[float]) -> None:
     rewards_blob = ",".join(f"{value:.2f}" for value in rewards) if rewards else "0.00"
     print(
-        f"[END] success={str(success).lower()} steps={steps} rewards={rewards_blob}",
+        f"    [END] success={str(success).lower()} steps={steps} rewards={rewards_blob}",
         flush=True,
     )
 
@@ -373,89 +419,81 @@ def main() -> None:
     )
     args = parser.parse_args()
     strict_protocol = args.stdout_protocol == "strict"
-    protocol_rewards: list[float] = []
     payload: dict[str, object] = {}
-    protocol_success = False
+    protocol_rewards_by_task: dict[int, list[float]] = {}
 
     def record_protocol_step(event: dict[str, object]) -> None:
         if event.get("event") == "task_started":
+            task_id = int(event.get("task_id", 0) or 0)
+            protocol_rewards_by_task[task_id] = []
+            _emit_bracket_start(task_id=task_id, policy_mode=args.policy_mode, model_name_override=args.model_name)
+            return
+        if event.get("event") == "step_complete":
+            task_id = int(event.get("task_id", 0) or 0)
+            reward = float(event.get("reward", 0.0))
+            protocol_rewards_by_task.setdefault(task_id, []).append(reward)
             _emit_bracket_step(
-                task_id=int(event.get("task_id", 0) or 0),
-                step=0,
-                quality=float(event.get("quality", 0.0)),
+                step=int(event.get("step", 0) or 0),
+                action=str(event.get("action", "null")),
+                reward=reward,
+                done=bool(event.get("done", False)),
+                error=event.get("error"),
             )
             return
-        if event.get("event") != "step_complete":
-            return
-        reward = float(event.get("reward", 0.0))
-        protocol_rewards.append(reward)
-        _emit_bracket_step(
-            task_id=int(event.get("task_id", 0) or 0),
-            step=int(event.get("step", 0) or 0),
-            quality=float(event.get("quality", 0.0)),
-            action=str(event.get("action", "null")),
-            reward=reward,
-            done=bool(event.get("done", False)),
-            error=event.get("error"),
-        )
+        if event.get("event") == "task_complete":
+            task_id = int(event.get("task_id", 0) or 0)
+            _emit_bracket_end(
+                success=bool(event.get("success", False)),
+                steps=int(event.get("steps", 0) or 0),
+                rewards=protocol_rewards_by_task.get(task_id, []),
+            )
+            print("", flush=True)
 
-    if strict_protocol:
-        _emit_bracket_start(policy_mode=args.policy_mode, model_name_override=args.model_name)
-
-    try:
-        if args.seeds:
-            runs: list[dict[str, object]] = []
-            for seed in args.seeds:
-                progress_callback = None
-                if strict_protocol:
-                    def progress_callback(event: dict[str, object]) -> None:
-                        record_protocol_step(event)
-                runs.append(
-                    {
-                        "seed": seed,
-                        **run_baseline(
-                            seed=seed,
-                            split=args.split,
-                            policy_mode=args.policy_mode,
-                            model_name=args.model_name,
-                            progress_callback=progress_callback,
-                        ),
-                    }
-                )
-            payload = {
-                "status": "benchmark",
-                "runs": runs,
-            }
-        else:
+    if args.seeds:
+        runs: list[dict[str, object]] = []
+        for seed in args.seeds:
             progress_callback = None
+            task_ids = None
             if strict_protocol:
+                task_ids = PROTOCOL_TASK_IDS
+
                 def progress_callback(event: dict[str, object]) -> None:
                     record_protocol_step(event)
-            payload = run_baseline(
-                seed=args.seed,
-                split=args.split,
-                policy_mode=args.policy_mode,
-                model_name=args.model_name,
-                progress_callback=progress_callback,
-            )
 
-        if isinstance(payload.get("results"), list):
-            protocol_success = all(bool(item.get("success")) for item in payload["results"])
-        elif isinstance(payload.get("runs"), list):
-            protocol_success = all(
-                all(bool(item.get("success")) for item in run.get("results", []))
-                for run in payload["runs"]
+            runs.append(
+                {
+                    "seed": seed,
+                    **run_baseline(
+                        seed=seed,
+                        split=args.split,
+                        policy_mode=args.policy_mode,
+                        model_name=args.model_name,
+                        task_ids=task_ids,
+                        progress_callback=progress_callback,
+                    ),
+                }
             )
-        else:
-            protocol_success = payload.get("status") in {"complete", "benchmark"}
-
-    finally:
+        payload = {
+            "status": "benchmark",
+            "runs": runs,
+        }
+    else:
+        progress_callback = None
+        task_ids = None
         if strict_protocol:
-            _emit_bracket_end(
-                success=bool(protocol_success),
-                steps=len(protocol_rewards),
-                rewards=protocol_rewards,
-            )
+            task_ids = PROTOCOL_TASK_IDS
+
+            def progress_callback(event: dict[str, object]) -> None:
+                record_protocol_step(event)
+
+        payload = run_baseline(
+            seed=args.seed,
+            split=args.split,
+            policy_mode=args.policy_mode,
+            model_name=args.model_name,
+            task_ids=task_ids,
+            progress_callback=progress_callback,
+        )
 
     if not strict_protocol:
         print(json.dumps(payload, indent=2))

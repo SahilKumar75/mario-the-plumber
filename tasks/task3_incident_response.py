@@ -5,7 +5,7 @@ Mario logic remains ETL-based; this file only bridges naming/layout.
 
 from __future__ import annotations
 
-from graders.runtime import grade_episode
+from grader import grade_episode
 from tasks.definitions import build_task_definition
 
 

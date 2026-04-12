@@ -7,8 +7,7 @@ from benchmark.api_payloads import tasks_payload
 from benchmark.grading import score_task4
 from benchmark.policies.heuristics import heuristic_action_for
 from benchmark.task_ids import parse_task_id
-from graders import grade_episode
-from graders.runtime import validator_grade_payload
+from grader import grade_episode, validator_grade_payload
 from models import PipelineDoctorAction
 from server.app import app
 from server.data_generator import generate_scenario

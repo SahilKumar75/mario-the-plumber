@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from graders import grade_episode
+from grader import grade_episode
 from tasks.definitions import list_tasks
 
 

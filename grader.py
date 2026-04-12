@@ -1,9 +1,9 @@
-"""Deterministic grader helpers for the validator-facing Mario task registry."""
+"""Unified root-level grader module for validator-facing Mario tasks."""
 
 from __future__ import annotations
 
-from benchmark.evaluation import breakdown_payload, objective_breakdown
 from benchmark.catalog import TASK_THRESHOLDS
+from benchmark.evaluation import breakdown_payload, objective_breakdown
 from benchmark.policies.heuristics import heuristic_action_for
 from benchmark.task_ids import parse_task_id, public_task_id
 from debug_trace import debug_log
@@ -11,8 +11,6 @@ from models import PipelineDoctorAction
 from server.pipeline_doctor_environment import EPISODE_SUMMARIES, PipelineDoctorEnvironment
 from tasks.definitions import build_task_definition
 
-#
-# Keep validator-facing scores bounded in the declared OpenEnv range.
 MIN_VALIDATOR_SCORE = 0.01
 MAX_VALIDATOR_SCORE = 0.99
 VALIDATOR_TASK_IDS = (1, 2, 3)
@@ -162,9 +160,6 @@ def run_live_grade(
     while not env.state.done:
         observation = env.step(heuristic_action_for(task_id, observation))
 
-    if not env.state.done:
-        env.step(PipelineDoctorAction(action_id=15))
-
     payload = grade_env(env, grader_mode="live", episode_id=episode_id)
     if payload["success"] or task_id in VALIDATOR_TASK_IDS:
         debug_log(
@@ -228,7 +223,7 @@ def validator_grade_payload(
     seed: int = 42,
     split: str = "train",
 ) -> dict[str, object]:
-    """Return a minimal validator-facing grade payload with only open-interval scores."""
+    """Return a minimal validator-facing grade payload with bounded scores."""
 
     task_id = parse_task_id(task_ref)
     result = grade_episode(task_id, episode_id=episode_id, seed=seed, split=split)
@@ -270,3 +265,36 @@ def debug_grade_payload(
     }
     debug_log("debug_grade_payload", task_id=task_id, split=split, seed=seed, payload=payload)
     return payload
+
+
+def grade_task_1(*, episode_id: str | None = None, seed: int = 42, split: str = "eval") -> dict[str, object]:
+    return grade_episode("task_1", episode_id=episode_id, seed=seed, split=split)
+
+
+def grade_task_2(*, episode_id: str | None = None, seed: int = 42, split: str = "eval") -> dict[str, object]:
+    return grade_episode("task_2", episode_id=episode_id, seed=seed, split=split)
+
+
+def grade_task_3(*, episode_id: str | None = None, seed: int = 42, split: str = "eval") -> dict[str, object]:
+    return grade_episode("task_3", episode_id=episode_id, seed=seed, split=split)
+
+
+def grade_task_4(*, episode_id: str | None = None, seed: int = 42, split: str = "eval") -> dict[str, object]:
+    return grade_episode("task_4", episode_id=episode_id, seed=seed, split=split)
+
+
+def grade_task_5(*, episode_id: str | None = None, seed: int = 42, split: str = "eval") -> dict[str, object]:
+    return grade_episode("task_5", episode_id=episode_id, seed=seed, split=split)
+
+
+__all__ = [
+    "grade_episode",
+    "run_live_grade",
+    "validator_grade_payload",
+    "debug_grade_payload",
+    "grade_task_1",
+    "grade_task_2",
+    "grade_task_3",
+    "grade_task_4",
+    "grade_task_5",
+]

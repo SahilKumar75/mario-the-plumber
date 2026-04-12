@@ -32,7 +32,7 @@ from benchmark.task_ids import list_compat_task_ids
 from debug_trace import debug_log
 from inference import run_baseline
 from models import PipelineDoctorAction, PipelineDoctorObservation, PipelineDoctorState
-from graders import debug_grade_payload, validator_grade_payload
+from grader import debug_grade_payload, validator_grade_payload
 from server.pipeline_doctor_environment import PipelineDoctorEnvironment
 from tasks.definitions import list_internal_task_ids, task_payloads, tasks_payload
 

@@ -11,7 +11,7 @@ from debug_trace import debug_log
 
 @dataclass(frozen=True, slots=True)
 class TaskDefinition:
-    """Canonical task metadata shared by the server, inference, and graders."""
+    """Canonical task metadata shared by the server, inference, and grader module."""
 
     id: str
     internal_id: int

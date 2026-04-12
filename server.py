@@ -272,7 +272,7 @@ def grader(req: GraderRequest | None = Body(default=None)) -> dict[str, float]:
     if req is None:
         req = GraderRequest()
     _, public_alias = _normalize_task_ref(req.task_id)
-    from graders.runtime import validator_grade_payload
+    from grader import validator_grade_payload
 
     return validator_grade_payload(
         public_alias,
@@ -307,7 +307,7 @@ def grade_task(
     split: str = Query(default="eval"),
 ) -> dict[str, float]:
     _, public_alias = _normalize_task_ref(task_id)
-    from graders.runtime import validator_grade_payload
+    from grader import validator_grade_payload
 
     return validator_grade_payload(
         public_alias,
